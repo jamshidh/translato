@@ -1,0 +1,13 @@
+#!/bin/bash 
+
+#while inotifywait -r -qq .
+while sleep .1
+do
+  if ! make -q;
+  then
+    beep
+    clear
+    make 2>&1 | head -n `tput lines`
+    play -q ding.wav &> /dev/null &
+  fi
+done

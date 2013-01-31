@@ -13,9 +13,9 @@ using namespace std;
 
   %}
 
-%right LOW
+%right LOW 
 
-%right 'a' 'b' 'c' 'd' 'e' 'f' 'g' 'h' 'i' 'j' 'k' 'l' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'u' 'v' 'w' 'x' 'y' 'z' 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' 'I' 'J' 'K' 'L' 'M' 'N' 'O' 'P' 'Q' 'R' 'S' 'T' 'U' 'V' 'W' 'X' 'Y' 'Z' ' ' '\t' '\n' '\r' '<' '>' '(' ')' '\\' '{' '}' '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' 
+%right 'a' 'b' 'c' 'd' 'e' 'f' 'g' 'h' 'i' 'j' 'k' 'l' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'u' 'v' 'w' 'x' 'y' 'z' 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' 'I' 'J' 'K' 'L' 'M' 'N' 'O' 'P' 'Q' 'R' 'S' 'T' 'U' 'V' 'W' 'X' 'Y' 'Z' ' ' '\t' '\n' '\r' '<' '>' '(' ')' '\\' '{' '}' '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' '?' '=' ',' '|' '/'
 
 %left '+'
 
@@ -47,13 +47,25 @@ whitespaceChar:' '|'\n'|'\r'|'\t';
 
 whitespace: whitespaceChar
           |
-          whitespace whitespaceChar;
+          whitespace whitespaceChar { $$ = $1 + $2; };
 
 possibleWhitespace: | whitespace;
 
 blankWhitespace: '<' 'w' 's' '>';
 
-conversionTextStringChar: '\\' ';' { $$ = ";"; } | '\\' '<' { $$ = "&lt;"; } | '\\' '>' { $$ = "&gt;"; } | '/' | '?' | '(' | ')' | '\\' '{' { $$ = "{"; } | '\\' '}' { $$ = "}"; } | letter | digit ;
+conversionTextStringChar: '\\' ';' { $$ = ";"; } 
+			  | 
+			  '\\' '<' { $$ = "&lt;"; } 
+			  | 
+			  '\\' '>' { $$ = "&gt;"; } 
+			  | 
+			  '\\' '{' { $$ = "{"; } 
+			  | 
+			  '\\' '}' { $$ = "}"; } 
+			  | 
+			  ',' | '=' | '/' | '?' | '(' | ')' 
+			  | 
+			  letter | digit ;
 
 conversionTextString : conversionTextStringChar | conversionTextString conversionTextStringChar { $$ = $1 + $2; };
 
@@ -81,12 +93,25 @@ conversionText:
                    { cout << "<expression>" << $3 << "</expression>"; }
   ;
 
+textOrWhitespace:
+  { $$ = ""; }
+  |
+  textOrWhitespace conversionTextString %prec LOW 
+                   { $$ = $1 + "<text>" + $2 + "</text>"; } 
+  | 
+  textOrWhitespace whitespace %prec LOW 
+                   { $$ = $1 + "<whitespace>" + $2 + "</whitespace>"; } 
+  |
+  textOrWhitespace blankWhitespace %prec LOW 
+                   { $$ = $1 + "<whitespace></whitespace>"; } 
+  ;
+
 attribute: 
-         '@' ident { $$ = $2; } 
+         '@' ident %prec LOW { $$ = $2; } 
 
 
 expression: 
-          'l' 'i' 's' 't' '(' expression ')' { $$ = "<list>" + $6 + "</list>"; }
+          'l' 'i' 's' 't' '(' possibleWhitespace expression[exp] possibleWhitespace ',' possibleWhitespace '\'' textOrWhitespace[separator] '\'' possibleWhitespace  ')' { $$ = "<list><expression>" + $exp + "</expression><separator>" + $separator + "</separator></list>"; }
           | 
 	  number 
 	  |

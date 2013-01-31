@@ -4,7 +4,20 @@
 
   <xsl:output method="text" />
 
+  <xsl:template match="text" mode="output"> addTextToOutputStream("<xsl:value-of select="text()" />"); </xsl:template>
+
+  <xsl:template match="attribute" mode="output"> addAttributeToOutputStream("<xsl:value-of select="text()" />"); </xsl:template>
+
+  <xsl:template match="*" mode="output" />
+
+
+
+
+
+
   <xsl:template match="text">'<xsl:value-of select="text()" />' </xsl:template>
+
+  <xsl:template match="text" mode="separator">'<xsl:value-of select="text()" />' </xsl:template>
 
   <xsl:template match="expression"> <xsl:apply-templates select="*" /></xsl:template>
 
@@ -22,15 +35,34 @@
 
   <xsl:template match="list">
     <xsl:apply-templates select="." mode="ruleName" />
+    <xsl:text>-or-NULL</xsl:text>
   </xsl:template>
 
-  <xsl:template match="attribute"> ident </xsl:template>
+  <xsl:template match="attribute"> ident[<xsl:value-of select="text()" /><xsl:value-of select="position()" />
+] { setVar("<xsl:value-of select="text()" />", $<xsl:value-of select="text()" /><xsl:value-of select="position()" />, $context); } </xsl:template>
 
-  <xsl:template mode="attribute" match="attribute"><xsl:text> </xsl:text><xsl:value-of select="text()" />='" &lt;&lt; $<xsl:value-of select="position()" /> &lt;&lt; "'</xsl:template>
 
   <xsl:template mode="attribute" match="*"></xsl:template>
 
-  <xsl:template match="whitespace"> possibleWhitespace </xsl:template>
+  <xsl:template match="whitespace"> 
+    <xsl:choose>
+      <xsl:when test="(name(./following-sibling::*[1]) = 'attribute') and (name(./preceding-sibling::*[1]) = 'attribute')"> whitespace </xsl:when>
+      <xsl:otherwise> possibleWhitespace </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="whitespace" mode="separator"> 
+    <xsl:choose>
+      <xsl:when test="(name(./following-sibling::*[1]) = 'attribute') and (name(./preceding-sibling::*[1]) = 'attribute')"> whitespace </xsl:when>
+      <xsl:otherwise> possibleWhitespace </xsl:otherwise>
+    </xsl:choose>
+  </xsl:template>
+
+  <xsl:template match="whitespace[count(./following-sibling::*) = 0 and count(../preceding-sibling::*) > 0]"> 
+  </xsl:template>
+
+  <xsl:template match="whitespace[count(./preceding-sibling::*) = 0 and count(../preceding-sibling::*) > 0]">
+  </xsl:template>
 
   <xsl:template mode="ruleName" match="or">
     <xsl:for-each select="*">
@@ -41,7 +73,7 @@
 
   <xsl:template mode="ruleName" match="list">
     <xsl:text>L_</xsl:text>
-    <xsl:apply-templates select="*" />
+    <xsl:apply-templates select="expression" />
     <xsl:text>_L</xsl:text>
   </xsl:template>
 
@@ -58,51 +90,79 @@
 
   <xsl:template match="list" mode="listRules">
     <xsl:apply-templates select="." mode="ruleName" />
-    <xsl:text>: | </xsl:text>
-    <xsl:apply-templates select="." mode="ruleName" />
-    <xsl:text> </xsl:text>
-    <xsl:for-each select="*">
+    <xsl:text>: </xsl:text>
+    <xsl:for-each select="expression">
       <xsl:if test="position() &gt; 1"> | </xsl:if>
       <xsl:apply-templates select="." />
-    </xsl:for-each> { $$ = $1 + $2; }
+    </xsl:for-each>
+    <xsl:text> | </xsl:text>
+    <xsl:apply-templates select="." mode="ruleName" />
+    <xsl:text> </xsl:text>
+    <xsl:apply-templates select="separator" mode="separator"/>
+    <xsl:text> </xsl:text>
+    <xsl:for-each select="expression">
+      <xsl:if test="position() &gt; 1"> | </xsl:if>
+      <xsl:apply-templates select="." />
+    </xsl:for-each>
+    ;
+
+    <xsl:apply-templates select="." mode="ruleName" />
+    <xsl:text>-or-NULL: | </xsl:text>    
+    <xsl:apply-templates select="." mode="ruleName" /> 
     ;
 
   </xsl:template>
 
   <xsl:template match="rule">
-    
-    <xsl:value-of select="@tag" />: <xsl:apply-templates select="*" /> { cout &lt;&lt; "&lt;<xsl:value-of select="@tag" /> <xsl:apply-templates select="*" mode="attribute" />&gt;&lt;/<xsl:value-of select="@tag" />&gt;"; } ;
+    <xsl:value-of select="@tag" />
+    <xsl:text>: { $context = getNewContext(); bcout &lt;&lt; "&lt;</xsl:text>
+    <xsl:value-of select="@tag" />
+    <xsl:for-each select=".//attribute">
+      <xsl:text> </xsl:text>
+      <xsl:value-of select="text()" />='" &lt;&lt; var("<xsl:value-of select="text()" />
+      <xsl:text>", $context) &lt;&lt; "'</xsl:text>
+    </xsl:for-each>
+    <xsl:text>&gt;"; }[context] </xsl:text>
 
-  </xsl:template>
+    <xsl:apply-templates select="*" /> 
 
-  <!-- Ugh! We can't have attributes in the first tag and streaming output.
-       I will choose to keep streaming output for now, but may change my mind 
-       later. -->
-  <xsl:template match="rule[1]">
-    
-    <xsl:value-of select="@tag" />: 
-      { cout &lt;&lt; "&lt;?xml version='1.0' encoding='utf-8'?&gt;" &lt;&lt; endl &lt;&lt; "&lt;<xsl:value-of select="@tag" />&gt;"; } 
-      <xsl:apply-templates select="*" /> { cout &lt;&lt; "&lt;/<xsl:value-of select="@tag" />&gt;"; } ;
+    <xsl:text> { bcout &lt;&lt; "&lt;/</xsl:text>
+    <xsl:value-of select="@tag" />
+    <xsl:text>&gt;"; } </xsl:text>
+    ;
 
   </xsl:template>
 
   <xsl:template match="rules">
 %{
- #include &lt;string&gt;
- #include &lt;iostream&gt;
+ //#include &lt;iostream&gt;
+
+ #include "tokenStreamer.h"
 
  using namespace std;
 
- #define YYSTYPE string
+#define YYSTYPE char *
+
+#define YYMAXDEPTH    100000
+#define YYINITDEPTH   100000
 
  int yylex(void);
  void yyerror(const char *);
 
+ char *concatAndFreeOriginal(char *, char *);
+
+ BufferedOutput bcout;
+
 %}
 
-%token CHAR
 
-%left '+'
+%glr-parser
+
+%right LOW
+
+%right 'a' 'b' 'c' 'd' 'e' 'f' 'g' 'h' 'i' 'j' 'k' 'l' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'u' 'v' 'w' 'x' 'y' 'z' 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' 'I' 'J' 'K' 'L' 'M' 'N' 'O' 'P' 'Q' 'R' 'S' 'T' 'U' 'V' 'W' 'X' 'Y' 'Z' '1''2''3' '4' '5' '6' '7' '8' '9' '0' ' ' '\t' '\n' '\r' '&lt;' '&gt;' '(' ')' '\\' '{' '}' '=' ',' '|' '/'
+
+
 
 %%
 
@@ -122,18 +182,18 @@ letter: lowercase_letter | uppercase_letter;
 digit: '1'|'2'|'3' |'4' |'5' |'6' |'7' |'8' |'9' |'0' ;
 
 alphanum: letter | digit ;
-
-number: digit | number digit;
-
+<xsl:if test="count(//link[text()='number'])&gt;0">
+number: digit | number digit { $$ = concatAndFreeOriginal($1, $2); };;
+</xsl:if>
 whitespaceChar:' '|'\n'|'\r'|'\t';
 
 whitespace: whitespaceChar
           |
           whitespace whitespaceChar;
 
-possibleWhitespace: | whitespace;
+possibleWhitespace: %prec LOW | whitespace %prec LOW;
 
-ident: letter | ident alphanum { $$ = $1 + $2; };
+ident: letter | ident alphanum { $$ = concatAndFreeOriginal($1, $2); };
 
 %%
 
@@ -143,6 +203,15 @@ int main() {
 
 void yyerror(const char *s) {
   fprintf(stderr, "%s\n", s);
+}
+
+char *concatAndFreeOriginal(char *s1, char *s2) {
+  char * ret = (char *)malloc(strlen(s1) + strlen(s2) + 1);
+  strcpy(ret, s1);
+  strcpy(ret+strlen(s1), s2);
+  free(s1);
+  free(s2);
+  return ret;
 }
 
   </xsl:template>

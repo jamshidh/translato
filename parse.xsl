@@ -38,8 +38,13 @@
     <xsl:text>-or-NULL</xsl:text>
   </xsl:template>
 
-  <xsl:template match="attribute"> ident[<xsl:value-of select="text()" /><xsl:value-of select="position()" />
-] { setVar("<xsl:value-of select="text()" />", $<xsl:value-of select="text()" /><xsl:value-of select="position()" />, $context); } </xsl:template>
+  <xsl:template match="attribute"> 
+    <xsl:choose>
+      <xsl:when test="link/text() != ''">
+	<xsl:value-of select="link/text()" />
+      </xsl:when>
+      <xsl:otherwise>ident</xsl:otherwise>
+  </xsl:choose>[<xsl:value-of select="@name" /><xsl:value-of select="position()" />] { setVar("<xsl:value-of select="@name" />", $<xsl:value-of select="@name" /><xsl:value-of select="position()" />, $context); } </xsl:template>
 
 
   <xsl:template mode="attribute" match="*"></xsl:template>
@@ -119,7 +124,7 @@
     <xsl:value-of select="@tag" />
     <xsl:for-each select=".//attribute">
       <xsl:text> </xsl:text>
-      <xsl:value-of select="text()" />='" &lt;&lt; var("<xsl:value-of select="text()" />
+      <xsl:value-of select="@name" />='" &lt;&lt; var("<xsl:value-of select="@name" />
       <xsl:text>", $context) &lt;&lt; "'</xsl:text>
     </xsl:for-each>
     <xsl:text>&gt;"; }[context] </xsl:text>
@@ -158,6 +163,8 @@
 
 %glr-parser
 
+%error-verbose
+
 %right LOW
 
 %right 'a' 'b' 'c' 'd' 'e' 'f' 'g' 'h' 'i' 'j' 'k' 'l' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'u' 'v' 'w' 'x' 'y' 'z' 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' 'I' 'J' 'K' 'L' 'M' 'N' 'O' 'P' 'Q' 'R' 'S' 'T' 'U' 'V' 'W' 'X' 'Y' 'Z' '1''2''3' '4' '5' '6' '7' '8' '9' '0' ' ' '\t' '\n' '\r' '&lt;' '&gt;' '(' ')' '\\' '{' '}' '=' ',' '|' '/'
@@ -183,8 +190,17 @@ digit: '1'|'2'|'3' |'4' |'5' |'6' |'7' |'8' |'9' |'0' ;
 
 alphanum: letter | digit ;
 <xsl:if test="count(//link[text()='number'])&gt;0">
-number: digit | number digit { $$ = concatAndFreeOriginal($1, $2); };;
+number: integer 
+      | 
+      integer '.' integer { $$ = concatAndFreeOriginal(concatAndFreeOriginal($1, $2), $3); };
+      | 
+      '.' integer { $$ = concatAndFreeOriginal($1, $2); };
 </xsl:if>
+
+<xsl:if test="count(//link[text()='integer'])&gt;0">
+integer: digit | integer digit { $$ = concatAndFreeOriginal($1, $2); };
+</xsl:if>
+
 whitespaceChar:' '|'\n'|'\r'|'\t';
 
 whitespace: whitespaceChar
@@ -195,14 +211,14 @@ possibleWhitespace: %prec LOW | whitespace %prec LOW;
 
 ident: letter | ident alphanum { $$ = concatAndFreeOriginal($1, $2); };
 
+chars : letter | digit | '.' | '-' ;
+
+eIdent: chars | eIdent chars { $$ = concatAndFreeOriginal($1,  $2); };
+
 %%
 
 int main() {
   yyparse();
-}
-
-void yyerror(const char *s) {
-  fprintf(stderr, "%s\n", s);
 }
 
 char *concatAndFreeOriginal(char *s1, char *s2) {
@@ -212,6 +228,11 @@ char *concatAndFreeOriginal(char *s1, char *s2) {
   free(s1);
   free(s2);
   return ret;
+}
+
+void yyerror(const char *s) {
+  fprintf(stderr, "\n\n&gt;&gt;&gt;&gt; Error in line: %d: %s\n\n", yylineno, s);
+  exit(1);
 }
 
   </xsl:template>

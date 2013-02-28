@@ -8,6 +8,11 @@ do
     beep
     clear
     make 2>&1 | head -n `tput lines`
-    play -q ding.wav &> /dev/null &
+    if [ ${PIPESTATUS[0]} = '0' ]
+    then
+      play -q ding.wav &> /dev/null &
+    else
+      play -q error.wav &> /dev/null &
+    fi
   fi
 done

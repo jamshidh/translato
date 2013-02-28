@@ -13,6 +13,13 @@ using namespace std;
 
   %}
 
+
+
+%error-verbose
+
+%define parse.lac full
+
+
 %right LOW 
 
 %right 'a' 'b' 'c' 'd' 'e' 'f' 'g' 'h' 'i' 'j' 'k' 'l' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'u' 'v' 'w' 'x' 'y' 'z' 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' 'I' 'J' 'K' 'L' 'M' 'N' 'O' 'P' 'Q' 'R' 'S' 'T' 'U' 'V' 'W' 'X' 'Y' 'Z' ' ' '\t' '\n' '\r' '<' '>' '(' ')' '\\' '{' '}' '0' '1' '2' '3' '4' '5' '6' '7' '8' '9' '?' '=' ',' '|' '/'
@@ -26,10 +33,26 @@ rulesFile: { cout << "<?xml version='1.0' encoding='utf-8' ?>" << endl << endl <
 
 rules : 
        |
-       rules rule ';'
+       rules elementRule ';'
+       |
+       rules assignment ';'
+       |
+       rules operatorDefinition ';'
        ;
 
-       rule : possibleWhitespace ident possibleWhitespace '=' '>' { cout << "<rule tag='" << $2 << "'>"; } conversionText { cout << "</rule>" << endl << endl; };
+elementRule: possibleWhitespace ident possibleWhitespace '=' '>' { cout << "<rule tag='" << $2 << "'>"; } conversionText { cout << "</rule>" << endl << endl; };
+
+assignment: possibleWhitespace ident possibleWhitespace '=' { cout << "<assignment tag='" << $2 << "'>"; } conversionText { cout << "</assignment>" << endl << endl; };
+
+operatorDefinition: possibleWhitespace ident ':' 'o' 'p' 'e' 'r' 'a' 't' 'o' 'r' 's' possibleWhitespace '=' '>' { cout << "<operatorDefinition tag='" << $2 << "'>"; } possibleWhitespace operatorList[operatorList] possibleWhitespace { cout << $operatorList << "</operatorDefinition>" << endl << endl; };
+
+operatorChar: '+' | '-' | '*' | '/';
+
+L_operatorChar_L: operatorChar | L_operatorChar_L operatorChar { $$ = $1 + $2; };
+
+operator: '\'' L_operatorChar_L '\'' { $$ = "<operator>" + $2 + "</operator>"; }
+
+operatorList: operator | operatorList whitespace operator { $$ = $1 + $3; };
 
 lowercase_letter: 'a' |'b' |'c' |'d' |'e' |'f' |'g' |'h' |'i' |'j' |'k' |'l' |'m' |'n' |'o' |'p' |'q' |'r' |'s' |'t' |'u' |'v' |'w' |'x' |'y' |'z';
 
@@ -63,7 +86,7 @@ conversionTextStringChar: '\\' ';' { $$ = ";"; }
 			  | 
 			  '\\' '}' { $$ = "}"; } 
 			  | 
-			  ',' | '=' | '/' | '?' | '(' | ')' 
+			  ':' | '+' | '-' | '*' | '^' | '#' | '.' | '"' | ',' | '=' | '/' | '?' | '(' | ')' 
 			  | 
 			  letter | digit ;
 
@@ -86,12 +109,25 @@ conversionText:
   conversionText blankWhitespace %prec LOW 
                    { cout << "<whitespace></whitespace>"; } 
   | 
-  conversionText attribute
-                   { cout << "<attribute>" << $2 << "</attribute>"; }
-  | 
-  conversionText '{' expression '}' 
-                   { cout << "<expression>" << $3 << "</expression>"; }
+  conversionText binding
   ;
+
+binding: attribute condition 
+            { cout << "<attribute name='" << $1 << "'>" << $2 << "</attribute>"; }
+       | 
+       attribute 
+            { cout << "<attribute name='" << $1 << "'></attribute>"; }
+       | 
+       element condition 
+            { cout << "<element name='" << $1 << "'>" << $2 << "</element>"; }
+       | 
+       condition
+            { cout << "<element>" << $1 << "</element>"; }
+       ;
+
+element: ident;
+
+condition: '{' expression '}' { $$ = $2; };
 
 textOrWhitespace:
   { $$ = ""; }
@@ -113,9 +149,13 @@ attribute:
 expression: 
           'l' 'i' 's' 't' '(' possibleWhitespace expression[exp] possibleWhitespace ',' possibleWhitespace '\'' textOrWhitespace[separator] '\'' possibleWhitespace  ')' { $$ = "<list><expression>" + $exp + "</expression><separator>" + $separator + "</separator></list>"; }
           | 
+          'l' 'i' 's' 't' '(' possibleWhitespace expression possibleWhitespace ')' { yyerror("You need to supply two arguments to the 'list' function, the expression and the separator."); }
+	  |
+          'a' 'n' 'y' 'C' 'h' 'a' 'r' 'B' 'u' 't' '(' possibleWhitespace '\'' textOrWhitespace[char] '\'' possibleWhitespace ')' { $$ = "<anyCharBut><expression>" + $char + "</expression></anyCharBut>"; }
+          | 
 	  number 
 	  |
-	  ident { $$ = "<lrule>" + $1 + "</lrule>"; }
+	  ident { $$ = "<link>" + $1 + "</link>"; }
 	  | 
 	  expression '|' expression { $$ = "<or>" + $1 + $3 + "</or>"; };
 
@@ -126,7 +166,7 @@ int main() {
 }
 
 void yyerror(const char *s) {
-  cerr << endl << "Error in line: " << yylineno << ": " << s << endl;
+  cerr << endl << endl << ">>>> Error in line: " << yylineno << ": " << s << endl << endl;
   exit(1);
 }
 

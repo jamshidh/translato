@@ -6,6 +6,7 @@
 
 #include <boost/lexical_cast.hpp>
 #include <boost/ptr_container/ptr_deque.hpp>
+#include <boost/algorithm/string/replace.hpp>
 
 using namespace std;
 
@@ -97,8 +98,29 @@ Var *var(string name, string context) {
 
 //Small convenience wrapper
 void setVar(string name, string value, string context) {
+
+  if (variables.find(context + ":" + name) != variables.end()){
+    if (variables[context+":"+name] != value){
+      cerr << endl << "Error: the value of two attributes named " << name << " don't match each other" << endl << endl;
+      exit(1);
+    }
+  }
+  
   variables[context+":"+name] = value;
   printAsMuchAsPossible();
   return;
 }
 
+string escape(string s)
+{
+  string ret;
+
+  using boost::algorithm::replace_all;
+  replace_all(s, "&",  "&amp;");
+  replace_all(s, "\"", "&quot;");
+  replace_all(s, "\'", "&apos;");
+  replace_all(s, "<",  "&lt;");
+  replace_all(s, ">",  "&gt;");
+
+  return s;
+}

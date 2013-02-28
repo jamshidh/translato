@@ -30,7 +30,7 @@
     <o:apply-templates select="*" />
   </xsl:template>
 
-  <xsl:template match="lrule">
+  <xsl:template match="link">
     <o:apply-templates select="*" />
   </xsl:template>
 

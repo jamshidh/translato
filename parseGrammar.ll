@@ -13,6 +13,7 @@ extern "C"
 %}
 
 %option nounput
+%option yylineno
 
 %%
 

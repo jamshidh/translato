@@ -1,6 +1,8 @@
 
 xml.parse
 xml.generate.xsl
+html.parse
+html.generate.xsl
 c.generate.xsl
 c.parse
 parseGrammar

@@ -7,3 +7,4 @@ c.generate.xsl
 c.parse
 parseGrammar
 split
+parser.src/dist/

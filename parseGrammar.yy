@@ -13,11 +13,11 @@ using namespace std;
 
   %}
 
-
+%glr-parser
 
 %error-verbose
 
-%define parse.lac full
+//%define parse.lac full
 
 
 %right LOW 
@@ -122,7 +122,8 @@ binding: attribute condition
             { cout << "<element name='" << $1 << "'>" << $2 << "</element>"; }
        | 
        condition
-            { cout << "<element>" << $1 << "</element>"; }
+//            { cout << "<element>" << $1 << "</element>"; }
+	      { cout << $1; }
        ;
 
 element: ident;
@@ -152,6 +153,10 @@ expression:
           'l' 'i' 's' 't' '(' possibleWhitespace expression possibleWhitespace ')' { yyerror("You need to supply two arguments to the 'list' function, the expression and the separator."); }
 	  |
           'a' 'n' 'y' 'C' 'h' 'a' 'r' 'B' 'u' 't' '(' possibleWhitespace '\'' textOrWhitespace[char] '\'' possibleWhitespace ')' { $$ = "<anyCharBut><expression>" + $char + "</expression></anyCharBut>"; }
+          | 
+          'i' 'd' 'e' 'n' 't' { $$ = "<ident />"; }
+          | 
+          'n' 'u' 'm' 'b' 'e' 'r' { $$ = "<number />"; }
           | 
 	  number 
 	  |

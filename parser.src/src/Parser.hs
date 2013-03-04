@@ -1,144 +1,225 @@
 {-# LANGUAGE CPP, TemplateHaskell #-}
 {-# LANGUAGE QuasiQuotes #-}
+{-# LANGUAGE OverloadedStrings #-}
 
 module Parser (
     createParser
 ) where
 
 import Data.Maybe
-import Data.Text
-import Text.XML.Light as L
+import Data.Text as DT hiding (map, length, foldl, foldl1, empty, head, filter)
 import Text.XML
 import Text.XML.Cursor
-import Data.List
+import Data.List as L
+import Text.ParserCombinators.Parsec
+import Text.ParserCombinators.Parsec.Expr
+import Data.Map hiding (map, foldl, filter)
 
-import Quoter(here)
+import Debug.Trace
 
-{-  <xsl:template match="text" mode="output"> addTextToOutputStream("<xsl:value-of select="text()" />"); </xsl:template>
-
-  <xsl:template match="attribute" mode="output"> addAttributeToOutputStream("<xsl:value-of select="text()" />"); </xsl:template>
-
-  <xsl:template match="*" mode="output" />
-
-  <xsl:template match="whitespace">
-    <xsl:choose>
-      <xsl:when test="(name(./following-sibling::*[1]) = 'attribute') and (name(./preceding-sibling::*[1]) = 'attribute')"> whitespace </xsl:when>
-      <xsl:otherwise> possibleWhitespace </xsl:otherwise>
-    </xsl:choose>
-  </xsl:template>
-
-  <xsl:template mode="ruleName" match="or">
-    <xsl:for-each select="*">
-      <xsl:if test="position() &gt; 1">-or-</xsl:if>
-      <xsl:apply-templates select="." />
-    </xsl:for-each>
-  </xsl:template>
-
-  <xsl:template mode="ruleName" match="list">
-    <xsl:text>L_</xsl:text>
-    <xsl:apply-templates select="expression" />
-    <xsl:text>_L</xsl:text>
-  </xsl:template>
-
-
-
-
-  <xsl:template match="rule">
-    <xsl:value-of select="@tag" />
-    <xsl:text>: { $context = getNewContext(); bcout &lt;&lt; "&lt;</xsl:text>
-    <xsl:value-of select="@tag" />
-    <xsl:for-each select=".//attribute">
-      <xsl:text> </xsl:text>
-      <xsl:value-of select="@name" />='" &lt;&lt; var("<xsl:value-of select="@name" />
-      <xsl:text>", $context) &lt;&lt; "'</xsl:text>
-    </xsl:for-each>
-    <xsl:text>&gt;"; }[context] </xsl:text>
-
-    <xsl:apply-templates select="*" />
-
-    <xsl:text> { bcout &lt;&lt; "&lt;/</xsl:text>
-    <xsl:value-of select="@tag" />
-    <xsl:text>&gt;"; } </xsl:text>
-    ;
-
-  </xsl:template> -}
-
-
---Splits strings into chars, suitable for Bison input
-splito::[Char]->[Char]
-splito x = Data.List.intercalate " " (Data.List.map escapo x)
-
---Like splito, but or's the chars
-oreo::[Char]->[Char]
-oreo x = Data.List.intercalate " | " (Data.List.map escapo x)
-
---Escapes chars for splito and oreo
-escapo::Char->String
-escapo '\''= "'\\''"
-escapo '\\' = "'\\\\' "
-escapo x = "'" ++ [x] ++ "' "
-
-isTextNode::Text.XML.Node->Bool
+isTextNode::Node->Bool
 isTextNode (NodeContent x) = True
 isTextNode x = False
 
 cursorIsAtTextNode::Cursor->Bool
-cursorIsAtTextNode c = isTextNode $ Text.XML.Cursor.node c
+cursorIsAtTextNode c = isTextNode $ node c
 
-getElement::Text.XML.Node->Text.XML.Element
-getElement (Text.XML.NodeElement x) = x
+getElement::Node->Element
+getElement (NodeElement x) = x
 
-tagName::Cursor->String
-tagName cursor = unpack (nameLocalName (elementName (getElement $ Text.XML.Cursor.node cursor)))
+tagName::Cursor->Text
+tagName cursor = nameLocalName (elementName (getElement $ node cursor))
 
-rules::Cursor->String
-rules c | cursorIsAtTextNode c = ""
-rules c | tagName c == "text" = splito (contentString c)
+whitespace::Parser [Element]
+whitespace = do
+    many $ oneOf " \n\r\t"
+    return []
 
-rules c | tagName c == "attribute" = (if ((Data.List.length $ child c) > 0) then
-        (getRuleName $ Data.List.head (child c)) else "ident")
-    ++ "[" ++ getAttribute c "name" ++ (show $ position c) ++ "]"
-    ++ "{ setVar(\"" ++ getAttribute c "name" ++"\", escape($" ++ getAttribute c "name" ++ (show $ position c) ++ "), $context); }"
+(<&>)::Parser ([Element], [(Text, String)])->Parser ([Element], [(Text, String)])->Parser ([Element], [(Text, String)])
+(<&>) a b = do
+    r1<-a
+    r2<-b
+    return (fst r1 ++ fst r2, snd r1 ++ snd r2)
+
+(<||>)::Parser a->Parser a->Parser a
+x <||> y = try x <|> try y
+
+abcd::Parser ([Element], [(Text, String)])->Parser ([Element], [(Text, String)])
+abcd a = do
+    r1<-many a
+    return (L.concat (map fst r1), L.concat (map snd r1))
+
+e2eList::Parser Element->Parser [Element]
+e2eList a = do
+    r1<-a
+    return [r1]
+
+ident::Parser String
+ident = do
+    c<-letter
+    cs<-many (alphaNum <|> char '_')
+    return (c:cs)
+
+number::Parser String
+number = many digit
+
+cursor2StringParser::Cursor->Parser String
+cursor2StringParser c | tagName c == "ident" = ident
+cursor2StringParser c | tagName c == "number" = number
+
+
+cursor2Parser::Map Text (Parser [Element])->Cursor->Parser ([Element], [(Text, String)])
+cursor2Parser m c | tagName c == "text" =
+        do
+            string (unpack $ contentString c)
+            return ([], [])
 
 --The whitespace rule is complex....  We ignore whitespace surrounding an item, unless it is the first rule
-rules c | tagName c == "whitespace" &&
+cursor2Parser m c | tagName c == "whitespace" &&
     (
-        (((Data.List.length $ precedingSibling c) > 0) && ((Data.List.length $ followingSibling c) > 0))
+        (((length $ precedingSibling c) > 0) && ((length $ followingSibling c) > 0))
         ||
-        (Data.List.length (parent c >>= precedingSibling >>= element (Name (pack "rule") Nothing Nothing)) == 0)
+        (length (parent c >>= precedingSibling >>= element "rule") == 0)
     )
-        = " possibleWhitespace "
-rules c | tagName c == "whitespace" = ""
-rules c | tagName c == "element" = applyTemplates rules (child c)
-rules c | tagName c == "or" = getRuleName c
-rules c | tagName c == "list" = getRuleName c ++ "-or-NULL"
-rules c | tagName c == "link" = contentString c
-rules c | tagName c == "rules" = applyTemplates rules (child c)
+        =
+        do
+            whitespace
+            return ([], [])
 
-rules c | tagName c == "rule" = "\n\n" ++ getAttribute c "tag" ++
-    ": { $context = getNewContext(); bcout << \"<" ++ getAttribute c "tag"
-    ++ Data.List.intercalate " " (Data.List.map att2AttOut (nubBy namesAreEqual (descendant c >>= element (Name (pack "attribute") Nothing Nothing))))
-    ++ ">\\n\";}[context] "
-    ++ applyTemplates rules (child c)
-    ++ " { bcout << \"</" ++ getAttribute c "tag" ++ ">\\n\"; }"
-    ++ "\n    ;"
-
-rules c | tagName c == "assignment" = "\n\n" ++ getAttribute c "tag" ++ ": "
-    ++ applyTemplates rules (child c) ++ "\n    ;"
-
-rules c | tagName c == "operatorDefinition" = "\n\n"
-    ++ Data.List.intercalate "\n\n" (Data.List.map (operatorRules (getAttribute c "tag")) (child c)) ++ "\n    ;"
-
-rules c | tagName c == "anyCharBut" = charsetName c
-rules c = error ("--Unknown element in rules: [" ++ tagName c ++ "]\n")
+cursor2Parser m c | tagName c == "whitespace" = do string "" >> return ([], [])
 
 
-namesAreEqual::Cursor->Cursor->Bool
-namesAreEqual a b = getAttribute a "name" == getAttribute b "name"
+cursor2Parser m c | tagName c == "attribute" =
+    do
+        r1<-parser
+        return ([], [(getAttribute c "name", r1)])
+            where parser = if ((length $ child c) > 0) then (cursor2StringParser c) else ident
 
-att2AttOut::Cursor->String
-att2AttOut c = " " ++ n ++ "='\" << var(\"" ++ n  ++ "\", $context) << \"'"
-    where n=unpack $ Data.Text.concat (attribute (Name (pack "name") Nothing Nothing) c)
+--cursor2Parser m c | tagName c == "element" = cursors2Parser m (child c)
+
+cursor2Parser m c | tagName c == "or" = foldl1 (\x -> \y -> try x <|> try y) (map (cursor2Parser m) (child c))
+
+cursor2Parser m c | tagName c == "list" = list <|> (do string ""; return ([], []))
+    where list=do
+                r1<-e
+                r2<-many $ try (do
+                    getSeparatorText m c
+                    r3<-e
+                    return r3
+                    )
+                return (fst r1 ++ (foldl (\x -> \y -> x ++ fst y) [] r2),
+                    snd r1 ++ (foldl (\x -> \y -> x ++ snd y) [] r2))
+
+            where e = foldl1 (<&>) (map (cursor2Parser m) (child c >>= element "expression" >>= child))
+
+cursor2Parser m c | tagName c == "link" =
+    do
+        r1<-(m ! ((trace $ show $ contentString c) (contentString c)))
+        return (r1, [])
+
+cursor2Parser m c | tagName c == "anyCharBut" =
+    do
+        r1<-noneOf (unpack $ contentString c)
+        return ([Element {elementName="text",
+                elementAttributes=empty,
+                elementNodes=[NodeContent (pack [r1])]}], [])
+
+cursor2Parser m c | cursorIsAtTextNode c = error ("cursor2Parser is at text node: [" ++ (unpack $ contentString c) ++ "]")
+cursor2Parser m c = error ("cursor2Parser is at unknown element: [" ++ (unpack $ tagName c) ++ "]")
+
+-------------------
+
+cursors2Parser::Map Text (Parser [Element])->[Cursor]->Parser ([Element], [(Text, String)])
+cursors2Parser m cs = foldl1 (<&>) (map (cursor2Parser m) cs)
+
+
+--------------------------------
+
+textString2NameText::(Text, String)->(Name, Text)
+textString2NameText (s1, s2) =
+                ((Name s1 Nothing Nothing), pack $ s2)
+
+-------------------------
+
+rules::Map Text (Parser [Element])->Cursor->Parser [Element]
+
+rules m c | tagName c == "rule" =
+    do
+        r1<-cursors2Parser m (child c )
+        return [Element {
+            elementName=Name (getAttribute c "tag") Nothing Nothing,
+            elementAttributes=fromList (map textString2NameText (snd r1)),
+            elementNodes=(map (\x->NodeElement x) (fst r1))}]
+
+rules m c | tagName c == "assignment" =
+    do
+        r1<-cursors2Parser m (child c )
+        return (fst r1)
+
+rules m c | tagName c == "operatorDefinition" = string "" >> return []
+
+rules m c = error ("--Unknown element in rules: [" ++ (unpack $ tagName c) ++ "]\n")
+
+----------------------------------
+
+terminalRuleList::Map Text (Parser [Element])->Cursor->[(Text, Parser [Element])]
+terminalRuleList ruleMap c = map (\c1 -> (getAttribute c1 "tag", rules ruleMap c1))
+    (child c >>= checkElement (\e -> "assignment" == elementName e || "rule" == elementName e))
+
+terminalRuleMap m c = fromListWith (<||>) (terminalRuleList m c)
+
+operatorRuleList::Map Text (Parser [Element])->Cursor->[(Text, Parser [Element])]
+operatorRuleList ruleMap root =
+    map (\c1 -> (getAttribute c1 "tag",
+            buildExpressionParser (cursor2OpTable c1) ((terminalRuleMap ruleMap root) ! (getAttribute c1 "tag"))))
+        (child root >>= element "operatorDefinition")
+
+cursor2OpTable::Cursor->OperatorTable Char () [Element]
+cursor2OpTable c = map (\x -> [Infix (do { string (unpack x); return (op2Xml x)}) AssocLeft]) operators
+    where operators = (child c >>= element "operator" >>= child >>= content)
+
+--cursor2OpTable c = map (\x -> [Infix (do { string (unpack x); return (op2Xml $ op2Name x)}) AssocLeft]) ["+", "*"]
+
+op2Xml::Text->[Element]->[Element]->[Element]
+op2Xml opName left right =
+    [Element {
+                elementName=Name opName Nothing Nothing,
+                elementAttributes=empty,
+                elementNodes=map NodeElement (left ++ right)
+            }]
+
+
+ruleList::Cursor->[(Text, Parser [Element])]
+ruleList root =
+    terminalRules ++ operatorRules
+        where terminalRules =
+                filter ((not . (hasOperator root)) .fst ) (terminalRuleList (ruleMap root) root); operatorRules =
+                filter ((hasOperator root) .fst) (operatorRuleList (ruleMap root) root)
+
+
+ruleMap::Cursor->Map Text (Parser [Element])
+ruleMap c = fromListWith (<||>) (ruleList c)
+
+
+hasOperator::Cursor->Text->Bool
+hasOperator root tag = 0 /= length (child root >>= element "operatorDefinition" >>= checkElement (\c -> tag == elementAttributes c ! "tag"))
+
+root::Cursor->Parser Element
+root c =
+    do
+        r1<-(ruleMap c) ! rootName
+        return (head r1)
+            where rootName = (getAttribute (head $ (child c >>= anyElement)) "tag")
+
+createParser::Cursor->Parser Document
+createParser c =
+    do
+        r1<-root c
+        return Document {
+            documentPrologue=Prologue {prologueBefore=[], prologueDoctype=Nothing, prologueAfter=[]},
+            documentRoot=r1,
+            documentEpilogue=[]
+            }
 
 
 op2Name::String->String
@@ -148,221 +229,21 @@ op2Name "*" = "times"
 op2Name "/" = "divide"
 op2Name x = error ("Unknown operator in op2Name: \'" ++ x ++ "'")
 
-operatorRules::String->Cursor->String
---operatorRules tag c = tag ++ ": {  bcout << \"<" ++ (op2Name $ contentString c) ++ ">\"; } "
-operatorRules tag c = tag ++ ": "
-    ++ tag ++ " " ++ (splito $ contentString c) ++ " " ++ tag
-    ++ " {  bcout << \"</" ++ (op2Name $ contentString c) ++ ">\"; } "
-    ++ ";"
+--operatorRules::String->Cursor->String
+--operatorRules tag c = tag ++ ": "
+--    ++ tag ++ " " ++ (splito $ contentString c) ++ " " ++ tag
+--    ++ " {  bcout << \"</" ++ (op2Name $ contentString c) ++ ">\"; } "
+--    ++ ";"
 
 
 
 
-cursor2NameCursorPair::Cursor->(String, Cursor)
-cursor2NameCursorPair c = (getRuleName c, c)
+contentString::Cursor->Text
+contentString c = DT.concat $ (descendant c >>= content)
 
-pairEqual::(String, a)->(String, a)->Bool
-pairEqual a b = fst a == fst b
+getSeparatorText::Map Text (Parser [Element])->Cursor->Parser ([Element], [(Text, String)])
+getSeparatorText m c = (cursors2Parser m) (child c >>= element "separator" >>= child)
 
-getUniqueListPatterns::Cursor->[(String, Cursor)]
-getUniqueListPatterns c = nubBy pairEqual (Data.List.map cursor2NameCursorPair lists)
-    where lists = descendant c >>= element (Name (pack "list") Nothing Nothing)
+getAttribute::Cursor->Name->Text
+getAttribute c attName = DT.concat $ attribute attName c
 
-getRuleName::Cursor->String
-getRuleName c | tagName c == "list" = "L_" ++
-    getRuleName (Data.List.head (child c >>= element (Name (pack "expression") Nothing Nothing) >>= child)) ++
-    "_L"
-getRuleName c | tagName c == "or" =
-    Data.List.intercalate "-or-" (Data.List.map getRuleName (child c))
-getRuleName c | tagName c == "link" = contentString c
-getRuleName c | tagName c == "anyCharBut" = charsetName c
-getRuleName c = error ("Unknown tagName in getRuleName: " ++ tagName c)
-
-listRules::Cursor->String
-listRules c | cursorIsAtTextNode c = ""
-listRules c | tagName c == "list" = getRuleName c ++ ": "
-    ++ getRuleName (Data.List.head (child c >>= element (Name (pack "expression") Nothing Nothing) >>= child))
-    ++ " | "
-    ++ getRuleName c ++ "[first] "
-    ++ (getSeparatorText (child c >>= element (Name (pack "separator") Nothing Nothing) >>= child))
-    ++ getRuleName (Data.List.head (child c >>= element (Name (pack "expression") Nothing Nothing) >>= child))
-    ++ "[second] "
-    ++ " { $$ = concatAndFreeOriginal($first, $second); };\n\n"
-    ++ getRuleName c ++ "-or-NULL: | "
-    ++ getRuleName c
-    ++ ";\n\n"
-listRules c = applyTemplates listRules (child c)
-
-orRules::Cursor->String
-orRules c | cursorIsAtTextNode c = ""
-orRules c | tagName c == "or" = getRuleName c ++ ": "
-    ++ Data.List.intercalate " | " (Data.List.map getRuleName (child c))
-    ++ ";\n\n"
-orRules c = applyTemplates listRules (child c)
-
---TODO- Make this work for all chars, including unicode (this is easier said than done)
-charsetRules::Cursor->String
-charsetRules c = charsetName c ++ ": "
-    ++ oreo (Data.List.filter (\x -> not $ elem x (contentString c)) "abcdefghijklmnopqrstuvwxyzABCDEFGHOIJKLMNOPQRSTUVWXYZ0123456789`~!@#$%^&*()-_=+[]\\{}|;':\",./<>? ")
-    ++ ";\n\n"
-
-charsetName::Cursor->String
-charsetName c = "charset" ++ show (Data.List.length (precedingSibling c) + 1)
-
-
-
-position::Cursor->Int
-position c = Data.List.length $ precedingSibling c
-
-contentString::Cursor->String
---contentString c = content2ContentString $ content c
-contentString c = unpack $ Data.Text.concat $ (descendant c >>= content)
-
-content2ContentString::[Text]->String
-content2ContentString (x:xs) = unpack x ++ content2ContentString xs
-content2ContentString [] = []
-
---nameIs::Cursor->String->Bool
---nameIs cursor name = (elementName (getElement $ Text.XML.Cursor.node cursor)) ==(Name (pack name) Nothing Nothing)
-
-getSeparatorText::[Cursor]->String
-getSeparatorText (c:cs) | cursorIsAtTextNode c = getSeparatorText cs
-getSeparatorText (c:cs) | tagName c == "whitespace" = " whitespace " ++ getSeparatorText cs
-getSeparatorText (c:cs) | tagName c == "text" = splito (contentString c) ++ getSeparatorText cs
-getSeparatorText (c:cs) = error ("unknown tag in getSeparatorText: " ++ tagName c)
-getSeparatorText [] = ""
-
-getText::Cursor->String
-getText cursor = unpack (getTextContent $ Text.XML.Cursor.node cursor)
-
-
-getTextContent::Text.XML.Node->Text
-getTextContent (Text.XML.NodeContent x) = x
-
-applyTemplates::(Cursor->[Char])->[Cursor]->String
-applyTemplates template (x:xs) = template x ++ applyTemplates template xs
-applyTemplates template [] = ""
-
-name::L.Element->[Char]
-name L.Element { elName=QName{qName=name}} = name
-
-getAttribute::Cursor->String->String
-getAttribute c attName = content2ContentString $ attribute (Name (pack attName) Nothing Nothing) c
-
-ruleNamesAreEqual::Cursor->Cursor->Bool
-ruleNamesAreEqual a b = getRuleName a == getRuleName b
-
-createParser::Cursor->String
-createParser c =
-    [here|
-%{
- #include <iostream>
-
- #include "tokenStreamer.h"
-
- using namespace std;
-
- #define YYSTYPE char *
-
- #define YYMAXDEPTH    100000
- #define YYINITDEPTH   100000
-
- int yylex(void);
- void yyerror(const char *);
-
- char *concatAndFreeOriginal(char *, char *);
-
- BufferedOutput bcout;
-
-%}
-
-
-%glr-parser
-
-%error-verbose
-
-%right LOW
-
-%right 'a' 'b' 'c' 'd' 'e' 'f' 'g' 'h' 'i' 'j' 'k' 'l' 'm' 'n' 'o' 'p' 'q' 'r' 's' 't' 'u' 'v' 'w' 'x' 'y' 'z' 'A' 'B' 'C' 'D' 'E' 'F' 'G' 'H' 'I' 'J' 'K' 'L' 'M' 'N' 'O' 'P' 'Q' 'R' 'S' 'T' 'U' 'V' 'W' 'X' 'Y' 'Z' '1''2''3' '4' '5' '6' '7' '8' '9' '0' ' ' '\t' '\n' '\r' '<' '>' '(' ')' '\\' '{' '}' '=' ',' '|' '/'
-
-
-
-%%
-
-//===================Before
-
-|] ++
-
-    rules c ++
-
-    "\n\n" ++
-
-    (applyTemplates listRules (Data.List.map snd (getUniqueListPatterns c))) ++
-
-    "\n\n" ++
-
-    (applyTemplates orRules (nubBy ruleNamesAreEqual (descendant c >>= element (Name (pack "or") Nothing Nothing)))) ++
-
-    (applyTemplates charsetRules (descendant c >>= element (Name (pack "anyCharBut") Nothing Nothing))) ++
-
-
-    [here|
-
-//==================After
-
-lowercase_letter: 'a' |'b' |'c' |'d' |'e' |'f' |'g' |'h' |'i' |'j' |'k' |'l' |'m' |'n' |'o' |'p' |'q' |'r' |'s' |'t' |'u' |'v' |'w' |'x' |'y' |'z';
-
-uppercase_letter: 'A' |'B' |'C' |'D' |'E' |'F' |'G' |'H' |'I' |'J' |'K' |'L' |'M' |'N' |'O' |'P' |'Q' |'R' |'S' |'T' |'U' |'V' |'W' |'X' |'Y' |'Z';
-
-letter: lowercase_letter | uppercase_letter;
-
-digit: '1'|'2'|'3' |'4' |'5' |'6' |'7' |'8' |'9' |'0' ;
-
-alphanum: letter | digit ;
-//<xsl:if test="count(//link[text()='number'])&gt;0">
-number: integer
-      |
-      integer '.' integer { $$ = concatAndFreeOriginal(concatAndFreeOriginal($1, $2), $3); };
-      |
-      '.' integer { $$ = concatAndFreeOriginal($1, $2); };
-//</xsl:if>
-
-//<xsl:if test="count(//link[text()='integer'])&gt;0">
-integer: digit | integer digit { $$ = concatAndFreeOriginal($1, $2); };
-//</xsl:if>
-
-whitespaceChar:' '|'\n'|'\r'|'\t';
-
-whitespace: whitespaceChar
-          |
-          whitespace whitespaceChar;
-
-possibleWhitespace: %prec LOW | whitespace %prec LOW;
-
-ident: letter | ident alphanum { $$ = concatAndFreeOriginal($1, $2); };
-
-chars : letter | digit | '.' | '-' ;
-
-eIdent: chars | eIdent chars { $$ = concatAndFreeOriginal($1,  $2); };
-
-%%
-
-int main() {
-  yyparse();
-}
-
-char *concatAndFreeOriginal(char *s1, char *s2) {
-  char * ret = (char *)malloc(strlen(s1) + strlen(s2) + 1);
-  strcpy(ret, s1);
-  strcpy(ret+strlen(s1), s2);
-  free(s1);
-  free(s2);
-  return ret;
-}
-
-void yyerror(const char *s) {
-  fprintf(stderr, "\n\n&gt;&gt;&gt;&gt; Error in line: %d: %s\n\n", yylineno, s);
-  exit(1);
-}
-
-|]

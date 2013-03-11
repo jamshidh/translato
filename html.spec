@@ -41,9 +41,9 @@ catch() {body};
 
 assignment => {lValue} = {expression} ;
 
-lValue => {methodChain};
+lValue => {variable};
 
-function => @name{ident}({list(expression, ',')});
+function => @name({list(expression, ',')});
 
 lambda => function () \{ \};
 
@@ -51,11 +51,15 @@ body => \{
 {list(command, '<ws>')}
 \};
 
-methodChain => {list(function|variable, '.')};
+variable = {function|array|label};
 
-variable => @name{ident};
+variable:operators => '.';
 
-expression = {string|methodChain|num|variable|lambda};
+array => @name[{expression}];
+
+label => @name{ident};
+
+expression = {string|num|lambda|variable};
 
 expression:operators => '+' '*';
 

@@ -9,33 +9,27 @@ module Parser (
 import Data.Maybe
 import Data.Text as DT hiding (map, length, foldl, foldl1, empty, head, filter)
 import Text.XML
-import Text.XML.Cursor
-import Data.List as L
+import Data.List as L hiding (union)
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
 import Data.Map hiding (map, foldl, filter)
 
 import Debug.Trace
 
-isTextNode::Node->Bool
-isTextNode (NodeContent x) = True
-isTextNode x = False
+import GrammarParser
 
-cursorIsAtTextNode::Cursor->Bool
-cursorIsAtTextNode c = isTextNode $ node c
+type Attribute = (String, String)
 
-getElement::Node->Element
-getElement (NodeElement x) = x
-
-tagName::Cursor->Text
-tagName cursor = nameLocalName (elementName (getElement $ node cursor))
+(-!-)::Map String b->String->b
+a -!- b = (trace b) $ c
+    where c=a!b
 
 whitespace::Parser [Element]
 whitespace = do
     many $ oneOf " \n\r\t"
     return []
 
-(<&>)::Parser ([Element], [(Text, String)])->Parser ([Element], [(Text, String)])->Parser ([Element], [(Text, String)])
+(<&>)::Parser ([Element], [Attribute])->Parser ([Element], [Attribute])->Parser ([Element], [Attribute])
 (<&>) a b = do
     r1<-a
     r2<-b
@@ -44,7 +38,7 @@ whitespace = do
 (<||>)::Parser a->Parser a->Parser a
 x <||> y = try x <|> try y
 
-abcd::Parser ([Element], [(Text, String)])->Parser ([Element], [(Text, String)])
+abcd::Parser ([Element], [Attribute])->Parser ([Element], [Attribute])
 abcd a = do
     r1<-many a
     return (L.concat (map fst r1), L.concat (map snd r1))
@@ -60,166 +54,148 @@ ident = do
     cs<-many (alphaNum <|> char '_')
     return (c:cs)
 
+eIdent = do
+    c<-letter
+    cs<-many (alphaNum <|> char '_' <|> char '.')
+    return (c:cs)
+
 number::Parser String
-number = many digit
+number = many1 digit
 
-cursor2StringParser::Cursor->Parser String
-cursor2StringParser c | tagName c == "ident" = ident
-cursor2StringParser c | tagName c == "number" = number
+expression2StringParser::Expression->Parser String
+expression2StringParser Ident  = ident
+expression2StringParser EIdent = eIdent
+expression2StringParser Number = number
+expression2StringParser (List e s) = many (expression2CharParser e)
+expression2StringParser x = error ("Unknown parameter given to expression2StringParser: " ++ show x)
 
+expression2CharParser::Expression->Parser Char
+expression2CharParser (AnyCharBut x) = noneOf x
 
-cursor2Parser::Map Text (Parser [Element])->Cursor->Parser ([Element], [(Text, String)])
-cursor2Parser m c | tagName c == "text" =
+expression2Parser::Grammar->Expression->Parser ([Element], [Attribute])
+expression2Parser g (TextMatch matchString) =
         do
-            string (unpack $ contentString c)
+            string matchString
             return ([], [])
 
 --The whitespace rule is complex....  We ignore whitespace surrounding an item, unless it is the first rule
-cursor2Parser m c | tagName c == "whitespace" &&
-    (
-        (((length $ precedingSibling c) > 0) && ((length $ followingSibling c) > 0))
-        ||
-        (length (parent c >>= precedingSibling >>= element "rule") == 0)
-    )
+expression2Parser g (WhiteSpace defaultString)
+--    |
+--    (
+--        (((length $ precedingSibling c) > 0) && ((length $ followingSibling c) > 0))
+--        ||
+--        (length (parent c >>= precedingSibling >>= element "rule") == 0)
+--    )
         =
         do
             whitespace
             return ([], [])
 
-cursor2Parser m c | tagName c == "whitespace" = do string "" >> return ([], [])
+--cursor2Parser m c | tagName c == "whitespace" = do string "" >> return ([], [])
 
 
-cursor2Parser m c | tagName c == "attribute" =
+expression2Parser g (Attribute name e) =
     do
-        r1<-parser
-        return ([], [(getAttribute c "name", r1)])
-            where parser = if ((length $ child c) > 0) then (cursor2StringParser c) else ident
+        r1<-(expression2StringParser e)
+        return ([], [(name, r1)])
 
 --cursor2Parser m c | tagName c == "element" = cursors2Parser m (child c)
 
-cursor2Parser m c | tagName c == "or" = foldl1 (\x -> \y -> try x <|> try y) (map (cursor2Parser m) (child c))
+expression2Parser g (Or x) = foldl1 (\x -> \y -> try x <|> try y) (map (expression2Parser g) x)
 
-cursor2Parser m c | tagName c == "list" = list <|> (do string ""; return ([], []))
-    where list=do
-                r1<-e
-                r2<-many $ try (do
-                    getSeparatorText m c
-                    r3<-e
-                    return r3
-                    )
-                return (fst r1 ++ (foldl (\x -> \y -> x ++ fst y) [] r2),
-                    snd r1 ++ (foldl (\x -> \y -> x ++ snd y) [] r2))
-
-            where e = foldl1 (<&>) (map (cursor2Parser m) (child c >>= element "expression" >>= child))
-
-cursor2Parser m c | tagName c == "link" =
+expression2Parser g (List exp separator) =
     do
-        r1<-(m ! ((trace $ show $ contentString c) (contentString c)))
+        list<-(sepBy (expression2Parser g exp) (expression2Parser g separator))
+        return (foldl (\a -> \b -> (fst a ++ fst b, snd a ++ snd b)) ([], []) list)
+
+expression2Parser g (Link name) =
+    do
+        r1<-((ruleParsers g) ! name)
         return (r1, [])
 
-cursor2Parser m c | tagName c == "anyCharBut" =
+expression2Parser g (AnyCharBut chars) =
     do
-        r1<-noneOf (unpack $ contentString c)
+        r1<-noneOf chars
         return ([Element {elementName="text",
-                elementAttributes=empty,
+                elementAttributes=[],
                 elementNodes=[NodeContent (pack [r1])]}], [])
 
-cursor2Parser m c | cursorIsAtTextNode c = error ("cursor2Parser is at text node: [" ++ (unpack $ contentString c) ++ "]")
-cursor2Parser m c = error ("cursor2Parser is at unknown element: [" ++ (unpack $ tagName c) ++ "]")
-
--------------------
-
-cursors2Parser::Map Text (Parser [Element])->[Cursor]->Parser ([Element], [(Text, String)])
-cursors2Parser m cs = foldl1 (<&>) (map (cursor2Parser m) cs)
+expression2Parser g (Sequence expressions) = foldl1 (<&>) (map (expression2Parser g) expressions)
 
 
 --------------------------------
 
-textString2NameText::(Text, String)->(Name, Text)
-textString2NameText (s1, s2) =
-                ((Name s1 Nothing Nothing), pack $ s2)
+attribute2NameText::Attribute->(Name, Text)
+attribute2NameText (s1, s2) =
+                ((Name (pack s1) Nothing Nothing), pack $ s2)
 
 -------------------------
 
-rules::Map Text (Parser [Element])->Cursor->Parser [Element]
+addElementUsingAttributeValues::String->Parser ([Element], [Attribute])->Parser [Element]
 
-rules m c | tagName c == "rule" =
+addElementUsingAttributeValues tagName parser =
     do
-        r1<-cursors2Parser m (child c )
+        r1<-parser
         return [Element {
-            elementName=Name (getAttribute c "tag") Nothing Nothing,
-            elementAttributes=fromList (map textString2NameText (snd r1)),
+            elementName=Name (pack tagName) Nothing Nothing,
+            elementAttributes=map attribute2NameText (snd r1),
             elementNodes=(map (\x->NodeElement x) (fst r1))}]
 
-rules m c | tagName c == "assignment" =
+dropAttributes::Parser ([Element], [Attribute])->Parser [Element]
+dropAttributes parser =
     do
-        r1<-cursors2Parser m (child c )
+        r1<-parser
         return (fst r1)
-
-rules m c | tagName c == "operatorDefinition" = string "" >> return []
-
-rules m c = error ("--Unknown element in rules: [" ++ (unpack $ tagName c) ++ "]\n")
 
 ----------------------------------
 
-terminalRuleList::Map Text (Parser [Element])->Cursor->[(Text, Parser [Element])]
-terminalRuleList ruleMap c = map (\c1 -> (getAttribute c1 "tag", rules ruleMap c1))
-    (child c >>= checkElement (\e -> "assignment" == elementName e || "rule" == elementName e))
+ruleParsers::Grammar->Map String (Parser [Element])
+ruleParsers g = mapWithKey (addOperators) (terminalParsers g)
+    where addOperators name parser =
+            if (member name (operatorDefinitions g))
+                then buildExpressionParser (operatorSymbols2OpTable $ (operatorDefinitions g) ! name) parser
+                else parser
 
-terminalRuleMap m c = fromListWith (<||>) (terminalRuleList m c)
-
-operatorRuleList::Map Text (Parser [Element])->Cursor->[(Text, Parser [Element])]
-operatorRuleList ruleMap root =
-    map (\c1 -> (getAttribute c1 "tag",
-            buildExpressionParser (cursor2OpTable c1) ((terminalRuleMap ruleMap root) ! (getAttribute c1 "tag"))))
-        (child root >>= element "operatorDefinition")
-
-cursor2OpTable::Cursor->OperatorTable Char () [Element]
-cursor2OpTable c = map (\x -> [Infix (do { string (unpack x); return (op2Xml x)}) AssocLeft]) operators
-    where operators = (child c >>= element "operator" >>= child >>= content)
+operatorSymbols2OpTable::[OperatorSymbol]->OperatorTable Char () [Element]
+operatorSymbols2OpTable operators = map (\x -> [Infix (do { string x; return (op2Xml x)}) AssocLeft]) operators
 
 --cursor2OpTable c = map (\x -> [Infix (do { string (unpack x); return (op2Xml $ op2Name x)}) AssocLeft]) ["+", "*"]
 
-op2Xml::Text->[Element]->[Element]->[Element]
+op2Xml::String->[Element]->[Element]->[Element]
 op2Xml opName left right =
     [Element {
-                elementName=Name opName Nothing Nothing,
-                elementAttributes=empty,
+                elementName=Name (pack $ op2Name opName) Nothing Nothing,
+                elementAttributes=[],
                 elementNodes=map NodeElement (left ++ right)
             }]
 
 
-ruleList::Cursor->[(Text, Parser [Element])]
-ruleList root =
+{--ruleList::Grammar->[(Text, Parser [Element])]
+ruleList g =
     terminalRules ++ operatorRules
         where terminalRules =
-                filter ((not . (hasOperator root)) .fst ) (terminalRuleList (ruleMap root) root); operatorRules =
-                filter ((hasOperator root) .fst) (operatorRuleList (ruleMap root) root)
+                filter ((not . (hasOperator g)) .fst ) (terminalRules (ruleMap g) g); operatorRules =
+                filter ((hasOperator g) .fst) (operatorRuleList (ruleMap g) g)
 
 
-ruleMap::Cursor->Map Text (Parser [Element])
-ruleMap c = fromListWith (<||>) (ruleList c)
+ruleMap::Grammar->Map Text (Parser [Element])
+ruleMap g = fromListWith (<||>) (ruleList g) --}
 
+terminalParsers::Grammar->Map String (Parser [Element])
+terminalParsers g = union
+    (mapWithKey (\name -> \p -> (addElementUsingAttributeValues name) $ expression2Parser g p) (elementRules g))
+    (mapWithKey (\name -> \p -> dropAttributes $ expression2Parser g p) (assignments g))
 
-hasOperator::Cursor->Text->Bool
-hasOperator root tag = 0 /= length (child root >>= element "operatorDefinition" >>= checkElement (\c -> tag == elementAttributes c ! "tag"))
-
-root::Cursor->Parser Element
-root c =
+createParser::Grammar->Parser Document
+createParser g =
     do
-        r1<-(ruleMap c) ! rootName
-        return (head r1)
-            where rootName = (getAttribute (head $ (child c >>= anyElement)) "tag")
-
-createParser::Cursor->Parser Document
-createParser c =
-    do
-        r1<-root c
+        r1<-(ruleParsers strippedGrammar) ! startSymbol strippedGrammar
         return Document {
             documentPrologue=Prologue {prologueBefore=[], prologueDoctype=Nothing, prologueAfter=[]},
-            documentRoot=r1,
+            documentRoot=head r1,
             documentEpilogue=[]
             }
+        where strippedGrammar = stripWhitespaceFromGrammar g
 
 
 op2Name::String->String
@@ -227,6 +203,7 @@ op2Name "+" = "plus"
 op2Name "-" = "minus"
 op2Name "*" = "times"
 op2Name "/" = "divide"
+op2Name "." = "dot"
 op2Name x = error ("Unknown operator in op2Name: \'" ++ x ++ "'")
 
 --operatorRules::String->Cursor->String
@@ -237,13 +214,4 @@ op2Name x = error ("Unknown operator in op2Name: \'" ++ x ++ "'")
 
 
 
-
-contentString::Cursor->Text
-contentString c = DT.concat $ (descendant c >>= content)
-
-getSeparatorText::Map Text (Parser [Element])->Cursor->Parser ([Element], [(Text, String)])
-getSeparatorText m c = (cursors2Parser m) (child c >>= element "separator" >>= child)
-
-getAttribute::Cursor->Name->Text
-getAttribute c attName = DT.concat $ attribute attName c
 

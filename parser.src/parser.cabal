@@ -8,18 +8,18 @@ data-dir: ""
 extra-source-files: "" /home/jim/translato/parser.src/src/Parser.hs
  
 executable parser
-    build-depends: QuickCheck -any, base -any, bytestring -any,
-                   containers -any, filepath -any, parsec -any, system-filepath -any,
-                   template-haskell -any, text -any, xml -any, xml-conduit -any
+    build-depends: base -any, bytestring -any, containers -any,
+                   filepath -any, parsec -any, system-filepath -any, text -any,
+                   xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: GrammarParser Quoter Parser Main
+    other-modules: Parse2 Colors GrammarParser Quoter Parser Main
  
 test-suite test-parser
-    build-depends: QuickCheck -any, base -any, bytestring -any,
-                   containers -any, filepath -any, parsec -any, system-filepath -any,
-                   template-haskell -any, text -any, xml -any, xml-conduit -any
+    build-depends: base -any, bytestring -any, containers -any,
+                   filepath -any, parsec -any, system-filepath -any, text -any,
+                   xml-conduit -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

@@ -18,8 +18,7 @@ module Main (
 ) where
 
 import Control.Monad (unless)
-import Text.XML as XML
-import Text.XML.Cursor
+--import Text.XML as XML
 import System.FilePath
 import Data.Text.Lazy
 import qualified Data.Text.Lazy.IO as TL
@@ -33,6 +32,7 @@ import Filesystem.Path.CurrentOS
 
 import Parser
 import GrammarParser
+import Parse2
 
 
 correctOrFail::Either a b->b
@@ -41,16 +41,17 @@ correctOrFail (Right x) = x
 
 
 main = do
-    argv<-getArgs
+    mainLike
+    {--argv<-getArgs
     handle<-openFile (Prelude.head argv) ReadMode
     contents<-TL.getContents
-    grammar<-TL.hGetContents handle
-    --let parsedGrammar = parse grammarParser "grammar" (unpack grammar)
-
-    --case (parsedGrammar) of
-    --    Left err -> putStrLn ("Error: " ++ show err)
-    --    Right val -> putStrLn $ show val
-
-    case (parse (createParser (fromDocument (correctOrFail $ XML.parseText def grammar))) "file" (unpack contents)) of
+    grammarFile<-TL.hGetContents handle
+    case (parse grammarParser "grammar" (unpack grammarFile)) of
         Left err -> putStrLn ("Error: " ++ show err)
-        Right val -> TL.putStrLn (renderText def val)
+        Right grammar ->
+            do
+                putStrLn $ show grammar
+                putStrLn $ show $ stripWhitespaceFromGrammar grammar
+                case (parse (createParser grammar) "file" (unpack contents)) of
+                    Left err -> putStrLn ("Error: " ++ show err)
+                    Right val -> putStrLn (show val) --}

@@ -5,21 +5,24 @@ build-type: Simple
 license: AllRightsReserved
 license-file: ""
 data-dir: ""
-extra-source-files: "" /home/jim/translato/parser.src/src/Parser.hs
+extra-source-files: ""
+                    /home/jim/translato/parser.src/src/ManyWorldsParser.hs
+                    /home/jim/translato/parser.src/src/Parser.hs
  
 executable parser
     build-depends: base -any, bytestring -any, containers -any,
-                   filepath -any, parsec -any, system-filepath -any, text -any,
-                   xml-conduit -any
+                   filepath -any, gtk -any, parsec -any, system-filepath -any,
+                   text -any, xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: Parse2 Colors GrammarParser Quoter Parser Main
+    other-modules: GrammarTools GrammarParser Quoter Parser Main Colors
+                   ManyWorldsParser
  
 test-suite test-parser
     build-depends: base -any, bytestring -any, containers -any,
-                   filepath -any, parsec -any, system-filepath -any, text -any,
-                   xml-conduit -any
+                   filepath -any, gtk -any, parsec -any, system-filepath -any,
+                   text -any, xml-conduit -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

@@ -14,14 +14,19 @@
 
 module GrammarParser (
     grammarParser,
-    Grammar,
+    Grammar(Grammar),
+    RuleName,
     startSymbol,
     elementRules,
     assignments,
     operatorDefinitions,
     OperatorSymbol,
-    Expression(Sequence, TextMatch, Attribute, List, Ident, EIdent, Number, WhiteSpace, AnyCharBut, Or, Link),
-    stripWhitespaceFromGrammar
+    Expression(Sequence, Blank, TextMatch, Attribute,
+        StringOf, List, Ident, EIdent,
+        Number, SepBy,
+        WhiteSpace, NestedElement,
+        AnyCharBut, Or, Link, ReturnBlank, Variable,
+        EOF)
 ) where
 
 import Text.ParserCombinators.Parsec
@@ -32,40 +37,49 @@ import Data.Maybe
 
 import Colors
 
-data Expression = TextMatch String | Attribute String Expression |
-    List Expression Expression | Ident | EIdent | Number | WhiteSpace String |
-    AnyCharBut String | Or [Expression] | Link String |
+data Expression = ReturnBlank Expression | TextMatch String | Attribute String Expression |
+    SepBy Expression Expression | Ident | EIdent | Number | WhiteSpace String |
+    List Expression | Blank | EOF |
+    Variable | NestedElement String Expression |
+    AnyCharBut String | Or [Expression] | Link String | StringOf Expression |
     Sequence [Expression] deriving (Eq)
 
 instance Show Expression where
-    show (Or list) = intercalate "\n    |\n    " (map show list)
+    show (Or list) = intercalate "\n    |\n    " (map iShow list)
+    show (Sequence list) = intercalate " " (map iShow list)
     show x = iShow x
 
 iShow::Expression->String
 iShow (TextMatch text) = show text
 iShow (Attribute name Ident) = "@" ++ name
 iShow (Attribute name theType) = "@" ++ name ++ "{" ++ iShow theType ++ "}"
-iShow (List e separator) = "list(" ++ iShow e ++ ", " ++ iShow separator ++ ")"
+iShow (NestedElement name theType) = name ++ "{" ++ iShow theType ++ "}"
+iShow (SepBy e separator) = "sepBy(" ++ iShow e ++ ", " ++ iShow separator ++ ")"
+iShow (List e) = "list(" ++ iShow e ++ ")"
+iShow (ReturnBlank e) = "returnBlank(" ++ iShow e ++ ")"
+iShow (StringOf e) = "stringOf(" ++ iShow e ++ ")"
+iShow Blank = "blank"
 iShow Ident = underscore "ident"
 iShow EIdent = underscore "eIdent"
 iShow Number = underscore "number"
 iShow (WhiteSpace defaultValue) = "_"
-iShow (AnyCharBut chars) = "anyCharBut(" ++ chars ++ ")"
-iShow (Or list) = intercalate " | " (map iShow list)
+iShow (AnyCharBut chars) = "anyCharBut(" ++ show chars ++ ")"
+iShow (Or list) = "(" ++ intercalate " | " (map iShow list) ++ ")"
 iShow (Link name) = underscore $ magenta name
-iShow (Sequence list) = intercalate " " (map iShow list)
+iShow (Sequence list) = "(" ++ intercalate " " (map iShow list) ++ ")"
+iShow EOF = "EOF"
 
 
-type Name = String
+type RuleName = String
 type OperatorSymbol = String
 
-data GrammarItem = ElementRule (Name, Expression) |
-                Assignment (Name, Expression) |
-                OperatorDefinition (Name, [OperatorSymbol]) deriving (Show)
+data GrammarItem = ElementRule (RuleName, Expression) |
+                Assignment (RuleName, Expression) |
+                OperatorDefinition (RuleName, [OperatorSymbol]) deriving (Show)
 
 data Grammar = Grammar { startSymbol::String,
-                        elementRules::Map Name Expression,
-                        assignments::Map Name Expression,
+                        elementRules::Map RuleName Expression,
+                        assignments::Map RuleName Expression,
                         operatorDefinitions::Map String [OperatorSymbol] } deriving (Eq)
 
 
@@ -73,7 +87,8 @@ data Grammar = Grammar { startSymbol::String,
 instance Show Grammar where
     show g = "Start Symbol = " ++ (startSymbol g) ++ "\n\n------------\n\n" ++
         (intercalate "\n\n" (map formatRule (toList $ elementRules g))) ++ "\n\n" ++
-        (intercalate "\n\n" (map formatAssignment (toList $ assignments g)))
+        (intercalate "\n\n" (map formatAssignment (toList $ assignments g))) ++ "\n\n" ++
+        (intercalate "\n\n" (map formatOperator (toList $ operatorDefinitions g)))
 
 formatRule::(String, Expression)->String
 formatRule (name, e) = (cyan name) ++ (green " => ") ++ show e
@@ -81,25 +96,28 @@ formatRule (name, e) = (cyan name) ++ (green " => ") ++ show e
 formatAssignment::(String, Expression)->String
 formatAssignment (name, e) = (cyan name) ++ (yellow " = ") ++ show e
 
+formatOperator::(String, [OperatorSymbol])->String
+formatOperator (name, operators) = (cyan name) ++ (yellow " has operators ") ++ show operators
+
 ---------- Convert Lists to Maps (ie- create the Grammar from the parsed data)
 
-getElementRules::[GrammarItem]->[(Name, Expression)]
+getElementRules::[GrammarItem]->[(RuleName, Expression)]
 getElementRules ((ElementRule rulePair):rest) = rulePair:(getElementRules rest)
 getElementRules (x:rest) = getElementRules rest
 getElementRules [] = []
 
-getAssignments::[GrammarItem]->[(Name, Expression)]
+getAssignments::[GrammarItem]->[(RuleName, Expression)]
 getAssignments ((Assignment rulePair):rest) = rulePair:(getAssignments rest)
 getAssignments (x:rest) = getAssignments rest
 getAssignments [] = []
 
-getOperatorDefinitions::[GrammarItem]->[(Name, [OperatorSymbol])]
+getOperatorDefinitions::[GrammarItem]->[(RuleName, [OperatorSymbol])]
 getOperatorDefinitions ((OperatorDefinition rulePair):rest) = rulePair:(getOperatorDefinitions rest)
 getOperatorDefinitions (x:rest) = getOperatorDefinitions rest
 getOperatorDefinitions [] = []
 
 grammarParser::Parser Grammar
-grammarParser =
+{--grammarParser =
     do
         grammarItems<-grammarItemParser
         return Grammar {
@@ -107,6 +125,20 @@ grammarParser =
                             elementRules = fromListWithKey
                                 (\name -> \a -> \b -> if (name == startSymbol grammarItems) then Or [a, b] else Or [strip a, strip b])
                                 (getElementRules grammarItems),
+                            assignments = fromList (getAssignments grammarItems),
+                            operatorDefinitions = fromList (getOperatorDefinitions grammarItems)
+                        }
+            where startSymbol items = fst $ head $ getElementRules items --}
+
+eOr::Expression->Expression->Expression
+eOr x y = Or [x, y]
+
+grammarParser =
+    do
+        grammarItems<-grammarItemParser
+        return Grammar {
+                            startSymbol = startSymbol grammarItems,
+                            elementRules = fromListWith eOr (getElementRules grammarItems),
                             assignments = fromList (getAssignments grammarItems),
                             operatorDefinitions = fromList (getOperatorDefinitions grammarItems)
                         }
@@ -133,6 +165,7 @@ ident =
         return (c:cs)
 
 addSequenceIfMultiple::[Expression]->Expression
+addSequenceIfMultiple [] = TextMatch ""
 addSequenceIfMultiple [x] = x
 addSequenceIfMultiple x = Sequence x
 
@@ -198,7 +231,8 @@ many1WithSeparator x matchSeparator =
         return (first:rest)
 
 matchExpression::Parser Expression
-matchExpression = try matchConversionText <|> try matchAttribute <|> try matchBracket <|> matchWhiteSpace
+matchExpression = try matchConversionText <|> try matchAttribute <|> try matchNestedElement
+    <|> try matchBracket <|> try matchBlank <|> matchWhiteSpace
 
 matchAttribute::Parser Expression
 matchAttribute =
@@ -207,6 +241,13 @@ matchAttribute =
         name<-ident
         parseType<-option Ident matchBracket
         return (Attribute name parseType)
+
+matchNestedElement::Parser Expression
+matchNestedElement =
+    do
+        name<-ident
+        parseType<-option Ident matchBracket
+        return (NestedElement name parseType)
 
 matchBracket::Parser Expression
 matchBracket =
@@ -226,6 +267,7 @@ matchBracketedExpression =
             try matchPreDefinedRule <|>
             try matchList <|>
             try matchAnyCharBut <|>
+            try matchStringOf <|>
             try matchLink <|>
             try matchQuotedStringWithWhitespace
         )
@@ -249,7 +291,17 @@ matchList =
         separator<-matchBracketedExpression
         spaces
         string ")"
-        return (List e separator)
+        return (SepBy e separator)
+
+matchStringOf::Parser Expression
+matchStringOf =
+    do
+        string "stringOf("
+        spaces
+        e<-matchBracketedExpression
+        spaces
+        string ")"
+        return (StringOf e)
 
 matchAnyCharBut::Parser Expression
 matchAnyCharBut =
@@ -291,6 +343,12 @@ matchWhiteSpace =
         formatDefault<-try (many1 space) <|> (string "<ws>" >> return "")
         return (WhiteSpace formatDefault)
 
+matchBlank::Parser Expression
+matchBlank =
+    do
+        string "<blank>"
+        return Blank
+
 matchOr::Parser Expression
 matchOr =
     do
@@ -303,52 +361,4 @@ matchOr =
 
 --------------------------
 
-stripWhitespaceFromGrammar::Grammar->Grammar
-stripWhitespaceFromGrammar g = Grammar
-    {
-        startSymbol = startSymbol g,
-        elementRules = mapWithKey (\name -> \e -> if (name == startSymbol g) then e else strip e) (elementRules g),
-        assignments = mapWithKey (\name -> \e -> if (name == startSymbol g) then e else strip e) (assignments g),
-        operatorDefinitions = operatorDefinitions g
 
-    }
-
-strip::Expression->Expression
-strip (Sequence ((WhiteSpace defaultText):rest)) = Sequence (removeLastWhitespace rest)
-strip x = x
-
-removeLastWhitespace::[Expression]->[Expression]
-removeLastWhitespace (e:[WhiteSpace defaultText]) = [e]
-removeLastWhitespace (e:rest) = e:(removeLastWhitespace rest)
-removeLastWhitespace [] = []
-
----------------------
-
-fullySimplify::Grammar->Grammar
-fullySimplify g = fst $ fromJust $ find (\(g1, g2) -> g1 == g2) (zip simplifiedProgression (tail simplifiedProgression))
-    where
-        simplifiedProgression = g:(map simplifyGrammar  simplifiedProgression)
-
-simplifyGrammar::Grammar->Grammar
-simplifyGrammar g = g
-    {
-        elementRules = mapWithKey simplifyKeyAndExpression (elementRules g),
-        assignments = mapWithKey simplifyKeyAndExpression (assignments g)
-    }
-
-simplifyKeyAndExpression::String->Expression->Expression
-simplifyKeyAndExpression key e = simplify e
-
-simplify::Expression->Expression
-----
-simplify (Or ((Or x):y)) = Or (x++y)
----- The remainder are a recursive identity
-simplify (Attribute s e) = Attribute s (simplify e)
-simplify (List e1 e2) = List (simplify e1) (simplify e2)
-simplify (Or x) = Or (map simplify x)
-simplify (Sequence x) = Sequence (simplifySequence (map simplify x))
-simplify x = x
-
-simplifySequence::[Expression]->[Expression]
-simplifySequence (List e separator:xs) = simplifySequence xs
-simplifySequence (x:xs) = x:xs

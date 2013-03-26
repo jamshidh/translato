@@ -3,125 +3,88 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Parser (
-    createParser
+    createParser,
+    modifyGrammar,
+    element2Document
 ) where
 
+import Prelude hiding (lookup)
 import Data.Maybe
 import Data.Text as DT hiding (map, length, foldl, foldl1, empty, head, filter)
 import Text.XML
-import Data.List as L hiding (union)
-import Text.ParserCombinators.Parsec
-import Text.ParserCombinators.Parsec.Expr
+import Data.List as L hiding (union, lookup)
 import Data.Map hiding (map, foldl, filter)
 
-import Debug.Trace
+--import Debug.Trace
 
 import GrammarParser
+import GrammarTools
+
+import ManyWorldsParser
 
 type Attribute = (String, String)
 
-(-!-)::Map String b->String->b
-a -!- b = (trace b) $ c
-    where c=a!b
+abcd::[State ([Element], [Attribute])]->[State ([Element], [Attribute])]
+abcd a = combine (\(x1, y1) (x2, y2) -> (x1 ++ x2, y1 ++ y2)) a (abcd a)
 
-whitespace::Parser [Element]
-whitespace = do
-    many $ oneOf " \n\r\t"
-    return []
+expression2CharParser::Expression->[State Char]
+expression2CharParser (AnyCharBut forbiddenChars) = noneOf forbiddenChars
 
-(<&>)::Parser ([Element], [Attribute])->Parser ([Element], [Attribute])->Parser ([Element], [Attribute])
-(<&>) a b = do
-    r1<-a
-    r2<-b
-    return (fst r1 ++ fst r2, snd r1 ++ snd r2)
-
-(<||>)::Parser a->Parser a->Parser a
-x <||> y = try x <|> try y
-
-abcd::Parser ([Element], [Attribute])->Parser ([Element], [Attribute])
-abcd a = do
-    r1<-many a
-    return (L.concat (map fst r1), L.concat (map snd r1))
-
-e2eList::Parser Element->Parser [Element]
-e2eList a = do
-    r1<-a
-    return [r1]
-
-ident::Parser String
-ident = do
-    c<-letter
-    cs<-many (alphaNum <|> char '_')
-    return (c:cs)
-
-eIdent = do
-    c<-letter
-    cs<-many (alphaNum <|> char '_' <|> char '.')
-    return (c:cs)
-
-number::Parser String
-number = many1 digit
-
-expression2StringParser::Expression->Parser String
+expression2StringParser::Expression->[State String]
 expression2StringParser Ident  = ident
 expression2StringParser EIdent = eIdent
 expression2StringParser Number = number
-expression2StringParser (List e s) = many (expression2CharParser e)
+expression2StringParser (StringOf e) = string1Of (expression2CharParser e)
+expression2StringParser (List e) = many (expression2CharParser e)
 expression2StringParser x = error ("Unknown parameter given to expression2StringParser: " ++ show x)
 
-expression2CharParser::Expression->Parser Char
-expression2CharParser (AnyCharBut x) = noneOf x
+returnBlank::[State a]->[State ([Element], [Attribute])]
+returnBlank = sMap (\x -> ([], []))
 
-expression2Parser::Grammar->Expression->Parser ([Element], [Attribute])
-expression2Parser g (TextMatch matchString) =
-        do
-            string matchString
-            return ([], [])
+combino::([Element], [Attribute])->([Element], [Attribute])->([Element], [Attribute])
+combino (x1, y1) (x2, y2) = (x1 ++ x2, y1 ++ y2)
 
---The whitespace rule is complex....  We ignore whitespace surrounding an item, unless it is the first rule
-expression2Parser g (WhiteSpace defaultString)
---    |
---    (
---        (((length $ precedingSibling c) > 0) && ((length $ followingSibling c) > 0))
---        ||
---        (length (parent c >>= precedingSibling >>= element "rule") == 0)
---    )
-        =
-        do
-            whitespace
-            return ([], [])
+(<++>)::[State ([Element], [Attribute])]->[State ([Element], [Attribute])]->[State ([Element], [Attribute])]
+(<++>) = combine combino
 
---cursor2Parser m c | tagName c == "whitespace" = do string "" >> return ([], [])
+returnAttributeNamed::String->[State String]->[State ([Element], [Attribute])]
+returnAttributeNamed name = sMap2 (\value -> if (value /= "script") then ([Done ([], [(name, value)])]) else [err "script tag not allowed"])
+--returnAttributeNamed name = sMap2 (\value -> ([Done ([], [(name, value)])]))
+--returnAttributeNamed name states = sMap (\value -> ([], [(name, value)])) states
 
 
-expression2Parser g (Attribute name e) =
-    do
-        r1<-(expression2StringParser e)
-        return ([], [(name, r1)])
+expression2Parser::Grammar->Expression->[State ([Element], [Attribute])]
+expression2Parser g (TextMatch matchString) = returnBlank (string matchString)
 
---cursor2Parser m c | tagName c == "element" = cursors2Parser m (child c)
+expression2Parser g (Attribute name e) = returnAttributeNamed name (expression2StringParser e)
 
-expression2Parser g (Or x) = foldl1 (\x -> \y -> try x <|> try y) (map (expression2Parser g) x)
+expression2Parser g (Or x) = foldl1 (|||) (map (expression2Parser g) x)
 
-expression2Parser g (List exp separator) =
-    do
-        list<-(sepBy (expression2Parser g exp) (expression2Parser g separator))
-        return (foldl (\a -> \b -> (fst a ++ fst b, snd a ++ snd b)) ([], []) list)
+expression2Parser g (ReturnBlank e) = returnBlank (expression2Parser g e)
+
+expression2Parser g Blank = blank ([], [])
+
+expression2Parser g (List exp) = sMap (foldl combino ([], [])) (many (expression2Parser g exp))
+
+expression2Parser g (SepBy exp separator) = blank ([], []) |||
+    ((expression2Parser g exp) <++>
+    sMap (foldl combino ([], [])) (many (expression2Parser g (Sequence [separator, exp]))))
 
 expression2Parser g (Link name) =
-    do
-        r1<-((ruleParsers g) ! name)
-        return (r1, [])
+        sMap (\elements -> (elements, [])) lookupRule
+            where lookupRule = case lookup name (grammar2Rules g) of
+                    Just x -> x
+                    Nothing -> error ("The grammar links to a non-existant rule named " ++ name)
 
-expression2Parser g (AnyCharBut chars) =
-    do
-        r1<-noneOf chars
-        return ([Element {elementName="text",
-                elementAttributes=[],
-                elementNodes=[NodeContent (pack [r1])]}], [])
+expression2Parser g (Sequence ((WhiteSpace _):e:rest)) =
+    ignorableWhitespacePrefix(expression2Parser g e <++> expression2Parser g (Sequence rest))
+expression2Parser g (Sequence (e:rest)) = expression2Parser g e
+    <++> expression2Parser g (Sequence rest)
+expression2Parser g (Sequence []) = blank ([], [])
 
-expression2Parser g (Sequence expressions) = foldl1 (<&>) (map (expression2Parser g) expressions)
+expression2Parser g EOF = eof ([], [])
 
+expression2Parser g x = error ("Missing case in expression2Parser: " ++ show x)
 
 --------------------------------
 
@@ -131,80 +94,54 @@ attribute2NameText (s1, s2) =
 
 -------------------------
 
-addElementUsingAttributeValues::String->Parser ([Element], [Attribute])->Parser [Element]
+addElementUsingAttributeValues::String->[State ([Element], [Attribute])]->[State [Element]]
 
 addElementUsingAttributeValues tagName parser =
-    do
-        r1<-parser
-        return [Element {
-            elementName=Name (pack tagName) Nothing Nothing,
-            elementAttributes=map attribute2NameText (snd r1),
-            elementNodes=(map (\x->NodeElement x) (fst r1))}]
+        sMap makeElement parser
+            where makeElement (elements, attributes) = [Element {
+                elementName=Name (pack tagName) Nothing Nothing,
+                elementAttributes=map attribute2NameText attributes,
+                elementNodes=(map (\x->NodeElement x) elements)}]
 
-dropAttributes::Parser ([Element], [Attribute])->Parser [Element]
+dropAttributes::[State ([Element], [Attribute])]->[State [Element]]
 dropAttributes parser =
-    do
-        r1<-parser
-        return (fst r1)
+        sMap fst parser
 
 ----------------------------------
 
-ruleParsers::Grammar->Map String (Parser [Element])
-ruleParsers g = mapWithKey (addOperators) (terminalParsers g)
-    where addOperators name parser =
-            if (member name (operatorDefinitions g))
-                then buildExpressionParser (operatorSymbols2OpTable $ (operatorDefinitions g) ! name) parser
-                else parser
+grammar2Rules::Grammar->Map String ([State [Element]])
+grammar2Rules g = terminalParsers g
 
-operatorSymbols2OpTable::[OperatorSymbol]->OperatorTable Char () [Element]
-operatorSymbols2OpTable operators = map (\x -> [Infix (do { string x; return (op2Xml x)}) AssocLeft]) operators
-
---cursor2OpTable c = map (\x -> [Infix (do { string (unpack x); return (op2Xml $ op2Name x)}) AssocLeft]) ["+", "*"]
-
-op2Xml::String->[Element]->[Element]->[Element]
-op2Xml opName left right =
-    [Element {
-                elementName=Name (pack $ op2Name opName) Nothing Nothing,
-                elementAttributes=[],
-                elementNodes=map NodeElement (left ++ right)
+addElement::String->[Element]->[Element]->[Element]
+addElement opName elements1 elements2 = [Element {
+        elementName=Name (pack $ opName) Nothing Nothing,
+            elementAttributes=[],
+            elementNodes=map NodeElement (elements1 ++ elements2)
             }]
 
-
-{--ruleList::Grammar->[(Text, Parser [Element])]
-ruleList g =
-    terminalRules ++ operatorRules
-        where terminalRules =
-                filter ((not . (hasOperator g)) .fst ) (terminalRules (ruleMap g) g); operatorRules =
-                filter ((hasOperator g) .fst) (operatorRuleList (ruleMap g) g)
-
-
-ruleMap::Grammar->Map Text (Parser [Element])
-ruleMap g = fromListWith (<||>) (ruleList g) --}
-
-terminalParsers::Grammar->Map String (Parser [Element])
+terminalParsers::Grammar->Map String ([State [Element]])
 terminalParsers g = union
-    (mapWithKey (\name -> \p -> (addElementUsingAttributeValues name) $ expression2Parser g p) (elementRules g))
-    (mapWithKey (\name -> \p -> dropAttributes $ expression2Parser g p) (assignments g))
+    (mapWithKey (\name e -> (addElementUsingAttributeValues name) $ expression2Parser g e) (elementRules g))
+    (mapWithKey (\name e -> dropAttributes $ expression2Parser g e) (assignments g))
 
-createParser::Grammar->Parser Document
+modifyGrammar::Grammar->Grammar
+modifyGrammar g = fullySimplifyGrammar $ removeLeftRecursionFromGrammar $ expandOperators $ stripWhitespaceFromGrammar g
+
+
+createParser::Grammar->[State [Element]]
 createParser g =
-    do
-        r1<-(ruleParsers strippedGrammar) ! startSymbol strippedGrammar
-        return Document {
-            documentPrologue=Prologue {prologueBefore=[], prologueDoctype=Nothing, prologueAfter=[]},
-            documentRoot=head r1,
-            documentEpilogue=[]
-            }
-        where strippedGrammar = stripWhitespaceFromGrammar g
+        (modifiedRules ! startSymbol g)
+            where modifiedRules = grammar2Rules $ modifyGrammar g
+
+element2Document::Element->Document
+element2Document element = Document {
+    documentPrologue=Prologue {prologueBefore=[], prologueDoctype=Nothing, prologueAfter=[]},
+    documentRoot=element,
+    documentEpilogue=[]
+    }
 
 
-op2Name::String->String
-op2Name "+" = "plus"
-op2Name "-" = "minus"
-op2Name "*" = "times"
-op2Name "/" = "divide"
-op2Name "." = "dot"
-op2Name x = error ("Unknown operator in op2Name: \'" ++ x ++ "'")
+
 
 --operatorRules::String->Cursor->String
 --operatorRules tag c = tag ++ ": "

@@ -5,15 +5,14 @@ attribute =>@name="@value{eIdent}";
 
 script =>\<script<ws>\> {list(command, ' ')} \</script\>;
 
-element =>
-	\<@tagName {list(attribute, ' ')} \>
-	{list(element|text|script, ' ')}
-	\</@tagName\>;
+script =>\<script<ws>src="@src{eIdent}"\><ws>\</script\>;
+
+element =>\<@tagName {list(attribute, ' ')} \>{list(element|text|script, '')}\</@tagName\>;
 
 element =>
 	\<@tagName {list(attribute, ' ')} /\>;
 
-text =>@value{eIdent};
+text =>@value{stringOf(anyCharBut('<>'))};
 
 command = {commandSc|commandNoSc|comment|if|try};
 
@@ -65,7 +64,7 @@ expression:operators => '+' '*';
 
 num => @value{number};
 
-string => "@value{list(anyCharBut('"'), '')}";
+string => "@value{stringOf(anyCharBut('"'))}";
 
 
 

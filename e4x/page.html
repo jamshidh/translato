@@ -1,0 +1,32 @@
+
+<html>
+
+  <body>
+
+    <div id="qqqq" />
+
+
+    <script>
+
+      function json2Xml(json) {
+        if (json.type == "text") {
+          return document.createTextNode(json.value)
+        }
+
+        var ret = document.createElement(json.tag);
+        for(var i = 0; i < json.attributes.length; i++) {
+          ret.setAttribute(json.attributes[i].name, json.attributes[i].value);
+        }
+        for(var i = 0; i < json.body.length; i++) {
+          ret.appendChild(json2Xml(json.body[i]));
+        }
+        return ret;
+      }
+
+      var newNodeJson = {"type":"element", "tag": "img", "attributes":[{"name":"src", "value":"qqqq"}], "body":[{"type":"text", "value":"abcd"}]};
+      document.getElementById("qqqq").appendChild(json2Xml(newNodeJson))
+    </script>
+
+  </body>
+
+</html>

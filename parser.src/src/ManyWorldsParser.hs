@@ -46,6 +46,8 @@ import Text.XML
 import Data.Either
 import Data.Char
 
+import Debug.Trace
+
 --import Debug.Trace
 
 type Attribute = (String, String)

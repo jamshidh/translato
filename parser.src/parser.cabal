@@ -4,6 +4,7 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
+description:  
 data-dir: ""
 extra-source-files: ""
                     /home/jim/translato/parser.src/src/ManyWorldsParser.hs
@@ -11,18 +12,18 @@ extra-source-files: ""
  
 executable parser
     build-depends: base -any, bytestring -any, containers -any,
-                   filepath -any, gtk -any, parsec -any, system-filepath -any,
-                   text -any, xml-conduit -any
+                   filepath -any, parsec -any, system-filepath -any, text -any,
+                   xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: GrammarTools GrammarParser Quoter Parser Main Colors
-                   ManyWorldsParser
+    other-modules: Colors GrammarParser GrammarTools Main
+                   ManyWorldsParser Parser Quoter
  
 test-suite test-parser
     build-depends: base -any, bytestring -any, containers -any,
-                   filepath -any, gtk -any, parsec -any, system-filepath -any,
-                   text -any, xml-conduit -any
+                   filepath -any, parsec -any, system-filepath -any, text -any,
+                   xml-conduit -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

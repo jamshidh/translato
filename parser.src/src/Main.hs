@@ -31,8 +31,8 @@ import Data.List
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
 
-import Graphics.UI.Gtk
-import Graphics.UI.Gtk.Multiline.TextView
+--import Graphics.UI.Gtk
+--import Graphics.UI.Gtk.Multiline.TextView
 
 import Parser
 import GrammarParser
@@ -44,7 +44,7 @@ correctOrFail::Either a b->b
 correctOrFail (Left x) = error "error parsing input, not valid XML  "
 correctOrFail (Right x) = x
 
-makeWindow::IO ()
+{--makeWindow::IO ()
 makeWindow = do
     initGUI
     window <- windowNew
@@ -55,7 +55,7 @@ makeWindow = do
     --onClicked button (putStrLn "Hello World")
     onDestroy window mainQuit
     widgetShowAll window
-    mainGUI
+    mainGUI--}
 
 main2 = do
     case (MWor.parse "file" (MWor.combine (++) (MWor.many (MWor.char 'a')) (MWor.string "b")) "aaaab") of

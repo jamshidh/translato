@@ -15,8 +15,9 @@
 module GrammarTools (
     fullySimplifyGrammar,
     simplify,
-    removeLeftRecursionFromGrammar,
+    --removeLeftRecursionFromGrammar,
     expandOperators,
+    addEOFToGrammar,
     stripWhitespaceFromGrammar
 ) where
 
@@ -52,13 +53,18 @@ removeLastWhitespace [] = []
 removeLeftRecursionFromGrammar::Grammar->Grammar
 removeLeftRecursionFromGrammar g =
     g {
-        elementRules = fromList $ concat $ (map removeLeftRecursion (toList $ elementRules g))
+        elementRules = fromList $ concat $ (map removeLeftRecursion (toList $ elementRules g)),
+        assignments = fromList $ concat $ (map removeLeftRecursion (toList $ assignments g))
     }
 
 removeLeftRecursion::(RuleName, Expression)->[(RuleName, Expression)]
 removeLeftRecursion (name, e) = case result of
         Nothing -> [(name, e)]
-        Just [nonRecursivePart, ruleAfter] -> [(name, nonRecursivePart), ("#" ++ name, ruleAfter)]
+        Just [nonRecursivePart, ruleAfter] ->
+            [
+                (name, Sequence [nonRecursivePart, Link ("#" ++ name)]),
+                ("#" ++ name, Or [Blank, Sequence [ruleAfter, Link ("#" ++ name)]])
+            ]
         where result = match (Or [Variable, Sequence [Link name, Variable]]) e
 
 instance Ord Expression where
@@ -111,8 +117,21 @@ match (Sequence (p:rest1)) (Sequence (e:rest2)) = case result of
         Just m2 -> Just (m ++ m2)
         Nothing ->  Nothing
     Nothing -> Nothing
-    where result = match p e; result2 = match (Sequence rest1) (Sequence rest2)
-match pattern e = Nothing
+    where result = match p e; result2 = match (addSequenceIfMultiple rest1) (addSequenceIfMultiple rest2)
+match (Sequence (_:_)) (Sequence []) = Nothing
+match (Sequence []) (Sequence (_:_)) = Nothing
+match (Sequence []) (Sequence []) = Just []
+match (Link name1) (Link name2) | name1 == name2 = Just []
+match (Link _) _ = Nothing
+match (TextMatch name1) (TextMatch name2) | name1 == name2 = Just []
+match (TextMatch _) _ = Just []
+match (InfixElement name1) (InfixElement name2) | name1 == name2 = Just []
+match (InfixElement _) _ = Just []
+match (Or list1) (Or list2) = error ("huh, Or " ++ show list1 ++ ", Or " ++ show list2)
+match (Or _) _ = Nothing
+match (Sequence _) _ = Nothing
+
+--match pattern e = Nothing
 
 ---------------------
 
@@ -129,8 +148,14 @@ expandOperators g = g {
 buildExpressionParser::[OperatorSymbol]->RuleName->Expression->Expression
 buildExpressionParser table name e = Or (e:(map operatorExpression table))
     where
-        operatorExpression symbol = NestedElement (op2Name symbol)
-                (Sequence [Link name, TextMatch symbol, Link name])
+        operatorExpression symbol = Sequence [ NestedElement (op2Name symbol) (SepBy (Link name) (TextMatch symbol))]
+
+table2Expression::[OperatorSymbol]->Expression->Expression
+table2Expression [] terminal = terminal
+table2Expression (symbol:rest) terminal = Sequence [ NestedElement (op2Name symbol) (SepBy (table2Expression rest terminal) (TextMatch symbol))]
+
+--        Sequence
+--            [Link name, TextMatch symbol, InfixElement (op2Name symbol), Link name]
 
 op2Name::OperatorSymbol->String
 op2Name "+" = "plus"
@@ -153,7 +178,7 @@ addEOF x = Sequence [x, EOF]
 fullySimplifyGrammar::Grammar->Grammar
 fullySimplifyGrammar g = fst $ fromJust $ find (\(g1, g2) -> g1 == g2) (zip simplifiedProgression (tail simplifiedProgression))
     where
-        simplifiedProgression = (addEOFToGrammar $ stripWhitespaceFromGrammar g):(map simplifyGrammar  simplifiedProgression)
+        simplifiedProgression = (stripWhitespaceFromGrammar g):(map simplifyGrammar  simplifiedProgression)
 
 simplifyGrammar::Grammar->Grammar
 simplifyGrammar g = g

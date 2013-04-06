@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  GrammarParser
+-- traceModule      :  GrammarParser
 -- Copyright   :
 -- License     :  AllRightsReserved
 --
@@ -24,7 +24,7 @@ module GrammarParser (
     Expression(Sequence, Blank, TextMatch, Attribute,
         StringOf, List, Ident, EIdent,
         Number, SepBy,
-        WhiteSpace, NestedElement,
+        WhiteSpace, NestedElement, InfixElement,
         AnyCharBut, Or, Link, ReturnBlank, Variable,
         EOF)
 ) where
@@ -39,7 +39,7 @@ import Colors
 
 data Expression = ReturnBlank Expression | TextMatch String | Attribute String Expression |
     SepBy Expression Expression | Ident | EIdent | Number | WhiteSpace String |
-    List Expression | Blank | EOF |
+    List Expression | Blank | EOF | InfixElement String |
     Variable | NestedElement String Expression |
     AnyCharBut String | Or [Expression] | Link String | StringOf Expression |
     Sequence [Expression] deriving (Eq)
@@ -54,10 +54,12 @@ iShow (TextMatch text) = show text
 iShow (Attribute name Ident) = "@" ++ name
 iShow (Attribute name theType) = "@" ++ name ++ "{" ++ iShow theType ++ "}"
 iShow (NestedElement name theType) = name ++ "{" ++ iShow theType ++ "}"
+iShow (InfixElement name) = name ++ "{<-->}"
 iShow (SepBy e separator) = "sepBy(" ++ iShow e ++ ", " ++ iShow separator ++ ")"
 iShow (List e) = "list(" ++ iShow e ++ ")"
 iShow (ReturnBlank e) = "returnBlank(" ++ iShow e ++ ")"
 iShow (StringOf e) = "stringOf(" ++ iShow e ++ ")"
+iShow Variable = blue "Variable"
 iShow Blank = "blank"
 iShow Ident = underscore "ident"
 iShow EIdent = underscore "eIdent"
@@ -231,7 +233,8 @@ many1WithSeparator x matchSeparator =
         return (first:rest)
 
 matchExpression::Parser Expression
-matchExpression = try matchConversionText <|> try matchAttribute <|> try matchNestedElement
+matchExpression = try matchAttribute
+    <|> try matchNestedElement <|> try matchInlineElement <|> try matchConversionText
     <|> try matchBracket <|> try matchBlank <|> matchWhiteSpace
 
 matchAttribute::Parser Expression
@@ -246,8 +249,15 @@ matchNestedElement::Parser Expression
 matchNestedElement =
     do
         name<-ident
-        parseType<-option Ident matchBracket
+        parseType<-matchBracket
         return (NestedElement name parseType)
+
+matchInlineElement::Parser Expression
+matchInlineElement =
+    do
+        name<-ident
+        string "{<-->}"
+        return (InfixElement name)
 
 matchBracket::Parser Expression
 matchBracket =

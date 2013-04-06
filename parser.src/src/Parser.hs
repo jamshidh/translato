@@ -70,6 +70,8 @@ expression2Parser g (SepBy exp separator) = blank ([], []) |||
     ((expression2Parser g exp) <++>
     sMap (foldl combino ([], [])) (many (expression2Parser g (Sequence [separator, exp]))))
 
+--expression2Parser g (InfixElement string) = expression2Parser g e
+
 expression2Parser g (Link name) =
         sMap (\elements -> (elements, [])) lookupRule
             where lookupRule = case lookup name (grammar2Rules g) of
@@ -125,7 +127,8 @@ terminalParsers g = union
     (mapWithKey (\name e -> dropAttributes $ expression2Parser g e) (assignments g))
 
 modifyGrammar::Grammar->Grammar
-modifyGrammar g = fullySimplifyGrammar $ removeLeftRecursionFromGrammar $ expandOperators $ stripWhitespaceFromGrammar g
+--modifyGrammar g = fullySimplifyGrammar $ removeLeftRecursionFromGrammar $ fullySimplifyGrammar $ expandOperators $ stripWhitespaceFromGrammar $ addEOFToGrammar g
+modifyGrammar g = fullySimplifyGrammar $ expandOperators $ stripWhitespaceFromGrammar $ addEOFToGrammar g
 
 
 createParser::Grammar->[State [Element]]

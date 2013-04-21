@@ -4,18 +4,19 @@
 
 module Parser (
     createParser,
+    createParserWithStartRule,
     modifyGrammar,
     element2Document
 ) where
 
 import Prelude hiding (lookup)
 import Data.Maybe
-import Data.Text as DT hiding (map, length, foldl, foldl1, empty, head, filter)
+import Data.Text as DT hiding (map, length, foldl, foldl1, empty, head, filter, intercalate)
 import Text.XML
 import Data.List as L hiding (union, lookup)
 import Data.Map hiding (map, foldl, filter)
 
---import Debug.Trace
+import Debug.Trace
 
 import GrammarParser
 import GrammarTools
@@ -24,51 +25,97 @@ import ManyWorldsParser
 
 type Attribute = (String, String)
 
-abcd::[State ([Element], [Attribute])]->[State ([Element], [Attribute])]
-abcd a = combine (\(x1, y1) (x2, y2) -> (x1 ++ x2, y1 ++ y2)) a (abcd a)
+expression2CharParser::Grammar->Expression->[State Char]
+expression2CharParser _ (AnyCharBut forbiddenChars) = noneOf forbiddenChars
+expression2CharParser g (Link name) =
+        expression2CharParser g lookupRule
+            where lookupRule = case lookup name (ruleMap g) of
+                    Just x -> x
+                    Nothing -> error ("The grammar links to a non-existant rule named " ++ name)
+expression2CharParser g e = error ("expression2CharParser can't handle " ++ show e)
 
-expression2CharParser::Expression->[State Char]
-expression2CharParser (AnyCharBut forbiddenChars) = noneOf forbiddenChars
+expression2StringParser::Grammar->Expression->[State String]
+expression2StringParser g (List e) = many (expression2CharParser g e)
+expression2StringParser g (SepBy e separator) = many (expression2CharParser g e)
+expression2StringParser g (SepBy1 e separator) = string1Of (expression2CharParser g e)
+expression2StringParser g (Sequence [e]) = expression2StringParser g e
+expression2StringParser g (Sequence (e:rest)) = combine (++) (expression2StringParser g e) (expression2StringParser g (Sequence rest))
+--expression2StringParser TabRight = blank []
+--expression2StringParser TabLeft = blank []
+expression2StringParser _ x = error ("Unknown parameter given to expression2StringParser: " ++ show x)
 
-expression2StringParser::Expression->[State String]
-expression2StringParser Ident  = ident
-expression2StringParser EIdent = eIdent
-expression2StringParser Number = number
-expression2StringParser (StringOf e) = string1Of (expression2CharParser e)
-expression2StringParser (List e) = many (expression2CharParser e)
-expression2StringParser x = error ("Unknown parameter given to expression2StringParser: " ++ show x)
-
-returnBlank::[State a]->[State ([Element], [Attribute])]
+returnBlank::[State a]->[State ([Node], [Attribute])]
 returnBlank = sMap (\x -> ([], []))
 
-combino::([Element], [Attribute])->([Element], [Attribute])->([Element], [Attribute])
+combino::([Node], [Attribute])->([Node], [Attribute])->([Node], [Attribute])
 combino (x1, y1) (x2, y2) = (x1 ++ x2, y1 ++ y2)
 
-(<++>)::[State ([Element], [Attribute])]->[State ([Element], [Attribute])]->[State ([Element], [Attribute])]
+(<++>)::[State ([Node], [Attribute])]->[State ([Node], [Attribute])]->[State ([Node], [Attribute])]
 (<++>) = combine combino
 
-returnAttributeNamed::String->[State String]->[State ([Element], [Attribute])]
+returnAttributeNamed::String->[State String]->[State ([Node], [Attribute])]
 returnAttributeNamed name = sMap2 (\value -> if (value /= "script") then ([Done ([], [(name, value)])]) else [err "script tag not allowed"])
 --returnAttributeNamed name = sMap2 (\value -> ([Done ([], [(name, value)])]))
 --returnAttributeNamed name states = sMap (\value -> ([], [(name, value)])) states
 
+getTextFromSingleTextNode::([Node], [Attribute])->String
+getTextFromSingleTextNode ([NodeContent text], []) = unpack text
+getTextFromSingleTextNode ([], []) = "" --(error "getTextFromSingleTextNode is empty")
+getTextFromSingleTextNode x = error ("getTextFromSingleTextNode called with nodes that aren't text [\n\n" ++ show x ++ "]")
 
-expression2Parser::Grammar->Expression->[State ([Element], [Attribute])]
+textNode::[State String]->[State ([Node], [Attribute])]
+textNode = sMap (\string -> ([NodeContent (pack string)], []))
+
+reparse::Grammar->Expression->String->([Node], [Attribute])
+reparse g second s = case parse "file" (expression2Parser g (Sequence [second, EOF])) s of
+    Right [val] -> val
+    Right val -> error ("Reparse value is not unique: " ++ (intercalate "\n\n----\n\n" (map show val)))
+    Left err -> error "reparse failed"
+
+
+expression2Parser::Grammar->Expression->[State ([Node], [Attribute])]
 expression2Parser g (TextMatch matchString) = returnBlank (string matchString)
 
-expression2Parser g (Attribute name e) = returnAttributeNamed name (expression2StringParser e)
+expression2Parser _ Ident  = textNode ident
+expression2Parser _ EIdent = textNode eIdent
+expression2Parser _ Number = textNode number
+expression2Parser g (StringOf e) = textNode $ string1Of (expression2CharParser g e)
+
+expression2Parser g (Attribute name e) = returnAttributeNamed name (sMap getTextFromSingleTextNode (expression2Parser g e))
 
 expression2Parser g (Or x) = foldl1 (|||) (map (expression2Parser g) x)
 
 expression2Parser g (ReturnBlank e) = returnBlank (expression2Parser g e)
 
 expression2Parser g Blank = blank ([], [])
+expression2Parser g (Tab _ e) = expression2Parser g e
+
+expression2Parser g (MultiElementWrapper name e) =
+    sMap
+        (\x@(nodes, attributes) -> if (length nodes > 1) then (addElementIfMultiple name x, []) else x)
+        (expression2Parser g e)
+            where
+                addElementIfMultiple tagName (nodes, attributes) =
+                    [NodeElement $ Element {
+                        elementName=Name (pack tagName) Nothing Nothing,
+                        elementAttributes=map attribute2NameText attributes,
+                        elementNodes=nodes}]
+
 
 expression2Parser g (List exp) = sMap (foldl combino ([], [])) (many (expression2Parser g exp))
 
 expression2Parser g (SepBy exp separator) = blank ([], []) |||
     ((expression2Parser g exp) <++>
     sMap (foldl combino ([], [])) (many (expression2Parser g (Sequence [separator, exp]))))
+
+expression2Parser g (SepBy1 exp separator) = ((expression2Parser g exp) <++>
+    sMap (foldl combino ([], [])) (many (expression2Parser g (Sequence [separator, exp]))))
+
+expression2Parser g (Reparse second first) = sMap ((reparse g second) . getTextFromSingleTextNode) (expression2Parser g first)
+
+
+
+
 
 --expression2Parser g (InfixElement string) = expression2Parser g e
 
@@ -96,45 +143,41 @@ attribute2NameText (s1, s2) =
 
 -------------------------
 
-addElementUsingAttributeValues::String->[State ([Element], [Attribute])]->[State [Element]]
+addElementUsingAttributeValues::String->[State ([Node], [Attribute])]->[State [Node]]
 
 addElementUsingAttributeValues tagName parser =
         sMap makeElement parser
-            where makeElement (elements, attributes) = [Element {
+            where makeElement (elements, attributes) = [NodeElement $ Element {
                 elementName=Name (pack tagName) Nothing Nothing,
                 elementAttributes=map attribute2NameText attributes,
-                elementNodes=(map (\x->NodeElement x) elements)}]
+                elementNodes=elements}]
 
-dropAttributes::[State ([Element], [Attribute])]->[State [Element]]
-dropAttributes parser =
-        sMap fst parser
+dropAttributes::[State ([Node], [Attribute])]->[State [Node]]
+dropAttributes parser = sMap fst parser
 
 ----------------------------------
 
-grammar2Rules::Grammar->Map String ([State [Element]])
+grammar2Rules::Grammar->Map String ([State [Node]])
 grammar2Rules g = terminalParsers g
 
-addElement::String->[Element]->[Element]->[Element]
-addElement opName elements1 elements2 = [Element {
-        elementName=Name (pack $ opName) Nothing Nothing,
-            elementAttributes=[],
-            elementNodes=map NodeElement (elements1 ++ elements2)
-            }]
-
-terminalParsers::Grammar->Map String ([State [Element]])
+terminalParsers::Grammar->Map String ([State [Node]])
 terminalParsers g = union
-    (mapWithKey (\name e -> (addElementUsingAttributeValues name) $ expression2Parser g e) (elementRules g))
-    (mapWithKey (\name e -> dropAttributes $ expression2Parser g e) (assignments g))
+    (mapWithKey (\name e -> (addElementUsingAttributeValues name) $ expression2Parser g e) (ruleMap g))
+    (mapWithKey (\name e -> dropAttributes $ expression2Parser g e) (assignmentMap g))
 
 modifyGrammar::Grammar->Grammar
 --modifyGrammar g = fullySimplifyGrammar $ removeLeftRecursionFromGrammar $ fullySimplifyGrammar $ expandOperators $ stripWhitespaceFromGrammar $ addEOFToGrammar g
 modifyGrammar g = fullySimplifyGrammar $ expandOperators $ stripWhitespaceFromGrammar $ addEOFToGrammar g
 
-
-createParser::Grammar->[State [Element]]
-createParser g =
-        (modifiedRules ! startSymbol g)
+createParserWithStartRule::String->Grammar->Maybe [State [Node]]
+createParserWithStartRule startRule g =
+        lookup startRule modifiedRules
             where modifiedRules = grammar2Rules $ modifyGrammar g
+
+
+createParser::Grammar->[State [Node]]
+createParser g = case createParserWithStartRule (startSymbol g) g of
+    Just states -> states
 
 element2Document::Element->Document
 element2Document element = Document {

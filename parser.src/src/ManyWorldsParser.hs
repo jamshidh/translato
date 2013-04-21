@@ -23,6 +23,7 @@ module ManyWorldsParser (
     parse,
     many,
     sepBy,
+    sepBy1,
     sMap,
     sMap2,
     (|||),
@@ -48,41 +49,9 @@ import Data.Char
 
 import Debug.Trace
 
---import Debug.Trace
+import ParseError
 
 type Attribute = (String, String)
-
--- Position is a location in the input....
-
-data Position = Position { line::Integer, column::Integer, filename::String }
-
-instance Eq Position where
-    p1 == p2 = (line p1 == line p2) && (column p1 == column p2)
-
-instance Ord Position where
-    p1 <= p2 | line p1 < line p2 = True
-    p1 <= p2 | line p1 > line p2 = False
-    p1 <= p2 | line p1 == line p2 = column p1 <= column p2
-
-instance Show Position where
-    show p = filename p ++ ": line " ++ show (line p) ++ ", column " ++ show (column p)
-
----------------------
-
-data ParseError = ParseError { errorPosition::Maybe Position, description::String }
-
--- Error comparison is based on location in file....  Not severity
--- e1 == e2 if they are at the same place, etc.
--- (in "many worlds", this often corresponds to severity....  An earlier error can often be
--- erased by taking a different world path.  If an error occurs and no path is available, it is the
--- last one dealt with before failing, and probably the one you want to see).
-
-
-instance Eq ParseError where
-    e1 == e2 = errorPosition e1 == errorPosition e2
-
-instance Ord ParseError where
-    e1 <= e2 = errorPosition e1 <= errorPosition e2
 
 ------------------------
 
@@ -102,20 +71,23 @@ singleSMap f (Pending f2) = Pending (\s -> (map (singleSMap f) (f2 s)))
 singleSMap f (Done a) = Done (f a)
 singleSMap f (Error e) = Error e
 
-sMap2::(String->[State ([Element], [Attribute])])->[State String]->[State ([Element], [Attribute])]
+sMap2::(a->[State b])->[State a]->[State b]
 sMap2 f x = concat $ map (singleSMap2 f) x
 
-singleSMap2::(String->[State ([Element], [Attribute])])->State String->[State ([Element], [Attribute])]
+singleSMap2::(a->[State b])->State a->[State b]
 singleSMap2 f (Error e) = [Error e]
 singleSMap2 f (Pending f2) = [Pending (\s -> (sMap2 f) (f2 s))]
 singleSMap2 f (Done v) = f v
+
+tail2 [] = []
+tail2 x = tail x
 
 evolve::TimeSlice a->TimeSlice a
 evolve (TimeSlice { count = oldCount, position = oldPosition, input = oldInput, states = oldStates }) =
     TimeSlice {
         count = oldCount + 1,
         position = nextPosition (head oldInput) oldPosition,
-        input = tail oldInput,
+        input = tail2 oldInput,
         states = map (fillInPosition oldPosition) (concat (map (evolveState oldInput) oldStates)) }
 
 fillInPosition::Position->State a->State a
@@ -271,19 +243,27 @@ anyChar = [Pending (\s ->
 --Greedy string with 1 char lookahead.  String must have at least one character.
 string1Of::[State Char]->[State String]
 string1Of charStates = case charStates of
-    [Pending f] -> [Pending (\string@(first:rest) -> case (f string, f rest) of
-        ([Done v1], [Done v2]) -> sMap (first:) (string1Of charStates)
-        ([Done v1], [Error e2]) -> [Done [first]]
-        ([Error e], _) -> [Error e])]
+    [Pending f] -> [Pending f2]
+        where
+            f2 string@[first] = case f string of
+                [Done v1] -> [Done [v1]]
+                [Error e] -> [Error e]
+            f2 string@(first:rest) = case (f string, f rest) of
+                ([Done v1], [Done v2]) -> sMap (first:) (string1Of charStates)
+                ([Done v1], [Error e2]) -> [Done [first]]
+                ([Error e], _) -> [Error e]
+            f2 [] = [Error (ParseError Nothing "Expecting character but got EOF")]
 
 stringPrefixOf::[State Char]->[State a]->[State a]
 --stringOf charStates = blank "" ||| string1Of charStates
 stringPrefixOf charStates next = case charStates of
-    [Pending f] -> [Pending (\string@(first:rest) -> case (f string, f rest) of
-        ([Done v1], [Done v2]) -> stringPrefixOf charStates next
-        ([Done v1], [Error e2]) -> next
-        ([Error e], _) -> concat $ map (\f -> f string) (map getFunction next)
-            )]
+    [Pending f] -> [Pending (f2 next)]
+        where
+            f2 next string@(first:rest) = case (f string, f rest) of
+                ([Done v1], [Done v2]) -> stringPrefixOf charStates next
+                ([Done v1], [Error e2]) -> next
+                ([Error e], _) -> concat $ map (\f -> f string) (map getFunction next);
+            f2 next [] = next
 
 getFunction::State a->(String->[State a])
 getFunction (Pending f) = f
@@ -294,7 +274,7 @@ getFunction (Done value) = error "unexpected done"
 space = conditionalChar "space" isSpace
 letter = conditionalChar "letter" isLetter
 digit = conditionalChar "letter" isDigit
-noneOf forbiddenChars = conditionalChar ("one of '" ++ forbiddenChars ++ "'") (\c -> notElem c forbiddenChars)
+noneOf forbiddenChars = conditionalChar ("anything but '" ++ forbiddenChars ++ "'") (\c -> notElem c forbiddenChars)
 
 string "" = [Done ""]
 string (c:rest) = char c <:> string rest

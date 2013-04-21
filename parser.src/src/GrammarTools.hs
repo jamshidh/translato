@@ -21,19 +21,22 @@ module GrammarTools (
     stripWhitespaceFromGrammar
 ) where
 
-import GrammarParser
-import Data.Map as M hiding (filter, map, foldl)
+import Data.Char
 import Data.List
+import Data.Map as M hiding (filter, map, foldl)
 import Data.Maybe
 
 import Debug.Trace
+
+import GrammarParser
+import OperatorNames
 
 stripWhitespaceFromGrammar::Grammar->Grammar
 stripWhitespaceFromGrammar g = Grammar
     {
         startSymbol = startSymbol g,
-        elementRules = mapWithKey (\name -> \e -> if (name == startSymbol g) then e else strip e) (elementRules g),
-        assignments = mapWithKey (\name -> \e -> if (name == startSymbol g) then e else strip e) (assignments g),
+        elementRules = map (\(name, e) -> if (name == startSymbol g) then (name, e) else (name, strip e)) (elementRules g),
+        assignments = map (\(name, e) -> if (name == startSymbol g) then (name, e) else (name, strip e)) (assignments g),
         operatorDefinitions = operatorDefinitions g
 
     }
@@ -50,10 +53,10 @@ removeLastWhitespace [] = []
 
 ---------------------
 
-removeLeftRecursionFromGrammar::Grammar->Grammar
+{--removeLeftRecursionFromGrammar::Grammar->Grammar
 removeLeftRecursionFromGrammar g =
     g {
-        elementRules = fromList $ concat $ (map removeLeftRecursion (toList $ elementRules g)),
+        elementRules = concat $ (map removeLeftRecursion (elementRules g)),
         assignments = fromList $ concat $ (map removeLeftRecursion (toList $ assignments g))
     }
 
@@ -65,7 +68,7 @@ removeLeftRecursion (name, e) = case result of
                 (name, Sequence [nonRecursivePart, Link ("#" ++ name)]),
                 ("#" ++ name, Or [Blank, Sequence [ruleAfter, Link ("#" ++ name)]])
             ]
-        where result = match (Or [Variable, Sequence [Link name, Variable]]) e
+        where result = match (Or [Variable, Sequence [Link name, Variable]]) e --}
 
 instance Ord Expression where
     a <= b = show a <= show b
@@ -137,39 +140,39 @@ match (Sequence _) _ = Nothing
 
 expandOperators::Grammar->Grammar
 expandOperators g = g {
-        elementRules = mapWithKey addOperators (elementRules g),
-        assignments = mapWithKey addOperators (assignments g)
+        elementRules = map addOperators (elementRules g),
+        assignments = map addOperators (assignments g)
         }
-        where addOperators name e =
+        where addOperators (name, e) =
                 if (member name (operatorDefinitions g))
-                    then buildExpressionParser ((operatorDefinitions g) ! name) name e
-                    else e
+                    then (name, buildExpressionParser ((operatorDefinitions g) ! name) e)
+                    else (name, e)
 
-buildExpressionParser::[OperatorSymbol]->RuleName->Expression->Expression
-buildExpressionParser table name e = Or (e:(map operatorExpression table))
-    where
-        operatorExpression symbol = Sequence [ NestedElement (op2Name symbol) (SepBy (Link name) (TextMatch symbol))]
+buildExpressionParser::[OperatorSymbol]->Expression->Expression
+buildExpressionParser [] e = e
+buildExpressionParser (symbol:rest) e =
+    Sequence [ MultiElementWrapper (op2Name symbol)
+        (SepBy (buildExpressionParser rest e) (symbol2Expression symbol))]
 
 table2Expression::[OperatorSymbol]->Expression->Expression
 table2Expression [] terminal = terminal
 table2Expression (symbol:rest) terminal = Sequence [ NestedElement (op2Name symbol) (SepBy (table2Expression rest terminal) (TextMatch symbol))]
 
---        Sequence
---            [Link name, TextMatch symbol, InfixElement (op2Name symbol), Link name]
+symbol2Expression::OperatorSymbol->Expression
+symbol2Expression symbol = addSequenceIfMultiple (symbol2ExpressionList symbol)
 
-op2Name::OperatorSymbol->String
-op2Name "+" = "plus"
-op2Name "-" = "minus"
-op2Name "*" = "times"
-op2Name "/" = "divide"
-op2Name "." = "dot"
-op2Name x = error ("Unknown operator in op2Name: \'" ++ x ++ "'")
+symbol2ExpressionList::OperatorSymbol->[Expression]
+symbol2ExpressionList [] = []
+symbol2ExpressionList s | isSpace $ head s =
+    let (spaces, rest) = span isSpace s in (WhiteSpace spaces):symbol2ExpressionList rest
+symbol2ExpressionList s =
+    let (spaces, rest) = span (not . isSpace) s in (TextMatch spaces):symbol2ExpressionList rest
 
 ---------------------
 addEOFToGrammar::Grammar->Grammar
 addEOFToGrammar g = g {
-        elementRules = mapWithKey (\name -> \e -> if (name == startSymbol g) then addEOF e else strip e) (elementRules g),
-        assignments = mapWithKey (\name -> \e -> if (name == startSymbol g) then addEOF e else strip e) (assignments g)
+        elementRules = map (\(name, e) -> if (name == startSymbol g) then (name, addEOF e) else (name, strip e)) (elementRules g),
+        assignments = map (\(name, e) -> if (name == startSymbol g) then (name, addEOF e) else (name, strip e)) (assignments g)
     }
 
 addEOF::Expression->Expression
@@ -183,12 +186,9 @@ fullySimplifyGrammar g = fst $ fromJust $ find (\(g1, g2) -> g1 == g2) (zip simp
 simplifyGrammar::Grammar->Grammar
 simplifyGrammar g = g
     {
-        elementRules = mapWithKey simplifyKeyAndExpression (elementRules g),
-        assignments = mapWithKey simplifyKeyAndExpression (assignments g)
+        elementRules = map (\(name, e) -> (name, simplify e)) (elementRules g),
+        assignments = map (\(name, e) -> (name, simplify e)) (assignments g)
     }
-
-simplifyKeyAndExpression::String->Expression->Expression
-simplifyKeyAndExpression key e = simplify e
 
 simplify::Expression->Expression
 ----
@@ -200,10 +200,11 @@ simplify (SepBy e separator) = SepBy (simplify e) (simplify separator) --(Or [Bl
     --where exp = Sequence [(ReturnBlank separator), e]
 simplify (List e) = List (simplify e)
 simplify (ReturnBlank (WhiteSpace defaultText)) = WhiteSpace defaultText
+simplify (MultiElementWrapper name e) = MultiElementWrapper name (simplify e)
 
 
 
-simplify (Sequence x) = Sequence (removeSequence $ map simplify x)
+simplify (Sequence x) = addSequenceIfMultiple (removeSequence $ map simplify x)
 simplify x = x
 
 --bindWhitespaces::[Expression]->[Expression]

@@ -25,8 +25,9 @@ import qualified Data.Text.Lazy.IO as TL
 import Data.Either
 import System.Environment
 import System.IO
-import Text.ParserCombinators.Parsec as P
+import Text.ParserCombinators.Parsec as P hiding (try)
 import Data.List
+import Text.XML.Cursor
 
 import Filesystem.Path
 import Filesystem.Path.CurrentOS
@@ -35,14 +36,13 @@ import Filesystem.Path.CurrentOS
 --import Graphics.UI.Gtk.Multiline.TextView
 
 import Parser
+import ParseElements
+import ParseError
+import Generator
 import GrammarParser
 import GrammarTools
 import ManyWorldsParser as MWor
 
-
-correctOrFail::Either a b->b
-correctOrFail (Left x) = error "error parsing input, not valid XML  "
-correctOrFail (Right x) = x
 
 {--makeWindow::IO ()
 makeWindow = do
@@ -67,39 +67,69 @@ main3 = do
     putStrLn $ show grammar
     putStrLn $ show $ simplify grammar
 
+showElement::Node->String
+showElement (NodeElement element) = TL.unpack (renderText def (element2Document (element)))
+showElement (NodeContent text) = show text
 
-showErrors::[MWor.ParseError]->String
-showErrors errors = show (errorPosition (head lastErrors)) ++ "\n    --"
-    ++ intercalate "\n    --" (map description lastErrors)
-        where lastErrors = (filter ((maximum errors) ==) errors)
+outputParse::Grammar->IO ()
+outputParse g = do
+    contents<-TL.getContents
+    let states=createParser g
+    case (MWor.parse "file" states (TL.unpack contents)) of
+      Left err -> putStrLn ("There were errors:\n  " ++ showErrors err)
+      Right val -> putStrLn (intercalate "\n\n------\n" (map (showElement . head) val))
 
-showElement::Element->String
-showElement element = TL.unpack (renderText def (element2Document (element)))
+outputParseElements::Grammar->IO ()
+outputParseElements g = do
+    contents<-TL.getContents
+    let doc=try(parseText def contents)
+    putStrLn (TL.unpack (renderText def (parseElements g (fromDocument doc))))
+
+outputString::Grammar->IO ()
+outputString g = do
+    contents<-TL.getContents
+    let doc=try(parseText def contents)
+    case generate g (fromDocument doc) of
+        Right s -> putStrLn s
+        Left err -> error (show err)
+
+data Task = Parse | ParseElements | Generate
+
+try::(Show err)=>Either err a->a
+try (Left err) = error ("Error:" ++ show err)
+try (Right a) = a
+
+data Opts = Opts { grammarFilename::String, task::Task }
+
+defaults = Opts { grammarFilename="grammar.spec", task=Parse }
+
+args2Opts::[String]->Opts->Opts
+args2Opts ("--generate":rest) o = args2Opts rest (o { task=Generate })
+args2Opts ("--parseElements":rest) o = args2Opts rest (o { task=ParseElements })
+args2Opts (filename:rest) o = args2Opts rest (o { grammarFilename=filename })
+args2Opts [] o = o
+
+
+
+
+
+
+
+
 
 main = do
     --makeWindow
-    argv<-getArgs
+    args <- getArgs
+    let opts = args2Opts args defaults
 
-    let filename = Prelude.head argv
-    --let filename = "/home/jim/translato/html.spec"
-
-    specHandle<-openFile filename ReadMode
-
-    contents<-TL.getContents
-    --inputHandle<-openFile "/home/jim/translato/samples/sample.html" ReadMode
-    --contents<-TL.hGetContents inputHandle
-
+    specHandle<-openFile (grammarFilename opts) ReadMode
     grammarFile<-TL.hGetContents specHandle
-    case (P.parse grammarParser "grammar" (TL.unpack grammarFile)) of
-        Left err -> putStrLn ("Error: " ++ show err)
-        Right grammar ->
-            do
-                let simplifiedGrammar = fullySimplifyGrammar $ stripWhitespaceFromGrammar grammar
-                let modifiedGrammar = modifyGrammar grammar
-                putStrLn $ show grammar
-                putStrLn $ show modifiedGrammar
-                let states=createParser simplifiedGrammar
-                putStrLn ("Created Parser, Number Of States Is " ++ show (length states))
-                case (MWor.parse "file" states (TL.unpack contents)) of
-                    Left err -> putStrLn ("There were errors:\n  " ++ showErrors err)
-                    Right val -> putStrLn (intercalate "\n\n------\n" (map (showElement . head) val))
+
+    let grammar = try (P.parse grammarParser "grammar" (TL.unpack grammarFile))
+
+    --putStrLn $ show grammar
+
+    case task opts of
+      Parse -> outputParse $ fullySimplifyGrammar $ stripWhitespaceFromGrammar grammar
+      ParseElements -> outputParseElements $ fullySimplifyGrammar $ stripWhitespaceFromGrammar grammar
+      Generate -> outputString grammar

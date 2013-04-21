@@ -15,14 +15,14 @@
 module Colors (
     red, green, yellow, blue,
     magenta, cyan, white2, white, black,
-    bright, dim, underscore, blink, Colors.reverse, hidden
+    bright, dim, underline, blink, Colors.reverse, hidden
 ) where
 
 
 
 bright string = "\ESC[1m" ++ string ++ "\ESC[0m"
 dim string = "\ESC[2m" ++ string ++ "\ESC[0m"
-underscore string = "\ESC[4m" ++ string ++ "\ESC[0m"
+underline string = "\ESC[4m" ++ string ++ "\ESC[0m"
 blink string = "\ESC[5m" ++ string ++ "\ESC[0m"
 reverse string = "\ESC[7m" ++ string ++ "\ESC[0m"
 hidden string = "\ESC[8m" ++ string ++ "\ESC[0m"

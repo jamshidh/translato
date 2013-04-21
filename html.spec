@@ -1,23 +1,29 @@
 
-file => {element} ;
+file =>
+{element} ;
 
-attribute =>@name="@value{eIdent}";
+attribute =>@name="@value{stringOf(anyCharBut('"'))}";
 
-script =>\<script<ws>\> {list(command, ' ')} \</script\>;
+script =><script_>
+  {list(command, '\n')}
+</script_>;
 
-script =>\<script<ws>src="@src{eIdent}"\><ws>\</script\>;
+script =><script src="@src{eIdent}">_</script>;
 
-element =>\<@tagName {list(attribute, ' ')} \>{list(element|text|script, '')}\</@tagName\>;
+element =><@tagName_{list(attribute, ' ')}_>
+  {list(element|text|script, '\n')}
+</@tagName>;
 
-element =>
-	\<@tagName {list(attribute, ' ')} /\>;
+element =><@tagName {list(attribute, ' ')} />;
 
-text =>@value{stringOf(anyCharBut('<>'))};
+text =>{reparse(list1(word, ' '), stringOf(anyCharBut('<')))};
 
-command = {commandSc|commandNoSc|comment|if|try};
+word =>{stringOf(anyCharBut('<> \n\r\t'))};
 
-commandSc = {assignment|expression|varDeclaration}<ws>\;;
+command =     {commandSc|commandNoSc|comment|if|try};
 
+commandSc = {assignment|expression|varDeclaration}_\;;
+ 
 commandNoSc = {funcDeclaration};
 
 comment => //@value{ident}
@@ -27,9 +33,9 @@ varDeclaration => var @name;
 
 varDeclaration => var @name = {expression};
 
-funcDeclaration => function @name() {body};
+funcDeclaration => function @name({list(ident, ' , ')}) {body};
 
-if => if () {body};
+if => if ({expression}) {body};
 
 if => if () {body} {else};
 
@@ -47,7 +53,7 @@ function => @name({list(expression, ',')});
 lambda => function () \{ \};
 
 body => \{
-{list(command, '<ws>')}
+  {list(command, '_')}
 \};
 
 variable = {function|array|label};
@@ -58,9 +64,9 @@ array => @name[{expression}];
 
 label => @name{ident};
 
-expression = {string|num|lambda|variable};
+expression = {string|num|lambda|variable|element};
 
-expression:operators => '+' '*';
+expression:operators => ' == ' '+' '*' '-';
 
 num => @value{number};
 

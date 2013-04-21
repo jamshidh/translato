@@ -4,7 +4,6 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
-description:  
 data-dir: ""
 extra-source-files: ""
                     /home/jim/translato/parser.src/src/ManyWorldsParser.hs
@@ -17,7 +16,8 @@ executable parser
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: Colors GrammarParser GrammarTools Main
+    other-modules: ParseError ParseElements EnhancedString FakeColors
+                   OperatorNames Generator Colors GrammarParser GrammarTools Main
                    ManyWorldsParser Parser Quoter
  
 test-suite test-parser

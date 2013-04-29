@@ -20,7 +20,7 @@ text =>{reparse(list1(word, ' '), stringOf(anyCharBut('<')))};
 
 word =>{stringOf(anyCharBut('<> \n\r\t'))};
 
-command =     {commandSc|commandNoSc|comment|if|try};
+command =     {commandSc|commandNoSc|comment|if|for|try};
 
 commandSc = {assignment|expression|varDeclaration}_\;;
  
@@ -39,6 +39,8 @@ if => if ({expression}) {body};
 
 if => if () {body} {else};
 
+for => for ({expression|varDeclaration}_\; {expression}_\; {expression}) {body};
+
 else => else {body};
 
 try => try {body}
@@ -46,9 +48,13 @@ catch() {body};
 
 assignment => {lValue} = {expression} ;
 
+return => return {expression};
+
+return => return;
+
 lValue => {variable};
 
-function => @name({list(expression, ',')});
+function => @name({list(expression, '_, ')});
 
 lambda => function () \{ \};
 
@@ -64,9 +70,9 @@ array => @name[{expression}];
 
 label => @name{ident};
 
-expression = {string|num|lambda|variable|element};
+expression = {string|num|lambda|variable|return|element};
 
-expression:operators => ' == ' '+' '*' '-';
+expression:operators => ' == ' ' < ' ' > ' ' <= ' ' >= ' '+' '*' '-';
 
 num => @value{number};
 

@@ -55,53 +55,30 @@ showCursor c = case node c of
 data GenError = GenError String deriving (Show)
 
 operatorRules::Grammar->Map String Expression
-operatorRules g = fromList $ map (\op -> (op2Name op, SepBy (TextMatch "") (TextMatch op))) (nub $ concat $ elems $ operatorDefinitions g)
+operatorRules g = fromList $ map (\op -> (op2Name op, SepBy2 [TextMatch ""] [TextMatch op])) (nub $ concat $ elems $ operatorDefinitions g)
 
-expressionWithRulename::Grammar->RuleName->[Expression]
+expressionWithRulename::Grammar->RuleName->[Sequence]
 expressionWithRulename g name = case lookup name (fromListWith (++) (map (\(a, b)-> (a, [b])) (elementRules g))) of
     Just x -> x
     Nothing -> case lookup name (operatorRules g) of
-                    Just x -> [x]
+                    Just x -> [[x]]
                     Nothing -> []
 
 
-buildExpressionParser::[OperatorSymbol]->Expression->Expression
-buildExpressionParser [] e = e
-buildExpressionParser (symbol:rest) e =
-    Sequence [ MultiElementWrapper (op2Name symbol)
-        (SepBy (buildExpressionParser rest e) (TextMatch symbol))]
 
-table2Expression::[OperatorSymbol]->Expression->Expression
+{--table2Expression::[OperatorSymbol]->Expression->Expression
 table2Expression [] terminal = terminal
-table2Expression (symbol:rest) terminal = Sequence [ NestedElement (op2Name symbol) (SepBy (table2Expression rest terminal) (TextMatch symbol))]
+table2Expression (symbol:rest) terminal = Sequence [ NestedElement (op2Name symbol) (SepBy (table2Expression rest terminal) (TextMatch symbol))]--}
 
 
 
-expandOperators2::Grammar->Grammar
-expandOperators2 g = g {
-        elementRules = elementRules g ++ operatorExpressions g,
-        assignments = assignments g ++ operatorAssignments g
-        }
-        where addOperators name e =
-                if (member name (operatorDefinitions g))
-                    then buildExpressionParser ((operatorDefinitions g) ! name) e
-                    else e
 
-operatorExpressions::Grammar->[(RuleName, Expression)]
-operatorExpressions g = concat (map operatorList2Expressions (toList $ operatorDefinitions g))
 
-operatorAssignments::Grammar->[(RuleName, Expression)]
-operatorAssignments g = concat (map (\(name, symbols) -> map (\symbol -> (name, Link (op2Name symbol))) symbols) (toList $ operatorDefinitions g))
 
-operatorList2Expressions::(RuleName, [OperatorSymbol])->[(RuleName, Expression)]
-operatorList2Expressions (name, []) = []
-operatorList2Expressions (name, (o1:rest)) =
-    (op2Name o1, SepBy (Or ((map (\x -> Link (op2Name x)) rest) ++ [Link name])) (TextMatch o1))
-        :operatorList2Expressions (name, rest)
 
 generate::Grammar->Cursor->Either GenError String
 generate g c = trace (show gr) $ fmap enhancedString2String (cursor2String gr c)
-    where gr = (fullySimplifyGrammar $ expandOperators2 $ stripWhitespaceFromGrammar $ fullySimplifyGrammar g)
+    where gr = (fullySimplifyGrammar $ expandOperators $ stripWhitespaceFromGrammar $ fullySimplifyGrammar g)
 
 cursor2String::Grammar->Cursor->Either GenError String
 cursor2String g c = trace ("----------cursor2String called: " ++ tagName c) $
@@ -113,9 +90,9 @@ cursor2String g c = trace ("----------cursor2String called: " ++ tagName c) $
     where expressionList = (expressionWithRulename g (tagName c))
 
 
-cursorAndExpressions2String::Grammar->[Expression]->Cursor->[Cursor]->Either GenError (String, Maybe Cursor)
-cursorAndExpressions2String g (e:rest) c remainingChildren = (trace ("Element match started: " ++ cShow c remainingChildren e)) $
-    case exp2String g e c remainingChildren of
+cursorAndExpressions2String::Grammar->[Sequence]->Cursor->[Cursor]->Either GenError (String, Maybe Cursor)
+cursorAndExpressions2String g (e:rest) c remainingChildren =
+    case seq2String g e c remainingChildren of
         ret@(Right (s, [])) -> (trace "Element match succeeded") $ Right (s, next c)
         ret@(Right (s, _)) -> (trace (red "Element match failed")) $
             if (rest == []) then
@@ -146,39 +123,50 @@ next c = case followingSibling c of
 cShow::Cursor->[Cursor]->Expression->String
 cShow c remainingChildren e = showCursor c ++ " - [" ++(intercalate ", " (map showCursor remainingChildren)) ++ "] - " ++ show e
 
-exp2String::Grammar->Expression->Cursor->[Cursor]->Either GenError (String, [Cursor])
+seq2String::Grammar->Sequence->Cursor->[Cursor]->Either GenError (String, [Cursor])
 
-exp2String g (Sequence [e]) c remainingChildren = exp2String g e c remainingChildren
-exp2String g fullE@(Sequence (e:rest)) c remainingChildren = (trace ("Sequence: " ++ cShow c remainingChildren fullE)) $
+seq2String g [] c remainingChildren = Right ("", remainingChildren)
+seq2String g (e:rest) c remainingChildren =
     case exp2String g e c remainingChildren of
         ret@(Right (s, nextRemainingChildren)) ->
-            trace ("Sequence Success, remaining = " ++ intercalate ", " (map showCursor nextRemainingChildren) ++ " and remaining expression is " ++ show rest) $
-            case exp2String g (Sequence rest) c nextRemainingChildren of
+            case seq2String g rest c nextRemainingChildren of
                 Right (s2, nextRemainingChildren2) -> Right (s ++ s2, nextRemainingChildren2)
                 Left err -> Left err
         ret -> (trace "Sequence Fail") $ ret
-exp2String g fullE@(Sequence []) c remainingChildren =
-    (trace (cShow c remainingChildren fullE)) $ Right  ("", remainingChildren)
 
-exp2String g fullE@(Or [e]) c remainingChildren = (trace (cShow c remainingChildren fullE)) $ exp2String g e c remainingChildren
-exp2String g fullE@(Or (e:rest)) c remainingChildren = (trace (cShow c remainingChildren fullE)) $
-    case exp2String g e c remainingChildren of
+
+
+
+
+
+
+exp2String::Grammar->Expression->Cursor->[Cursor]->Either GenError (String, [Cursor])
+
+
+exp2String g (Or [e]) c remainingChildren = seq2String g e c remainingChildren
+exp2String g (Or (e:rest)) c remainingChildren =
+    case seq2String g e c remainingChildren of
         Right s -> Right s
         Left _ -> exp2String g (Or rest) c remainingChildren
 
-exp2String g fullE@(SepBy e separator) c remainingChildren = (trace (cShow c remainingChildren fullE)) $
-    case exp2String g (Sequence [e, List (Sequence [separator, e])]) c remainingChildren of
+exp2String g (SepBy e separator) c remainingChildren =
+    case seq2String g (e ++ [List (separator ++ e)]) c remainingChildren of
         Right ret -> Right ret
         Left err -> Right ("", remainingChildren)
 
-exp2String g fullE@(SepBy1 e separator) c remainingChildren = (trace (cShow c remainingChildren fullE)) $
-    case exp2String g (Sequence [e, List (Sequence [separator, e])]) c remainingChildren of
+exp2String g (SepBy1 e separator) c remainingChildren =
+    case seq2String g (e ++ [List (separator ++ e)]) c remainingChildren of
+        Right ret -> Right ret
+        Left err -> Right ("", remainingChildren)
+
+exp2String g fullE@(SepBy2 e separator) c remainingChildren = (trace (cShow c remainingChildren fullE)) $
+    case seq2String g (e ++ [List (separator ++ e)]) c remainingChildren of
         Right ret -> Right ret
         Left err -> Right ("", remainingChildren)
 
 --exp2String g fullE@(List e) c [] = trace "d" $ Left $ GenError "List expected, but no more nodes"
 exp2String g fullE@(List e) c remainingChildren = (trace (cShow c remainingChildren fullE)) $
-    case exp2String g e c remainingChildren of
+    case seq2String g e c remainingChildren of
         Right (s1, nextRemainingChildren) ->
             case exp2String g (List e) c nextRemainingChildren of
                 Right (s2, nextRemainingChildren2) -> trace "a" $ Right (s1 ++ s2, nextRemainingChildren2)
@@ -197,13 +185,15 @@ exp2String g fullE@(Link name) c remainingChildren | tagName (head remainingChil
                 Nothing -> Left err--}
 exp2String g fullE@(Link name) c remainingChildren = (trace ("Looking up link '" ++ name ++ "' 2")) $
     case lookup name (assignmentMap g) of
-        Just exp -> trace "found" $ exp2String g exp c remainingChildren
+        Just exp -> trace "found" $ seq2String g exp c remainingChildren
         Nothing -> (trace "Not found") $ Left $ GenError ("Expecting element with tagname '" ++ name ++ "', found " ++ showCursor c)
+
+exp2String g fullE@(Blank) c remainingChildren = Right ("", remainingChildren)
 
 exp2String g fullE@(MultiElementWrapper name exp) c [] = Left  $ GenError "qqqq" --(trace "1") $exp2String g exp c []
 exp2String g fullE@(MultiElementWrapper name exp) c remainingChildren | tagName (head remainingChildren) == name =
     (trace ("Looking up matched operator'" ++ name ++ "'")) $
-    case exp2String g exp (head remainingChildren) (child $ head remainingChildren) of
+    case seq2String g exp (head remainingChildren) (child $ head remainingChildren) of
         Right (s, []) -> Right (s, tail remainingChildren)
         Right (s, _) -> Left $ GenError ("There was some extra stuff in an element: In " ++ showCursor c ++
                                         " is\n    " ++
@@ -212,10 +202,10 @@ exp2String g fullE@(MultiElementWrapper name exp) c remainingChildren | tagName 
 
 exp2String g fullE@(MultiElementWrapper name exp) c remainingChildren =
     (trace ("descending in multielemementwrapper '" ++ name ++ "'")) $
-    exp2String g exp c remainingChildren
+    seq2String g exp c remainingChildren
 
 exp2String g fullE@(Reparse second first) c remainingChildren =
-    exp2String g second c remainingChildren
+    seq2String g second c remainingChildren
 
 exp2String g fullE@(Attribute name _) c remainingChildren = (trace (cShow c remainingChildren fullE)) $
     case c <@> name of
@@ -228,7 +218,15 @@ exp2String g fullE@(StringOf _) c remainingChildren = (trace (cShow c remainingC
 exp2String g fullE@(TextMatch text) c remainingChildren = (trace (cShow c remainingChildren fullE)) $ Right (text, remainingChildren)
 exp2String g fullE@(WhiteSpace defaultValue) c remainingChildren = (trace (cShow c remainingChildren fullE)) $ Right (defaultValue, remainingChildren)
 exp2String g (Tab tabString e) c remainingChildren =
-    fmap (\(s, remainingChildren) -> ("\t" ++ tabString ++ "\t" ++ s ++ "\b", remainingChildren)) (exp2String g e c remainingChildren)
+    fmap (\(s, remainingChildren) -> ("\t" ++ tabString ++ "\t" ++ s ++ "\b", remainingChildren)) (seq2String g e c remainingChildren)
 
 exp2String g e c remainingChildren = (trace (cShow c remainingChildren e)) $ error ("Error: tag = " ++ tagName c ++ ", expression = " ++ show e)
+
+
+
+
+
+
+
+
 

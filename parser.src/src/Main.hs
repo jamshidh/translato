@@ -17,31 +17,38 @@ module Main (
     main
 ) where
 
-import Control.Monad (unless)
-import Text.XML as XML
-import System.FilePath
+import Data.List
+import qualified Data.Map as M
+import Data.Sequence hiding (drop)
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
-import Data.Either
+--import qualified Data.Text as TL
+--import qualified Data.Text.IO as TL
 import System.Environment
 import System.IO
 import Text.ParserCombinators.Parsec as P hiding (try)
-import Data.List
+import Text.XML as XML
 import Text.XML.Cursor
 
-import Filesystem.Path
-import Filesystem.Path.CurrentOS
+import Filesystem.Path hiding (concat)
+import Filesystem.Path.CurrentOS hiding (concat)
 
 --import Graphics.UI.Gtk
 --import Graphics.UI.Gtk.Multiline.TextView
 
-import Parser
-import ParseElements
-import ParseError
+import Colors
 import Generator
 import GrammarParser
 import GrammarTools
-import ManyWorldsParser as MWor
+import LText as L hiding (head, drop)
+--import ManyWorldsParser as MWor
+import qualified Parser2 as P2
+--import qualified Parser3 as P3
+import qualified Parser4 as P4
+import OperatorNames
+--import Parser
+import ParseElements
+--import ParseError
 
 
 {--makeWindow::IO ()
@@ -57,27 +64,38 @@ makeWindow = do
     widgetShowAll window
     mainGUI--}
 
-main2 = do
-    case (MWor.parse "file" (MWor.combine (++) (MWor.many (MWor.char 'a')) (MWor.string "b")) "aaaab") of
-                    Left err -> putStrLn ("Error: " ++ show (sort err)) --filter ((maximum err) ==) err))
-                    Right val -> putStrLn $ show val
+prepareGrammar =
+    fullySimplifyGrammar
+    . expandOperators
+    . stripWhitespaceFromGrammar
+    . addEOFToGrammar
+    . fullySimplifyGrammar
+    . stripWhitespaceFromGrammar
 
-main3 = do
-    let grammar = Or [Sequence [TextMatch "abcd", Blank], Sequence [TextMatch "abcd", SepBy (TextMatch "abcd") (TextMatch "abcd")]]
-    putStrLn $ show grammar
-    putStrLn $ show $ simplify grammar
-
-showElement::Node->String
+{--showElement::XML.Node->String
 showElement (NodeElement element) = TL.unpack (renderText def (element2Document (element)))
-showElement (NodeContent text) = show text
+showElement (NodeContent text) = show text--}
+
+outputGrammar::Grammar->IO ()
+outputGrammar g = do
+    putStrLn $ show g
+    putStrLn $ show (prepareGrammar g)
 
 outputParse::Grammar->IO ()
 outputParse g = do
+    let modifiedG = fullySimplifyGrammar $ expandOperators $ stripWhitespaceFromGrammar $ addEOFToGrammar g
     contents<-TL.getContents
-    let states=createParser g
-    case (MWor.parse "file" states (TL.unpack contents)) of
-      Left err -> putStrLn ("There were errors:\n  " ++ showErrors err)
-      Right val -> putStrLn (intercalate "\n\n------\n" (map (showElement . head) val))
+--    let states=createParser g
+--    case (MWor.parse "file" states (TL.unpack contents)) of
+--    let result = P2.parse g "file" (P2.Parse [Link (startSymbol g)] [P2.Text (L.text2LText (TL.toStrict contents))])
+    --let result = head $ (drop 0) (iterate (P4.parse modifiedG "file")
+    --        (singleton (P4.Parse (P4.text2Tree (TL.toStrict contents)) [Link (startSymbol modifiedG)])))
+    let result = P4.parse modifiedG "file"
+                    (P4.text2Tree (TL.toStrict contents))
+    putStrLn $ P4.treeShow result
+    case P4.getErrors result of
+        [] -> putStrLn "OK"
+        _ -> putStrLn $ "\n" ++ red ("There were errors:\n") ++ P4.showErrors result
 
 outputParseElements::Grammar->IO ()
 outputParseElements g = do
@@ -93,7 +111,7 @@ outputString g = do
         Right s -> putStrLn s
         Left err -> error (show err)
 
-data Task = Parse | ParseElements | Generate
+data Task = OutputGrammar | Parse | ParseElements | Generate
 
 try::(Show err)=>Either err a->a
 try (Left err) = error ("Error:" ++ show err)
@@ -104,6 +122,7 @@ data Opts = Opts { grammarFilename::String, task::Task }
 defaults = Opts { grammarFilename="grammar.spec", task=Parse }
 
 args2Opts::[String]->Opts->Opts
+args2Opts ("--outputGrammar":rest) o = args2Opts rest (o { task=OutputGrammar })
 args2Opts ("--generate":rest) o = args2Opts rest (o { task=Generate })
 args2Opts ("--parseElements":rest) o = args2Opts rest (o { task=ParseElements })
 args2Opts (filename:rest) o = args2Opts rest (o { grammarFilename=filename })
@@ -127,9 +146,8 @@ main = do
 
     let grammar = try (P.parse grammarParser "grammar" (TL.unpack grammarFile))
 
-    --putStrLn $ show grammar
-
     case task opts of
-      Parse -> outputParse $ fullySimplifyGrammar $ stripWhitespaceFromGrammar grammar
-      ParseElements -> outputParseElements $ fullySimplifyGrammar $ stripWhitespaceFromGrammar grammar
+      OutputGrammar -> outputGrammar grammar
+      Parse -> outputParse $ prepareGrammar grammar
+      ParseElements -> outputParseElements $ prepareGrammar grammar
       Generate -> outputString grammar

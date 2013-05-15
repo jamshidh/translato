@@ -1,83 +1,109 @@
 
 file =>
-{element} ;
+{element} 
+----
 
-attribute =>@name="@value{stringOf(anyCharBut('"'))}";
+ident => [a-zA-Z]\w*
+----
 
-script =><script_>
-  {list(command, '\n')}
-</script_>;
+====[attribute]===============
+attribute =>@name="@value([^"]*)"
+----
+separator: ' '
+====[/attribute]==============
 
-script =><script src="@src{eIdent}">_</script>;
+====[paramater]===============
 
-element =><@tagName_{list(attribute, ' ')}_>
-  {list(element|text|script, '\n')}
-</@tagName>;
+paramater =>@value
+----
+separator: '_, '
 
-element =><@tagName {list(attribute, ' ')} />;
+====[/paramater]==============
 
-text =>{reparse(list1(word, ' '), stringOf(anyCharBut('<')))};
-
-word =>{stringOf(anyCharBut('<> \n\r\t'))};
-
-command =     {commandSc|commandNoSc|comment|if|for|try};
-
-commandSc = {assignment|expression|varDeclaration}_\;;
- 
-commandNoSc = {funcDeclaration};
-
-comment => //@value{ident}
-;
-
-varDeclaration => var @name;
-
-varDeclaration => var @name = {expression};
-
-funcDeclaration => function @name({list(ident, ' , ')}) {body};
-
-if => if ({expression}) {body};
-
-if => if () {body} {else};
-
-for => for ({expression|varDeclaration}_\; {expression}_\; {expression}) {body};
-
-else => else {body};
-
-try => try {body}
-catch() {body};
-
-assignment => {lValue} = {expression} ;
-
-return => return {expression};
-
-return => return;
-
-lValue => {variable};
-
-function => @name({list(expression, '_, ')});
-
-lambda => function () \{ \};
+word =>[^<> \n\r\t]+
+----
 
 body => \{
-  {list(command, '_')}
-\};
+  {command}*
+\}
+----
 
-variable = {function|array|label};
+====[node]======================
 
-variable:operators => '.';
+script =><script_>
+  {command}*
+</script_>
+----
+script =><script src="@src([^"]*)">_</script>
+----
+element[@tagName != "script"] =><@tagName {attribute}* />
+----
+element[@tagName != "script"] =><@tagName {attribute}*_>
+  {node}*
+</@tagName>
+----
+text => {word}+
+----
+separator: '\n'
 
-array => @name[{expression}];
+====[/node]=====================
 
-label => @name{ident};
+====[command]========
 
-expression = {string|num|lambda|variable|return|element};
+varDeclaration => var @name_(=_{expression}_)?;
+----
+expressionCommand => {expression}_;
+----
+assignment => {variable} = {expression}_;
+----
+return => return( {expression})?_;
+----
+comment => //@value{ident}
+----
+if => if \({expression}\) {body}( else {body})?
+----
+try => try {body}
+catch\({expression}\) {body}
+----
+for => for \({expression}_; {expression}_; {expression}\) {body}
+----
+for => for \({varDeclaration}_; {expression}_; {expression}\) {body}
+----
+funcDeclaration => function @name\({paramater}*\) {body}
+----
+separator: '\n'
 
-expression:operators => ' == ' ' < ' ' > ' ' <= ' ' >= ' '+' '*' '-';
+====[/command]==================
 
-num => @value{number};
 
-string => "@value{stringOf(anyCharBut('"'))}";
 
+====[expression:lvalue]=
+
+num => @value(\d+)
+----
+string => "@value([^"]*)"
+----
+operators: ' == ' ' < ' ' > ' ' <= ' ' >= ' '+' '*' '-'
+
+separator: '_, '
+
+====[/expression]===============
+
+
+
+====[lvalue]==================
+
+variable => @name
+----
+function => {lvalue}({expression}*)
+----
+array => {lvalue}\[{expression}\]
+----
+lambda => function () {body}
+----
+operators: '.'
+
+====[/lvalue]=================
 
 
 

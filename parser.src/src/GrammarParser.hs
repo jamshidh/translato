@@ -13,189 +13,120 @@
 -----------------------------------------------------------------------------
 
 module GrammarParser (
-    grammarParser,
+    parseGrammar,
     Grammar(Grammar),
     RuleName,
     Rule,
-    ruleMap,
-    sShow,
-    assignmentMap,
-    startSymbol,
-    elementRules,
-    assignments,
-    operatorDefinitions,
-    OperatorSymbol,
-    Expression(
-        AnyCharBut,
-        Attribute,
-        Blank,
-        EIdent,
-        EOF,
-        Ident,
-        InfixElement,
-        Link,
-        List,
-        MultiElementWrapper,
-        NestedElement,
-        Number,
-        Or,
-        Reparse,
-        SepBy,
-        SepBy1,
-        SepBy2,
-        StringOf,
-        Tab,
-        TextMatch,
-        Variable,
-        WhiteSpace),
     Sequence
 ) where
 
+import Data.Char hiding (Space)
+import Data.List
+import Data.Map as M hiding (filter, map, foldl)
+import Data.Maybe
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
-import Data.Map as M hiding (filter, map, foldl)
-import Data.List
-import Data.Maybe
 
 import Colors hiding (reverse)
+import CharSet
+import XPath
+import Grammar
 
 import JDebug
 
-type OperatorSymbol = String
-
-type Sequence = [Expression]
-
-data Expression = TextMatch String | Attribute String Sequence |
-    SepBy Sequence Sequence | SepBy1 Sequence Sequence | SepBy2 Sequence Sequence |
-    Ident | EIdent | Number | WhiteSpace String |
-    List Sequence | Blank | EOF | InfixElement String |
-    Variable | NestedElement String Sequence | MultiElementWrapper String Sequence |
-    AnyCharBut String | Or [Sequence] | Link String |  StringOf Sequence |
-    Reparse Sequence Sequence |
-    Tab String Sequence deriving (Eq, Show)
-
-{--instance Show Expression where
-    show (Or list) = intercalate "\n    |\n    " (map sShow list)
-    show x = iShow x--}
-
-sShow::Sequence->String
-sShow seq = intercalate " " (map show seq)
-
-iShow::Expression->String
-iShow (TextMatch text) = show text
-iShow (Attribute name [Ident]) = "@" ++ name
-iShow (Attribute name theType) = "@" ++ name ++ "{" ++ sShow theType ++ "}"
-iShow (NestedElement name theType) = name ++ "{" ++ sShow theType ++ "}"
-iShow (MultiElementWrapper name items) = "multiElementWrapper(" ++ name ++ ", " ++ sShow items ++ ")"
-iShow (InfixElement name) = name ++ "{<-->}"
-iShow (SepBy e separator) = "sepBy(" ++ sShow e ++ ", " ++ sShow separator ++ ")"
-iShow (SepBy1 e separator) = "sepBy1(" ++ sShow e ++ ", " ++ sShow separator ++ ")"
-iShow (List e) = "list(" ++ sShow e ++ ")"
-iShow (StringOf e) = "stringOf(" ++ sShow e ++ ")"
-iShow (Reparse second first) = "reparse(" ++ sShow second ++ ", " ++ sShow first ++ ")"
-iShow Variable = blue "Variable"
-iShow Blank = "blank"
-iShow Ident = underline "ident"
-iShow EIdent = underline "eIdent"
-iShow Number = underline "number"
-iShow (WhiteSpace defaultValue) = "_"
-iShow (AnyCharBut chars) = "anyCharBut(" ++ show chars ++ ")"
-iShow (Or list) = "(" ++ intercalate " | " (map sShow list) ++ ")"
-iShow (Link name) = underline $ magenta name
-iShow (Tab tabString e) = "(" ++ show tabString ++ ")==>(" ++ sShow e ++ ")"
-iShow EOF = "EOF"
+--import Debug.Trace
 
 
-type RuleName = String
-
-type Rule = (RuleName, Sequence)
-
-data GrammarItem = ElementRule (RuleName, Sequence) |
-                Assignment (RuleName, Sequence) |
-                OperatorDefinition (RuleName, [OperatorSymbol]) deriving (Show)
-
-data Grammar = Grammar { startSymbol::String,
-                        elementRules::[Rule],
-                        assignments::[Rule],
-                        operatorDefinitions::Map String [OperatorSymbol] } deriving (Eq)
-
-ruleMap::Grammar->Map RuleName Sequence
-ruleMap g = fromListWith (\a b -> [Or [a, b]]) (elementRules g)
-
-assignmentMap::Grammar->Map RuleName Sequence
-assignmentMap g = fromListWith (\a b -> [Or [a, b]]) (assignments g)
-
-
-instance Show Grammar where
-    show g = "Start Symbol = " ++ (startSymbol g) ++ "\n\n------------\n\n" ++
-        (intercalate "\n\n" (map formatRule (elementRules g))) ++ "\n\n" ++
-        (intercalate "\n\n" (map formatAssignment (assignments g))) ++ "\n\n" ++
-        (intercalate "\n\n" (map formatOperator (toList $ operatorDefinitions g)))
-
-formatRule::(String, Sequence)->String
-formatRule (name, e) = (cyan name) ++ (green " => ") ++ show e
-
-formatAssignment::(String, Sequence)->String
-formatAssignment (name, e) = (cyan name) ++ (yellow " = ") ++ show e
-
-formatOperator::(String, [OperatorSymbol])->String
-formatOperator (name, operators) = (cyan name) ++ (yellow " has operators ") ++ show operators
 
 ---------- Convert Lists to Maps (ie- create the Grammar from the parsed data)
 
-getElementRules::[GrammarItem]->[(RuleName, Sequence)]
-getElementRules ((ElementRule rulePair):rest) = rulePair:(getElementRules rest)
-getElementRules (x:rest) = getElementRules rest
-getElementRules [] = []
-
-getAssignments::[GrammarItem]->[(RuleName, Sequence)]
-getAssignments ((Assignment rulePair):rest) = rulePair:(getAssignments rest)
-getAssignments (x:rest) = getAssignments rest
-getAssignments [] = []
-
-getOperatorDefinitions::[GrammarItem]->[(RuleName, [OperatorSymbol])]
-getOperatorDefinitions ((OperatorDefinition rulePair):rest) = rulePair:(getOperatorDefinitions rest)
-getOperatorDefinitions (x:rest) = getOperatorDefinitions rest
-getOperatorDefinitions [] = []
-
-grammarParser::Parser Grammar
-{--grammarParser =
+parseGrammar =
     do
-        grammarItems<-grammarItemParser
+        spaces
+        classes<-endBy parseClass spaces
+        spaces
+        eof
         return Grammar {
-                            startSymbol = startSymbol grammarItems,
-                            elementRules = fromListWithKey
-                                (\name -> \a -> \b -> if (name == startSymbol grammarItems) then Or [a, b] else Or [strip a, strip b])
-                                (getElementRules grammarItems),
-                            assignments = fromList (getAssignments grammarItems),
-                            operatorDefinitions = fromList (getOperatorDefinitions grammarItems)
+                            main = (assert (length classes > 0) "Grammar contains no classes")
+                                (name $ head classes),
+                            classes = classes
                         }
-            where startSymbol items = fst $ head $ getElementRules items --}
 
-grammarParser =
+parseClass = parseFullClass <|> parseSimpleClass
+
+parseSimpleClass =
     do
-        grammarItems<-grammarItemParser
-        return Grammar {
-                            startSymbol = startSymbol grammarItems,
-                            elementRules = getElementRules grammarItems,
-                            assignments = getAssignments grammarItems,
-                            operatorDefinitions = fromList (getOperatorDefinitions grammarItems)
-                        }
-            where startSymbol items = fst $ head $ getElementRules items
+        RuleItem rule<-parseRule
+        spaces
+        return Class { name=fst rule, parents=[], rules=[rule], operators=[], separator=[WhiteSpace " "] }
+
+data RuleOrOperatorsOrSeparator = RuleItem Rule | OperatorsItem [Sequence] | SeparatorItem Sequence
+
+parseFullClass =
+    do
+        string "====["
+        name<-ident
+        parents <- option [] (char ':' >> sepBy ident (char ','))
+        string "]"
+        many (char '=')
+        spaces
+        items<-endBy (
+            parseSeparator
+            <|> parseOperators
+            <|> parseRule) spaces
+        spaces
+        string "====[/"
+        name<-ident
+        char ']'
+        many (char '=')
+        return Class {
+                name=name,
+                parents=parents,
+                rules=[rule|RuleItem rule<-items],
+                operators=concat [operators|OperatorsItem operators<-items],
+                separator=case [separator|SeparatorItem separator<-items] of
+                    [] -> [TextMatch " "]
+                    [x] -> x
+                    _ -> error "Only one separator allowed for a class"}
+
+
+
+parseRule =
+    do
+        name<-ident
+        spaces
+        condition <- option CnTrue parseBracketedCondition
+        spaces
+        string "=>"
+        sequence<-parseSequence
+        spaces
+        string "----"
+        many (char '-')
+        spaces
+        return (RuleItem (name, (condition, sequence)))
+
+parseOperators =
+    do
+        string "operators:"
+        spaces
+        operators<- endBy parseQuote spaces
+        return (OperatorsItem operators)
+
+parseSeparator =
+    do
+        try (string "separator:")
+        spaces
+        separator<- parseQuote
+        return (SeparatorItem separator)
 
 -----------------------------
 
-grammarItemParser::Parser [GrammarItem]
-grammarItemParser =
+parseBracketedCondition =
     do
-        spaces
-        rules<-matchRules
-        spaces
-        eof
-        return rules
-
-matchRules::Parser [GrammarItem]
-matchRules = many1WithSeparator (try matchElementRule <|> try matchAssignment <|> try matchOperatorDefinition) spaces
+        char '['
+        condition <- parseCondition
+        char ']'
+        return condition
 
 ident =
     do
@@ -203,69 +134,29 @@ ident =
         cs<-many alphaNum
         return (c:cs)
 
-matchElementRule::Parser GrammarItem
-matchElementRule =
+parseQuote::Parser Sequence
+parseQuote =
     do
-        name<-ident
-        spaces
-        string "=>"
-        sequences<-many1 matchSequence
-        spaces
-        char ';'
-        return (ElementRule (name, concat sequences))
+        char '\''
+        quotedString<-many (
+            noneOf "'\\\n"
+                <|> try (string "\\'" >> return '\'')
+                <|> try (string "\\n" >> return '\n')
+                <|> try (string "\\r" >> return '\r')
+                <|> try (string "\\t" >> return '\t'))
+        char '\''
+        return (string2Sequence quotedString)
 
-matchAssignment::Parser GrammarItem
-matchAssignment =
-    do
-        name<-ident
-        spaces
-        string "="
-        sequences<-many1 matchSequence
-        spaces
-        char ';'
-        return (Assignment (name, concat sequences))
+string2Sequence::String->Sequence
+string2Sequence [] = []
+string2Sequence ('_':rest) = WhiteSpace "":string2Sequence rest
+string2Sequence s | isSpace (head s) = WhiteSpace first:string2Sequence rest
+    where (first, rest) = break (not . isSpaceOrUnderscore) s
+string2Sequence s = TextMatch first:string2Sequence rest
+    where (first, rest) = break isSpaceOrUnderscore s
 
-matchOperatorDefinition::Parser GrammarItem
-matchOperatorDefinition =
-    do
-        name<-ident
-        string ":operators"
-        spaces
-        string "=>"
-        spaces
-        operators<-many1WithSeparator matchSimpleQuote spaces
-        spaces
-        char ';'
-        return (OperatorDefinition (name, operators))
-
-matchQuotedStringWithWhitespace::Parser Sequence
-matchQuotedStringWithWhitespace =
-    do
-        string "'"
-        val<-many (
-            try (do text <- many1 (noneOf "' \t\r\n_\\" <|> (string "\\'" >> return '\'')); return (TextMatch text)) <|>
-            (do defaultSpace <- many1(
-                    try space
-                    <|> try (char '_')
-                    <|> try (string "\\n" >> return '\n')
-                    <|> try (string "\\r" >> return '\r')
-                    <|> (string "\\t" >> return '\t')
-                    ); return (WhiteSpace defaultSpace)))
-        string "'"
-        return val
-
-matchSimpleQuote::Parser String
-matchSimpleQuote =
-    do
-        string "'"
-        val<-many (try (noneOf "'\\") <|> try (string "\\\\" >> return '\\')
-            <|> try (string "\\'" >> return '\'')
-            <|> try (string "\\n" >> return '\n')
-            <|> try (string "\\r" >> return '\r')
-            <|> (string "\\t" >> return '\t'))
-        string "'"
-        return val
-
+isSpaceOrUnderscore::Char->Bool
+isSpaceOrUnderscore c = isSpace c || c == '_'
 
 many1WithSeparator::Parser a->Parser b->Parser [a]
 many1WithSeparator x matchSeparator =
@@ -274,43 +165,115 @@ many1WithSeparator x matchSeparator =
         rest<-many $ try (do matchSeparator; val<-x; return val)
         return (first:rest)
 
-matchSequence::Parser Sequence
-matchSequence = try matchAttribute
-    <|> try matchWhiteSpaceAndBracket
-    <|> try matchNestedElement <|> try matchInlineElement <|> try matchConversionText
-    <|> try matchBracket <|> try matchBlank <|> matchWhiteSpace
+data Count = One | ZeroOrMore | OneOrMore
 
-matchAttribute::Parser Sequence
+parseSequence::Parser Sequence
+parseSequence =
+    do
+        sequences <- many matchSequenceItem
+        return (concat sequences)
+
+data SequenceItem = TextItem String | SequenceItem Sequence | ExpressionItem Expression
+
+matchSequenceItem =
+    do
+        item <- (
+            exp2 ExpressionItem matchAttribute
+            <|> exp2 ExpressionItem matchLink
+            <|> exp2 SequenceItem matchParen
+            <|> exp2 ExpressionItem matchCharsetChar
+            <|> exp2 ExpressionItem matchSimpleCharsetChar
+            <|> exp2 TextItem matchText)
+        count <- option "" (string "*" <|> string "+")
+        return (case (count, item) of
+            ("", ExpressionItem exp) -> [exp]
+            ("", SequenceItem seq) -> seq
+            ("", TextItem text) -> string2Sequence text
+            ("*", ExpressionItem exp) -> [SepBy 0 [exp]]
+            ("*", SequenceItem seq) -> [SepBy 0 seq]
+            ("*", TextItem text) -> string2Sequence (init text) ++ [SepBy 0 [TextMatch [last text]]]
+            ("+", ExpressionItem exp) -> [SepBy 1 [exp]]
+            ("+", SequenceItem seq) -> [SepBy 1 seq]
+            ("+", TextItem text) -> string2Sequence (init text) ++ [SepBy 1 [TextMatch [last text]]])
+
+
+
+exp2Seq::Parser Expression->Parser Sequence
+exp2Seq x =
+    do
+        ret<-x
+        return [ret]
+
+exp2::(a->b)->Parser a->Parser b
+exp2 f x =
+    do
+        ret<-x
+        return (f ret)
+
 matchAttribute =
     do
-        string "@"
+        char '@'
         name<-ident
-        parseType<-option [Ident] matchBracket
-        return ([Attribute name parseType])
+        parseType<-option [Ident] matchParen
+        return (Attribute name parseType)
 
-matchNestedElement::Parser Sequence
-matchNestedElement =
+matchParen =
     do
-        name<-ident
-        parseType<-matchBracket
-        return ([NestedElement name parseType])
+        char '('
+        sequence <- parseSequence
+        char ')'
+        return sequence
 
-matchInlineElement::Parser Sequence
-matchInlineElement =
+matchCharsetChar =
     do
-        name<-ident
-        string "{<-->}"
-        return ([InfixElement name])
+        char '['
+        isInverse <- option False (char '^' >> return True)
+        charset <- many (noneOf "]")
+        char ']'
+        return (Character (CharSet isInverse (string2CharTypes charset)))
 
-matchBracket::Parser Sequence
-matchBracket =
+matchSimpleCharsetChar =
+    do
+        chartype <- (
+            try (string "\\s" >> return Space)
+            <|> try (string "\\d" >> return Digit)
+            <|> try (string "\\w" >> return WordChar)
+            )
+        return (Character (CharSet False [chartype]))
+
+matchLink =
     do
         char '{'
-        val<-matchBracketedSequence
+        val<-ident
         char '}'
-        return val
+        return (Link val)
 
-matchWhiteSpaceAndBracket::Parser Sequence
+matchText =
+    do
+        text<-many1 (noneOf "*()[]-{}@\\"
+            <|> (try (string "\\@") >> return '@')
+            <|> (try (string "\\*") >> return '*')
+            <|> (try (string "\\+") >> return '+')
+            <|> (try (string "\\(") >> return '(')
+            <|> (try (string "\\)") >> return ')')
+            <|> (try (string "\\[") >> return '[')
+            <|> (try (string "\\]") >> return ']')
+            <|> (try (string "\\{") >> return '{')
+            <|> (try (string "\\}") >> return '}'))
+        return text
+
+string2CharTypes::String->[CharType]
+string2CharTypes ('\\':'s':rest) = Space:string2CharTypes rest
+string2CharTypes ('\\':'d':rest) = Digit:string2CharTypes rest
+string2CharTypes ('\\':'n':rest) = SingleChar '\n':string2CharTypes rest
+string2CharTypes ('\\':'r':rest) = SingleChar '\r':string2CharTypes rest
+string2CharTypes ('\\':'t':rest) = SingleChar '\t':string2CharTypes rest
+string2CharTypes ('\\':c:rest) = error ("Missing escape char in string2CharTypes " ++ [c])
+string2CharTypes (c:rest) = SingleChar c:string2CharTypes rest
+string2CharTypes [] = []
+
+
+{--matchWhiteSpaceAndBracket::Parser Sequence
 matchWhiteSpaceAndBracket =
     do
         whitespace <- try (many1 space) <|> (string "_")
@@ -320,7 +283,7 @@ matchWhiteSpaceAndBracket =
                 if (elem '\n' whitespace) &&
                     (rightWhitespace /= "") &&
                     isOnlyMadeOfSpaces rightWhitespace then [WhiteSpace leftWhitespace, Tab rightWhitespace val]
-                        else (WhiteSpace whitespace):val)
+                        else (WhiteSpace whitespace):val)--}
 
 isOnlyMadeOfSpaces::String->Bool
 isOnlyMadeOfSpaces [] = True
@@ -330,93 +293,44 @@ isOnlyMadeOfSpaces (c:rest) = False
 breakRight::(Eq a)=>a->[a]->([a], [a])
 breakRight char string = (\(x, y) -> (reverse y, reverse x)) (break (char ==) (reverse string))
 
-matchBracketedSequence::Parser Sequence
+{--matchBracketedSequence::Parser Sequence
 matchBracketedSequence =
-    buildExpressionParser
-
-        [[Infix (do {string "|"; return (\a -> \b -> [Or [a, b]])}) AssocLeft]]
-
-        (
             try matchPreDefinedRule <|>
             try matchList1 <|>
             try matchList <|>
             try matchAnyCharBut <|>
-            try matchStringOf <|>
             try matchReparse <|>
             try matchLink <|>
-            try matchQuotedStringWithWhitespace
-        )
+            try parseQuote--}
 
-
-matchLink::Parser Sequence
-matchLink =
-    do
-        name<-ident
-        return ([Link name])
-
-matchList::Parser Sequence
+{--matchList::Parser Sequence
 matchList =
     do
-        string "list("
+        string "("
         spaces
         e<-matchBracketedSequence
         spaces
-        char ','
-        spaces
-        separator<-matchBracketedSequence
-        spaces
-        string ")"
-        return ([SepBy e separator])
+        string ")*"
+        return ([List 0 e])
 
 matchList1::Parser Sequence
 matchList1 =
     do
-        string "list1("
+        string "("
         spaces
         e<-matchBracketedSequence
         spaces
-        char ','
-        spaces
-        separator<-matchBracketedSequence
-        spaces
-        string ")"
-        return ([SepBy1 e separator])
+        string ")+"
+        return ([List 1 e])--}
 
-matchMultiElementWrapper::Parser Sequence
-matchMultiElementWrapper =
+{--matchAnyCharBut =
     do
-        string "multiElementWrapper("
-        spaces
-        name<-ident
-        spaces
-        char ','
-        spaces
-        items<-matchBracketedSequence
-        spaces
-        string ")"
-        return ([MultiElementWrapper name items])
+        string "[^"
+        e<-many1 (noneOf "]")
+        string "]"
+        return (AnyCharBut e)--}
 
-matchStringOf::Parser Sequence
-matchStringOf =
-    do
-        string "stringOf("
-        spaces
-        e<-matchBracketedSequence
-        spaces
-        string ")"
-        return ([StringOf e])
-
-matchAnyCharBut::Parser Sequence
-matchAnyCharBut =
-    do
-        string "anyCharBut("
-        spaces
-        e<-matchSimpleQuote
-        spaces
-        string ")"
-        return ([AnyCharBut e])
-
-matchReparse::Parser Sequence
+{--matchReparse::Parser Sequence
 matchReparse =
     do
         string "reparse("
@@ -428,41 +342,28 @@ matchReparse =
         firstExpression<-matchBracketedSequence
         spaces
         string ")"
-        return ([Reparse secondExpression firstExpression])
+        return ([Reparse secondExpression firstExpression])--}
 
 matchPreDefinedRule::Parser Sequence
 matchPreDefinedRule =
     do
         rule<-(
             (string "ident" >> return Ident) <|>
-            (string "eIdent" >> return EIdent) <|>
             (string "number" >> return Number)
             )
         return [rule]
 
-matchConversionText::Parser Sequence
 matchConversionText =
     do
-        text<-many1 (noneOf "{}@;\\ \t\n\r_" <|>
+        text<-many1 (noneOf "-{}@\\ \t\n\r_" <|>
             try (string "\\\\" >> return '\\') <|>
             try (string "\\{" >> return '{') <|>
             try (string "\\}" >> return '}') <|>
-            try (string "\\;" >> return ';') <|>
             try (string "\\@" >> return '@'))
-        return ([TextMatch text])
+        return (TextMatch text)
 
-matchWhiteSpace::Parser Sequence
-matchWhiteSpace =
+{--matchWhiteSpace =
     do
-        formatDefault<-try (many1 space) <|> (string "_")
-        return ([WhiteSpace formatDefault])
+        formatDefault<-(many1 space) <|> (string "_")
+        return (WhiteSpace formatDefault)--}
 
-matchBlank::Parser Sequence
-matchBlank =
-    do
-        string "<blank>"
-        return [Blank]
-
-
-
---------------------------

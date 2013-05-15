@@ -3,178 +3,296 @@
 {-# LANGUAGE OverloadedStrings #-}
 
 module Parser (
-    createParser,
-    createParserWithStartRule,
-    modifyGrammar,
-    element2Document
+    createParserForClass,
+    createParser
 ) where
 
 import Prelude hiding (lookup)
+import Data.Char hiding (Space)
+import Data.Graph.Inductive.Query.Monad
 import Data.Maybe
-import Data.Text as DT hiding (map, length, foldl, foldl1, empty, head, filter, intercalate)
+--import Data.Text as DT hiding (map, length, foldl, foldl1, empty, head, tail, filter, intercalate, isPrefixOf, take, drop, find)
+import Data.Tree
 import Text.XML
-import Data.List as L hiding (union, lookup)
+import Data.List as L hiding (union, lookup, insert)
 import Data.Map hiding (map, foldl, filter)
 
-import Debug.Trace
-
-import GrammarParser
+import CharSet
+import EnhancedString
+import Grammar
 import GrammarTools
-import ManyWorldsParser
+import LString (LString, line, col, string, createLString)
+import qualified LString as LS
 import OperatorNames
+import XPath
+
+--import Debug.Trace
+import JDebug
 
 type Attribute = (String, String)
 
-sequence2CharParser::Grammar->Sequence->[State Char]
-sequence2CharParser _ [AnyCharBut forbiddenChars] = noneOf forbiddenChars
-sequence2CharParser g [Link name] =
-        sequence2CharParser g lookupRule
-            where lookupRule = case lookup name (ruleMap g) of
-                    Just x -> x
-                    Nothing -> error ("The grammar links to a non-existant rule named " ++ name)
-sequence2CharParser g e = error ("sequence2CharParser can't handle " ++ show e)
+type EParser = LString->EString
+type Parser = String->String
 
-returnBlank::[State a]->[State ([Node], [Attribute])]
-returnBlank = sMap (\x -> ([], []))
+err::LString->String->Forest EChar
+err s message = [Node { rootLabel=Error message s, subForest=[]}]
 
-combino::([Node], [Attribute])->([Node], [Attribute])->([Node], [Attribute])
-combino (x1, y1) (x2, y2) = (x1 ++ x2, y1 ++ y2)
+expectErr::LString->String->Forest EChar
+expectErr s expectation = [Node { rootLabel=ExpectationError [expectation] s, subForest=[]}]
 
-(<++>)::[State ([Node], [Attribute])]->[State ([Node], [Attribute])]->[State ([Node], [Attribute])]
-(<++>) = combine combino
+-------------------------------
 
-returnAttributeNamed::String->[State String]->[State ([Node], [Attribute])]
-returnAttributeNamed name = sMap2 (\value -> if (value /= "script") then ([Done ([], [(name, value)])]) else [err "script tag not allowed"])
+removeBind::Sequence->Sequence
+removeBind (Bind:rest)=removeBind rest
+removeBind (x:rest) = x:removeBind rest
+removeBind [] = []
 
-getTextFromSingleTextNode::([Node], [Attribute])->String
-getTextFromSingleTextNode ([NodeContent text], []) = unpack text
-getTextFromSingleTextNode ([], []) = "" --(error "getTextFromSingleTextNode is empty")
-getTextFromSingleTextNode x = error ("getTextFromSingleTextNode called with nodes that aren't text [\n\n" ++ show x ++ "]")
+haveSameStart::(Eq a, Show a)=>[[a]]->Bool
+haveSameStart [] = False
+haveSameStart [[]] = False
+haveSameStart sequences = (length $ nub (map head sequences)) == 1
 
-textNode::[State String]->[State ([Node], [Attribute])]
-textNode = sMap (\string -> ([NodeContent (pack string)], []))
-
-reparse::Grammar->Sequence->String->([Node], [Attribute])
-reparse g second s = case parse "file" (sequence2Parser g (second ++ [EOF])) s of
-    Right [val] -> val
-    Right val -> error ("Reparse value is not unique: " ++ (intercalate "\n\n----\n\n" (map show val)))
-    Left err -> error "reparse failed"
-
-
-sequence2Parser::Grammar->Sequence->[State ([Node], [Attribute])]
-sequence2Parser g ((WhiteSpace _):e:rest) =
-    ignorableWhitespacePrefix(expression2Parser g e <++> sequence2Parser g rest)
-sequence2Parser g (e:rest) = expression2Parser g e <++> sequence2Parser g rest
-sequence2Parser g [] = blank ([], [])
-
-
-
-
-
-
-
-
-expression2Parser::Grammar->Expression->[State ([Node], [Attribute])]
-expression2Parser g (TextMatch matchString) = returnBlank (string matchString)
-
-expression2Parser _ Ident  = textNode ident
-expression2Parser _ EIdent = textNode eIdent
-expression2Parser _ Number = textNode number
-expression2Parser g (StringOf e) = textNode $ string1Of (sequence2CharParser g e)
-
-expression2Parser g (Attribute name seq) = returnAttributeNamed name (sMap getTextFromSingleTextNode (sequence2Parser g seq))
-
-expression2Parser g (Or x) = foldl1 (|||) (map (sequence2Parser g) x)
-
-expression2Parser g Blank = blank ([], [])
-expression2Parser g (Tab _ e) = sequence2Parser g e
-
-expression2Parser g (MultiElementWrapper name e) =
-    sMap
-        (\x@(nodes, attributes) -> if (length nodes > 1) then (addElementIfMultiple name x, []) else x)
-        (sequence2Parser g e)
-            where
-                addElementIfMultiple tagName (nodes, attributes) =
-                    [NodeElement $ Element {
-                        elementName=Name (pack tagName) Nothing Nothing,
-                        elementAttributes=map attribute2NameText attributes,
-                        elementNodes=nodes}]
-
-
-expression2Parser g (List exp) = sMap (foldl combino ([], [])) (many (sequence2Parser g exp))
-
-{--expression2Parser g (SepBy exp separator) = blank ([], []) |||
-    ((expression2Parser g exp) <++> expression2Parser g (List (Sequence [separator, exp])))
-
-expression2Parser g (SepBy1 exp separator) =
-    expression2Parser g (Sequence [exp, List (Sequence [separator, exp])])--}
-
-expression2Parser g (Reparse second first) = sMap ((reparse g second) . getTextFromSingleTextNode) (sequence2Parser g first)
-
-
-
-
-
---expression2Parser g (InfixElement string) = expression2Parser g e
-
-expression2Parser g (Link name) =
-        sMap (\elements -> (elements, [])) lookupRule
-            where lookupRule = case lookup name (grammar2Rules g) of
-                    Just x -> x
-                    Nothing -> error ("The grammar links to a non-existant rule named " ++ name)
-
-expression2Parser g EOF = eof ([], [])
-
-expression2Parser g x = error ("Missing case in expression2Parser: " ++ show x)
-
---------------------------------
-
-attribute2NameText::Attribute->(Name, Text)
-attribute2NameText (s1, s2) =
-                ((Name (pack s1) Nothing Nothing), pack $ s2)
-
--------------------------
-
-addElementUsingAttributeValues::String->[State ([Node], [Attribute])]->[State [Node]]
-
-addElementUsingAttributeValues tagName parser =
-        sMap makeElement parser
-            where makeElement (elements, attributes) = [NodeElement $ Element {
-                elementName=Name (pack tagName) Nothing Nothing,
-                elementAttributes=map attribute2NameText attributes,
-                elementNodes=elements}]
-
-dropAttributes::[State ([Node], [Attribute])]->[State [Node]]
-dropAttributes parser = sMap fst parser
-
-----------------------------------
-
-grammar2Rules::Grammar->Map String ([State [Node]])
-grammar2Rules g = terminalParsers g
-
-terminalParsers::Grammar->Map String ([State [Node]])
-terminalParsers g = union
-    (mapWithKey (\name e -> (addElementUsingAttributeValues name) $ sequence2Parser g e) (ruleMap g))
-    (mapWithKey (\name e -> dropAttributes $ sequence2Parser g e) (assignmentMap g))
-
-modifyGrammar::Grammar->Grammar
---modifyGrammar g = fullySimplifyGrammar $ removeLeftRecursionFromGrammar $ fullySimplifyGrammar $ expandOperators $ stripWhitespaceFromGrammar $ addEOFToGrammar g
-modifyGrammar g = fullySimplifyGrammar $ expandOperators $ stripWhitespaceFromGrammar $ addEOFToGrammar g
-
-createParserWithStartRule::String->Grammar->Maybe [State [Node]]
-createParserWithStartRule startRule g =
-        lookup startRule modifiedRules
-            where modifiedRules = grammar2Rules $ modifyGrammar g
-
-
-createParser::Grammar->[State [Node]]
-createParser g = case createParserWithStartRule (startSymbol g) g of
-    Just states -> states
-
-element2Document::Element->Document
-element2Document element = Document {
-    documentPrologue=Prologue {prologueBefore=[], prologueDoctype=Nothing, prologueAfter=[]},
-    documentRoot=element,
-    documentEpilogue=[]
+pushCondition::Context->Condition->Context
+pushCondition cx cn =
+    cx {
+        conditions=cn:(conditions cx),
+        attributes=empty:(attributes cx)
     }
 
+popCondition::Context->Context
+popCondition cx =
+    cx {
+        conditions=tail (conditions cx),
+        attributes=tail (attributes cx)
+    }
+
+addCharToCurrentAttribute::Context->EChar->Context
+addCharToCurrentAttribute cx c = case currentAttribute cx of
+    Nothing -> cx
+    Just (name, partialString) -> case c of
+            Ch c2 -> cx { currentAttribute=Just (name, partialString ++ [c2]) }
+            _ -> error "Attributes must only parse strings"
+
+beginCurrentAttribute::Context->String->Context
+beginCurrentAttribute cx name = case currentAttribute cx of
+    Just _ -> error "beginCurrentAttribute called twice without moving attribute"
+    Nothing -> cx { currentAttribute=Just (name, []) }
+
+moveCurrentAttributeToAttributes::Context->Context
+moveCurrentAttributeToAttributes cx = case currentAttribute cx of
+    Nothing -> error "Can't call moveCurrentAttributeToAttributes unless currentAttribute is non-null"
+    Just (name, value) -> cx {
+                            currentAttribute=Nothing,
+                            attributes=insert name value (head atts):tail atts
+                            }
+                        where atts = attributes cx
+
+getSingleCondition::[Condition]->Condition
+getSingleCondition cns = case nub cns of
+    [cn] -> cn
+    _ -> error "Elements with the same name must have the same condition"
+
+
+continue::Context->EString->Sequence->LString->Forest EChar
+--continue cx item (Bind:rest) s = continue cx (item ++ [Bound]) rest s
+--continue cx item (JustOutput value:rest) s = continue cx (item ++ value) rest s
+--continue cx item (WhiteSpace _:JustOutput value:rest) s = continue cx (item ++ value) (WhiteSpace " ":rest) s
+--continue cx item (WhiteSpace _:Bind:rest) s = continue cx (item ++ [Bound]) (WhiteSpace " ":rest) s
+--continue cx item (JustOutput value:Bind:rest) s = continue cx (item ++ [Bound]) (JustOutput value:rest) s
+--continue cx (c:rest) seq s | string s == [] = [Node {rootLabel=c, subForest=continue cx rest seq s}]
+--continue cx [] seq s | string s == [] = [Node {rootLabel=Sync, subForest=rawParse cx seq (LS.tail s)}]
+
+continue cx (c:rest) seq s = [Node {rootLabel=c, subForest=
+    continue (addCharToCurrentAttribute cx c) rest seq s}]
+continue cx [] seq s = [Node {rootLabel=Sync, subForest=rawParse cx seq (LS.tail s)}]
+
+
+rawParse::Context->Sequence->LString->Forest EChar
+rawParse cx (EOF:rest) s | string s == [] = [Node {rootLabel=Ch '\n', subForest=rawParse cx rest s}]
+rawParse cx (EOF:rest) s = expectErr s "EOF"
+--rawParse cx seq s | string s == [] =  [err s ("File ends too soon, expecting " ++ show seq)]--}
+rawParse cx [] s = [Node { rootLabel=(Ch '\n'), subForest=[] }]
+
+rawParse cx (TextMatch [c]:rest) s | LS.isPrefixOf [c] s = continue cx [] rest s
+rawParse cx (TextMatch matchString:rest) s | LS.isPrefixOf matchString s =
+        continue cx [] (TextMatch (tail matchString):rest) s
+rawParse cx (TextMatch matchString:rest) s = expectErr s matchString
+
+rawParse cx (Attribute name seq:rest) s =
+    rawParse nextCx ([JustOutput [AStart name]] ++ seq ++ [JustOutput [AEnd]] ++ rest) s
+        where nextCx = beginCurrentAttribute cx name
+
+rawParse cx (Tab _ e:rest) s = rawParse cx (e ++ rest) s
+
+--rawParse cx (Or sequences:rest) s | haveSameStart sequences =
+--    rawParse cx ([head $ head $ sequences] ++ [Or (map tail sequences)] ++ rest) s
+rawParse cx (Or sequences:rest) s =
+    concat  (map (\seq -> rawParse cx (seq ++ rest) s) sequences)
+
+rawParse cx (Bind:rest) s = rawParse cx (JustOutput [Bound]:rest) s
+
+rawParse cx (SepBy count seq@[Character charset]:rest) s = rawParse cx (List count seq:rest) s
+
+rawParse cx (SepBy 0 seq:rest) s =
+    rawParse cx [Or [seq ++ [Bind] ++ [List 0 (separator ++ seq)] ++ cleanedRest, cleanedRest]] s
+    where separator = (seq2Separator cx) seq; cleanedRest = removeBind rest
+rawParse cx (SepBy count seq:rest) s =
+    rawParse cx (seq ++ [List (count -1) (separator++seq)] ++ rest) s
+    where separator = (seq2Separator cx) seq
+
+rawParse cx (List 0 [Character charset]:rest) s | LS.null s =
+    rawParse cx rest s
+rawParse cx (List 0 [Character charset]:rest) s | LS.head s `isIn` charset =
+    continue cx [Ch (LS.head s)] (List 0 [Character charset]:rest) s
+rawParse cx (List 0 [Character charset]:rest) s =
+    rawParse cx rest s
+
+rawParse cx (List 0 seq:rest) s = rawParse cx [Or [seq ++ [Bind] ++ [List 0 seq] ++ cleanedRest, cleanedRest]] s
+    where cleanedRest = removeBind rest
+rawParse cx (List min seq:rest) s = rawParse cx (seq ++ [List (min-1) seq] ++ rest) s
+
+rawParse cx (Link name:rest) s =
+    case lookup name (allSubstitutionsWithName cx) of
+            Just [(condition, sequence)] -> rawParse (pushCondition cx condition) (sequence ++ rest) s
+            Just cnAndSeqs ->
+            {--case nub (map fst cnAndSeqs) of
+                [cn] ->
+                    rawParse
+                        (pushCondition cx cn)
+                        (leftFactor (Or (map snd cnAndSeqs):rest))
+                        s
+                _ -> concat  (map (\seq -> rawParse cx (seq ++ rest) s) sequences)--}
+
+                concat $ map (\(cn, seq) -> rawParse (pushCondition cx cn) seq s)
+                    (map (mapSnd (\seqs -> leftFactor (Or seqs:rest))) (toList cnSeqMap))
+                            where cnSeqMap = --jtrace ("qqqq" ++ intercalate "\n  " (map show cnAndSeqs)) $
+                                    fromListWith (++) (map (\(a, b) -> (a, [b])) cnAndSeqs)
+
+
+            Nothing -> error ("The grammar links to a non-existant rule named '" ++ name ++ "'")
+
+rawParse cx (WhiteSpace _:rest) s | LS.null s = rawParse cx rest s
+--rawParse cx seq@(WhiteSpace _:rest) s | isSpace (LS.head s) = continue cx [] seq s
+rawParse cx seq@(WhiteSpace _:rest) s | isSpace (LS.head s) = rawParse cx seq (LS.tail s)
+rawParse cx (WhiteSpace _:rest) s = rawParse cx rest s
+
+rawParse cx (Character charset:rest) s | LS.null s = expectErr s (show charset)
+rawParse cx (Character charset:rest) s | LS.head s `isIn` charset = continue cx [Ch (LS.head s)] rest s
+rawParse cx (Character charset:rest) s = expectErr s (show charset)
+
+rawParse cx (Ident:rest) s | LS.null s = expectErr s "Ident"
+rawParse cx (Ident:rest) s | isAlpha (LS.head s) =
+    rawParse cx (List 1 [Character (CharSet False [WordChar])]:rest) s
+rawParse cx (Ident:rest) s = expectErr s "Ident"
+
+rawParse cx (JustOutput (EEnd:remainingChars):rest) s =
+    [Node { rootLabel=EEnd, subForest=rawParse (popCondition cx) (JustOutput remainingChars:rest) s}]
+
+rawParse cx (JustOutput (AEnd:remainingChars):rest) s =
+    case eval (head $ attributes newCx) (head $ conditions cx) of
+        Just CnFalse -> err s "Condition failed"
+        _ -> [Node { rootLabel=AEnd, subForest=rawParse newCx (JustOutput remainingChars:rest) s}]
+    where newCx = moveCurrentAttributeToAttributes cx
+
+rawParse cx (JustOutput (char:remainingChars):rest) s = [Node { rootLabel=char, subForest=rawParse cx (JustOutput remainingChars:rest) s}]
+rawParse cx (JustOutput []:rest) s = rawParse cx rest s
+
+rawParse cx (x:_) s = error ("Missing case in rawParse: " ++ show x)
+
+------------------------
+
+eParser2Parser::EParser->Parser
+eParser2Parser p = enhancedString2String . p . createLString
+--eParser2Parser p = show . p . createLString
+
+isntError::EChar->Bool
+isntError (Error _ _) = False
+isntError (ExpectationError _ _) = False
+isntError x = True
+
+isBound::Tree EChar->Bool
+isBound (Node {rootLabel=Bound})=True
+isBound (Node {rootLabel=Sync})=False
+isBound (Node {subForest=[tree]})=isBound tree
+isBound (Node {subForest=[]})=False
+isBound tree@(Node {subForest=_})= False
+--    if safe then False
+--        else error ("split before bound ambiguity resolved: " ++ drawTree (fmap show tree))
+
+isError::Bool->Tree EChar->Bool
+isError safe (Node {rootLabel=(Error _ _)})=True
+isError safe (Node {rootLabel=(ExpectationError _ _)})=True
+isError safe (Node {rootLabel=Sync})=False
+isError safe (Node {subForest=[tree]})=isError safe tree
+isError safe (Node {subForest=[]})=False
+isError safe tree@(Node {subForest=_})=
+    if safe then False
+        else error ("split before ambiguity resolved: " ++ drawTree (fmap show tree))
+
+hasSync::Tree EChar->Bool
+hasSync (Node {rootLabel=Sync})=True
+hasSync (Node {subForest=[next]})=hasSync next
+hasSync (Node {subForest=[]})=False
+
+getError::Tree EChar->EChar
+getError (Node {rootLabel=err@(Error _ _)})=err
+getError (Node {rootLabel=err@(ExpectationError _ _)})=err
+getError (Node {rootLabel=Sync})=error "There should have been an error"
+getError (Node {subForest=[tree]})=getError tree
+
+movePastNextSync::(EString, Tree EChar)->(EString, Tree EChar)
+movePastNextSync (output, node@Node {rootLabel=Sync, subForest=[next]}) = (output ++ [Sync], next)
+movePastNextSync (output, Node {rootLabel=rootLabel, subForest=[next]}) = movePastNextSync (output ++ [rootLabel], next)
+movePastNextSync (output, Node {rootLabel=rootLabel, subForest=[]}) =
+    (output ++ [rootLabel], Node {rootLabel=Sync, subForest=[]})
+movePastNextSync (output, Node {rootLabel=rootLabel, subForest=subForest}) = error ("ambiguity within ambiguity: " ++ drawForest (map (fmap show) subForest))
+
+lookaheadChoice::Forest EChar->Forest EChar
+lookaheadChoice items =
+    case filter fst (map (\x -> (isBound x, x)) items) of
+        [(_, tree)]->[tree]
+        [] -> case filter fst (map (\x -> (not (isError True x), x)) items) of
+            [] -> [Node {rootLabel=concatErrors (map getError items), subForest=[]}]
+            items -> map snd items
+        _ -> error ("There are two bounds appearing in the tree at the same time:\n  ----"
+            ++ intercalate "\n  ----" (map show items) ++ drawForest (map (fmap show) items))
+
+simplifyUsingLookahead::Tree EChar->Tree EChar
+simplifyUsingLookahead (Node {rootLabel=rootLabel, subForest=[oneNode]}) =
+    Node {rootLabel=rootLabel, subForest=[simplifyUsingLookahead oneNode]}
+simplifyUsingLookahead (Node {rootLabel=rootLabel, subForest=[]}) =
+    Node {rootLabel=rootLabel, subForest=[]}
+simplifyUsingLookahead (Node {rootLabel=rootLabel, subForest=nextNodes}) =
+    Node {rootLabel=rootLabel, subForest=lookaheadChoice (map simplifyUsingLookahead nextNodes)}
+
+
+partial2CorrectPath::[(EString, Tree EChar)]->EString
+partial2CorrectPath [(es, tree)] = rootLabel tree:correctPath (subForest tree)
+partial2CorrectPath [] = []
+partial2CorrectPath items = --jtrace ("\n\ndog: " ++ drawForest (map (fmap show) (map snd items))) $
+    case filter (isBound.snd) items of
+        [(output, tree)]->output ++ partial2CorrectPath [(e "", tree)]
+        [] -> case filter (not.(isError False).snd) items of
+            [] -> [concatErrors (map (getError.snd) items)]
+            [(output, tree)] -> output ++ partial2CorrectPath [(e "", tree)]
+            nonErrorItems -> if (hasSync (snd $ head nonErrorItems)) then partial2CorrectPath (map movePastNextSync nonErrorItems)
+                    else error "ambiguous parse"
+        _ -> error ("There are two bounds appearing in the tree at the same time:\n  ----"
+            ++ intercalate "\n  ----" (map show items) ++ drawForest (map (fmap show) (map snd items)))
+
+correctPath::Forest EChar->EString
+correctPath forest = partial2CorrectPath (map (\x -> (e "", x)) forest)
+
+removeDoubleSyncs::Tree EChar->Tree EChar
+removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=[next@(Node {rootLabel=Sync})]}) = removeDoubleSyncs next
+removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=next}) =
+    Node {rootLabel=rootLabel, subForest=map removeDoubleSyncs next}
+
+
+createParserForClass::String->Context->Parser
+createParserForClass startRule cx s = --jtrace (drawForest (map (fmap show) (map simplifyUsingLookahead forest))) $
+        enhancedString2String (correctPath (map (simplifyUsingLookahead) forest))
+            where forest=rawParse cx [Link startRule] (createLString s)
+
+createParser::Context->Parser
+createParser cx = createParserForClass (main (grammar cx)) cx

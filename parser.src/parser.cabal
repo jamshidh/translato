@@ -11,20 +11,20 @@ extra-source-files: ""
  
 executable parser
     build-depends: base -any, bytestring -any, containers -any,
-                   filepath -any, parsec -any, system-filepath -any, text -any,
-                   xml-conduit -any
+                   fgl -any, filepath -any, parsec -any, system-filepath -any,
+                   text -any, xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: Parser4 JDebug Parser3 LText Parser2 ParseError
-                   ParseElements EnhancedString FakeColors OperatorNames Generator
-                   Colors GrammarParser GrammarTools Main ManyWorldsParser Parser
-                   Quoter
+    other-modules: XPath CharSet LString GrammarParser Quoter Parser
+                   Main Parser3 FakeColors OperatorNames GrammarTools LText Generator
+                   ParseError Parser2 JDebug Parser4 Grammar Colors ParseElements
+                   EnhancedString ManyWorldsParser
  
 test-suite test-parser
     build-depends: base -any, bytestring -any, containers -any,
-                   filepath -any, parsec -any, system-filepath -any, text -any,
-                   xml-conduit -any
+                   fgl -any, filepath -any, parsec -any, system-filepath -any,
+                   text -any, xml-conduit -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

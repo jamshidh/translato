@@ -38,18 +38,20 @@ import Filesystem.Path.CurrentOS hiding (concat)
 
 import Colors
 import Generator
+import Grammar hiding (main)
 import GrammarParser
 import GrammarTools
 import LText as L hiding (head, drop)
 --import ManyWorldsParser as MWor
-import qualified Parser2 as P2
+--import qualified Parser2 as P2
 --import qualified Parser3 as P3
-import qualified Parser4 as P4
-import OperatorNames
---import Parser
+--import qualified Parser4 as P4
+--import OperatorNames
+import Parser
 import ParseElements
 --import ParseError
 
+import JDebug
 
 {--makeWindow::IO ()
 makeWindow = do
@@ -64,54 +66,51 @@ makeWindow = do
     widgetShowAll window
     mainGUI--}
 
-prepareGrammar =
-    fullySimplifyGrammar
-    . expandOperators
-    . stripWhitespaceFromGrammar
-    . addEOFToGrammar
-    . fullySimplifyGrammar
-    . stripWhitespaceFromGrammar
+prepareContext g =
+--    Context { grammar=modifiedG, ruleMap=M.mapWithKey (\name val -> leftFactor val) (grammar2RuleMap g) }
+    Context {
+        grammar=modifiedG,
+        attributes=[],
+        currentAttribute=Nothing,
+        allSubstitutionsWithName=(grammar2RulesMap modifiedG),
+        conditions=[],
+        seq2Separator=grammarSeq2Separator modifiedG
+        }
+        where modifiedG = stripWhitespaceFromGrammar $ addEOFToGrammar g
+--    . fullySimplifyGrammar
 
 {--showElement::XML.Node->String
 showElement (NodeElement element) = TL.unpack (renderText def (element2Document (element)))
 showElement (NodeContent text) = show text--}
 
-outputGrammar::Grammar->IO ()
-outputGrammar g = do
-    putStrLn $ show g
-    putStrLn $ show (prepareGrammar g)
+outputGrammar::Context->IO ()
+outputGrammar cx = do
+    putStrLn $ show (grammar cx)
 
-outputParse::Grammar->IO ()
-outputParse g = do
-    let modifiedG = fullySimplifyGrammar $ expandOperators $ stripWhitespaceFromGrammar $ addEOFToGrammar g
-    contents<-TL.getContents
---    let states=createParser g
---    case (MWor.parse "file" states (TL.unpack contents)) of
---    let result = P2.parse g "file" (P2.Parse [Link (startSymbol g)] [P2.Text (L.text2LText (TL.toStrict contents))])
-    --let result = head $ (drop 0) (iterate (P4.parse modifiedG "file")
-    --        (singleton (P4.Parse (P4.text2Tree (TL.toStrict contents)) [Link (startSymbol modifiedG)])))
-    let result = P4.parse modifiedG "file"
-                    (P4.text2Tree (TL.toStrict contents))
-    putStrLn $ P4.treeShow result
-    case P4.getErrors result of
-        [] -> putStrLn "OK"
-        _ -> putStrLn $ "\n" ++ red ("There were errors:\n") ++ P4.showErrors result
+outputRules::Grammar->IO ()
+outputRules g = do
+    putStrLn "qqqq"
+--    putStrLn $ ruleMapShow $ allSubstitutionsWithName (prepareContext g)
 
-outputParseElements::Grammar->IO ()
-outputParseElements g = do
+outputParse::Context->IO ()
+outputParse cx = do
+    interact (createParser cx)
+
+outputParseElements::Context->IO ()
+outputParseElements cx = do
     contents<-TL.getContents
     let doc=try(parseText def contents)
-    putStrLn (TL.unpack (renderText def (parseElements g (fromDocument doc))))
+    putStrLn (TL.unpack (renderText def (parseElements cx (fromDocument doc))))
 
-outputString::Grammar->IO ()
-outputString g = do
+outputString::Context->IO ()
+outputString cx = do
     contents<-TL.getContents
     let doc=try(parseText def contents)
-    case generate g (fromDocument doc) of
+    case generate cx (fromDocument doc) of
         Right s -> putStrLn s
         Left err -> error (show err)
 
-data Task = OutputGrammar | Parse | ParseElements | Generate
+data Task = OutputGrammar | OutputRules | Parse | ParseElements | Generate
 
 try::(Show err)=>Either err a->a
 try (Left err) = error ("Error:" ++ show err)
@@ -123,6 +122,7 @@ defaults = Opts { grammarFilename="grammar.spec", task=Parse }
 
 args2Opts::[String]->Opts->Opts
 args2Opts ("--outputGrammar":rest) o = args2Opts rest (o { task=OutputGrammar })
+args2Opts ("--outputRules":rest) o = args2Opts rest (o { task=OutputRules })
 args2Opts ("--generate":rest) o = args2Opts rest (o { task=Generate })
 args2Opts ("--parseElements":rest) o = args2Opts rest (o { task=ParseElements })
 args2Opts (filename:rest) o = args2Opts rest (o { grammarFilename=filename })
@@ -144,10 +144,11 @@ main = do
     specHandle<-openFile (grammarFilename opts) ReadMode
     grammarFile<-TL.hGetContents specHandle
 
-    let grammar = try (P.parse grammarParser "grammar" (TL.unpack grammarFile))
+    let grammar = try (P.parse parseGrammar "grammar" (TL.unpack grammarFile))
 
     case task opts of
-      OutputGrammar -> outputGrammar grammar
-      Parse -> outputParse $ prepareGrammar grammar
-      ParseElements -> outputParseElements $ prepareGrammar grammar
-      Generate -> outputString grammar
+      OutputGrammar -> outputGrammar $ prepareContext grammar
+      OutputRules -> outputRules grammar
+      Parse -> outputParse $ prepareContext grammar
+      ParseElements -> outputParseElements $ prepareContext grammar
+      Generate -> outputString $ prepareContext grammar

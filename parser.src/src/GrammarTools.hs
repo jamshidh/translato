@@ -13,38 +13,49 @@
 -----------------------------------------------------------------------------
 
 module GrammarTools (
-    fullySimplifyGrammar,
-    simplify,
+    --fullySimplifyGrammar,
+    --simplify,
     --removeLeftRecursionFromGrammar,
     --expandOperators,
+    leftFactor,
     addEOFToGrammar,
     stripWhitespaceFromGrammar
 ) where
 
 import Data.Char
+import Data.Graph.Inductive.Query.Monad
 import Data.List
-import Data.Map as M hiding (filter, map, foldl)
+import Data.Map as M hiding (filter, map, foldl, null)
 import Data.Maybe
+import GHC.Exts
 
-import Debug.Trace
+--import Debug.Trace
 
-import GrammarParser
+import Grammar
 import OperatorNames
 
+import JDebug
+
 stripWhitespaceFromGrammar::Grammar->Grammar
-stripWhitespaceFromGrammar g = Grammar
+stripWhitespaceFromGrammar g = g
     {
-        startSymbol = startSymbol g,
-        elementRules = map (\(name, e) -> if (name == startSymbol g) then (name, e) else (name, strip e)) (elementRules g),
-        assignments = map (\(name, e) -> if (name == startSymbol g) then (name, e) else (name, strip e)) (assignments g),
-        operatorDefinitions = operatorDefinitions g
+        classes = map
+            (\c@Class { name=name } -> if (name == main g) then c else stripWhitespaceFromClass c)
+            (classes g)
 
     }
 
+mapSeq::(Sequence->Sequence)->Rule->Rule
+mapSeq f (name, (cn, seq)) = (name, (cn, f seq))
+
+stripWhitespaceFromClass::Class->Class
+stripWhitespaceFromClass c = c { rules = map (mapSeq strip) (rules c) }
+
+stripRule = mapSnd strip
+
 strip::Sequence->Sequence
 strip ((WhiteSpace defaultText):rest) = removeLastWhitespace rest
-strip ((Or x):rest) = (Or (map strip x)):rest
-strip x = x
+strip x = removeLastWhitespace x
 
 removeLastWhitespace::Sequence->Sequence
 removeLastWhitespace (e:[WhiteSpace defaultText]) = [e]
@@ -73,15 +84,16 @@ removeLeftRecursion (name, e) = case result of
 instance Ord Expression where
     a <= b = show a <= show b
 
-debugHead::Show a=>[a]->a
-debugHead x= (trace $ show x) $ head x
+leftFactor::Sequence->Sequence
+leftFactor (Or []:rest) = leftFactor rest
+leftFactor (Or [x]:rest) = leftFactor (x ++ rest)
+leftFactor (Or sequences:rest) = --jtrace (intercalate "\n  " (map show sequences)) $
+    [Or (map (\(first, rest2) -> first:(leftFactor [Or rest2])) (toList theMap))] ++ rest
+    where theMap = M.fromListWith (++) (map (\x -> (verifyHead x, [tail x])) sequences)
+leftFactor (x:rest) = x:leftFactor rest
+leftFactor [] = []
 
-leftFactor::Expression->Sequence
-leftFactor (Or []) = []
-leftFactor (Or [x]) = x
-leftFactor (Or sequences) | all ((head $ head sequences) ==) (map head sequences) =
-    (head $ head sequences):(leftFactor (Or (map tail sequences)))
-leftFactor x = [x]
+verifyHead x = if null x then error "leftFactor called with empty sequence" else head x
 
 {--or::Expression->Expression->Expression
 or (Or list1) (Or list2) = Or (list1 ++ list2)
@@ -125,44 +137,28 @@ match (Sequence _) _ = Nothing--}
 
 ---------------------
 
-expandOperators2::Grammar->Grammar
-expandOperators2 g = g {
-        elementRules = map addOperators (elementRules g),
-        assignments = map addOperators (assignments g)
-        }
-        where addOperators (name, e) =
-                if (member name (operatorDefinitions g))
-                    then (name, buildExpressionParser ((operatorDefinitions g) ! name) e)
-                    else (name, e)
-
-buildExpressionParser::[OperatorSymbol]->Sequence->Sequence
-buildExpressionParser [] e = e
-buildExpressionParser (symbol:rest) e =
-    [MultiElementWrapper (op2Name symbol)
-        [SepBy (buildExpressionParser rest e) (symbol2Sequence symbol)]]
-
-{--table2Expression::[OperatorSymbol]->Expression->Expression
-table2Expression [] terminal = terminal
-table2Expression (symbol:rest) terminal = [NestedElement (op2Name symbol) [SepBy (table2Expression rest terminal) (TextMatch symbol)]]--}
-
-symbol2Sequence::OperatorSymbol->Sequence
+{--symbol2Sequence::OperatorSymbol->Sequence
 symbol2Sequence symbol = symbol2ExpressionList symbol
 
 symbol2ExpressionList::OperatorSymbol->[Expression]
 symbol2ExpressionList [] = []
-symbol2ExpressionList s | isSpace $ debugHead s =
+symbol2ExpressionList s | isSpace $ head s =
     let (spaces, rest) = span isSpace s in (WhiteSpace spaces):symbol2ExpressionList rest
 symbol2ExpressionList s =
-    let (spaces, rest) = span (not . isSpace) s in (TextMatch spaces):symbol2ExpressionList rest
+    let (spaces, rest) = span (not . isSpace) s in (TextMatch spaces):symbol2ExpressionList rest--}
 
 ---------------------
 addEOFToGrammar::Grammar->Grammar
 addEOFToGrammar g = g {
-        elementRules = map (\(name, e) -> if (name == startSymbol g) then (name, e ++ [EOF]) else (name, strip e)) (elementRules g),
-        assignments = map (\(name, e) -> if (name == startSymbol g) then (name, e ++ [EOF]) else (name, strip e)) (assignments g)
+        classes =
+            map (\c@(Class {name=name}) -> if (name == main g) then addEOFToClass c else c)
+                (classes g)
     }
 
-fullySimplifyGrammar::Grammar->Grammar
+addEOFToClass::Class->Class
+addEOFToClass c = c { rules=map (mapSeq (\e->e++[EOF])) (rules c)}
+
+{--fullySimplifyGrammar::Grammar->Grammar
 fullySimplifyGrammar g = fst $ fromJust $ find (\(g1, g2) -> g1 == g2) (zip simplifiedProgression (tail simplifiedProgression))
     where
         simplifiedProgression = (stripWhitespaceFromGrammar g):(map simplifyGrammar  simplifiedProgression)
@@ -170,8 +166,7 @@ fullySimplifyGrammar g = fst $ fromJust $ find (\(g1, g2) -> g1 == g2) (zip simp
 simplifyGrammar::Grammar->Grammar
 simplifyGrammar g = g
     {
-        elementRules = map (\(name, e) -> (name, simplify e)) (elementRules g),
-        assignments = map (\(name, e) -> (name, simplify e)) (assignments g)
+        classes = map (\(name, e) -> (name, simplify e)) (classes g)
     }
 
 simplify::Sequence->Sequence
@@ -184,27 +179,18 @@ simplify (x:rest) = simplifyExpression x ++ simplify rest
 --bindWhitespaces [] = []
 
 simplifyExpression::Expression->Sequence
-simplifyExpression (Or ([Or x]:y)) = [Or (x++y)]
-simplifyExpression (Or x) = leftFactor (Or (map simplify x))
+--simplifyExpression (Or ([Or x]:y)) = [Or (x++y)]
+--simplifyExpression (Or x) = leftFactor (Or (map simplify x))
 simplifyExpression (Attribute s e) = [Attribute s (simplify e)]
-simplifyExpression (MultiElementWrapper name e) = [MultiElementWrapper name (simplify e)]
 simplifyExpression (Reparse e1 e2) = [Reparse (simplify e1) (simplify e2)]
-simplifyExpression (SepBy e separator) = [Or [[SepBy1 e separator], [Blank]]]
-simplifyExpression (SepBy1 e separator) = simpE ++ [List (simpSep ++ simpE)]
-    where simpE = simplify e; simpSep = simplify separator
-simplifyExpression (SepBy2 e separator) = simpE ++ simpSep ++ simpE ++ [List (simpSep ++ simpE)]
-    where simpE = simplify e; simpSep = simplify separator
 simplifyExpression (Tab s e) = [Tab s (simplify e)]
-simplifyExpression (List e) = [List (simplify e)]
+simplifyExpression (List min e) = [List min (simplify e)]
 simplifyExpression e@(WhiteSpace _) = [e]
 simplifyExpression e@(Link _) = [e]
 simplifyExpression e@(TextMatch _) = [e]
-simplifyExpression e@(StringOf _) = [e]
 simplifyExpression Ident = [Ident]
-simplifyExpression EIdent = [EIdent]
 simplifyExpression Number = [Number]
-simplifyExpression Blank = [Blank]
 simplifyExpression EOF = [EOF]
-simplifyExpression e = error ("Missing case in simplifyExpression: " ++ show e)
+simplifyExpression e = error ("Missing case in simplifyExpression: " ++ show e)--}
 
 

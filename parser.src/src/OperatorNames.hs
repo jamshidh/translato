@@ -14,7 +14,7 @@
 
 module OperatorNames (
     OperatorSymbol,
-    expandOperators,
+    --expandOperators,
     op2Name
 ) where
 
@@ -24,14 +24,9 @@ import Data.Text hiding (concat, map, filter, length)
 
 import Debug.Trace
 
-import GrammarParser
+import Grammar
 
-buildExpressionParser::[OperatorSymbol]->Sequence->Sequence
-buildExpressionParser [] e = e
-buildExpressionParser (symbol:rest) e =
-    [MultiElementWrapper (op2Name symbol)
-        [SepBy (buildExpressionParser rest e) [TextMatch symbol]]]
-
+{--
 operatorList2Expressions::(RuleName, [OperatorSymbol])->[(RuleName, Sequence)]
 operatorList2Expressions (name, []) = []
 operatorList2Expressions (name, (o1:rest)) =
@@ -51,24 +46,19 @@ addTerminals rules opDefinitions =
 operatorExpressions::Grammar->[(RuleName, Sequence)]
 operatorExpressions g = concat (map operatorList2Expressions (toList $ operatorDefinitions g))
 
-operatorAssignments::Grammar->[(RuleName, Sequence)]
-operatorAssignments g = concat (map (\(name, symbols) -> map (\symbol -> (name, [Link (op2Name symbol)])) symbols) (toList $ operatorDefinitions g))
-
 expandOperators::Grammar->Grammar
 expandOperators g = g {
         elementRules = operatorFreeRules (elementRules g) (operatorDefinitions g)
             ++ addTerminals (elementRules g) (operatorDefinitions g)
             ++ operatorExpressions g,
-        assignments = operatorFreeRules (assignments g) (operatorDefinitions g)
-            ++ addTerminals (assignments g) (operatorDefinitions g)
-            ++ operatorAssignments g,
         operatorDefinitions = fromList []
-        }
+        }--}
 
 op2Name::OperatorSymbol->String
-op2Name symbol = rawOp2Name (unpack $ strip $ pack symbol)
+op2Name (TextMatch s:rest) = rawOp2Name s ++ (op2Name rest)
+op2Name (x:rest) = op2Name rest
 
-rawOp2Name::OperatorSymbol->String
+rawOp2Name::String->String
 rawOp2Name "+" = "plus"
 rawOp2Name "-" = "minus"
 rawOp2Name "*" = "times"

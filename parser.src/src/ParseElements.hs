@@ -20,11 +20,12 @@ module ParseElements (
 import Text.XML
 import Text.XML.Cursor
 import Data.Text hiding (map, concat, foldl1, foldl, head, intercalate, tail, length)
+import Data.Text.Lazy (toStrict, fromStrict)
 import Data.List
 
 import ManyWorldsParser
 import Parser
-import GrammarParser
+import Grammar
 import ParseError
 
 name2String::Name->String
@@ -43,8 +44,8 @@ isElement c = case node c of
     NodeElement element -> True
     _ -> False
 
-parseElements::Grammar->Cursor->Document
-parseElements g c = node2Document (input2Output g c)
+parseElements::Context->Cursor->Document
+parseElements cx c = node2Document (input2Output cx c)
 
 node2Document::Node->Document
 node2Document (NodeElement element) = Document {
@@ -73,21 +74,19 @@ errorElement message =
     }
 
 
-input2Output::Grammar->Cursor->Node
-input2Output g c | isElement c && tagName c == "parse" =
-    case rule of
-        Just name -> case getParser name of
-            Just states -> case (parse "file" states (concat (map unpack (child c >>= content)))) of
-                Left err -> errorElement ("There were errors:\n  " ++ showErrors err)
-                Right [[val]] -> val
-                Right _ -> errorElement "Parse was ambiguous"
-            Nothing -> errorElement ("Missing rule in grammar: " ++ name)
-        Nothing -> errorElement ("<rule> element missing 'using' attribute")
-    where rule = getAttribute "using" c; getParser name = createParserWithStartRule name g
-input2Output g c | isElement c = let element = getElement c in
+input2Output::Context->Cursor->Node
+input2Output cx c | isElement c && tagName c == "parse" =
+    case getAttribute "using" c of
+        Nothing -> errorElement "<rule> element missing 'using' attribute"
+        Just ruleName ->
+            case parseText def (fromStrict $ pack ret) of
+                Left err -> errorElement (show err)
+                Right doc -> NodeElement $ documentRoot doc
+            where ret = (createParserForClass ruleName) cx (concat (map unpack (child c >>= content)))
+input2Output cx c | isElement c = let element = getElement c in
     NodeElement $ Element {
     elementName = fullTagName c,
     elementAttributes = elementAttributes element,
-    elementNodes = map (input2Output g) (child c)
+    elementNodes = map (input2Output cx) (child c)
     }
 input2Output g c = node c

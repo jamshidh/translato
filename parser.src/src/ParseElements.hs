@@ -17,11 +17,12 @@ module ParseElements (
     parseElements
 ) where
 
-import Text.XML
-import Text.XML.Cursor
+import Data.List
+import Data.Map as M hiding (map)
 import Data.Text hiding (map, concat, foldl1, foldl, head, intercalate, tail, length)
 import Data.Text.Lazy (toStrict, fromStrict)
-import Data.List
+import Text.XML
+import Text.XML.Cursor
 
 import Context
 --import ManyWorldsParser
@@ -70,7 +71,7 @@ errorElement::String->Node
 errorElement message =
     NodeElement $ Element {
     elementName = "error",
-    elementAttributes = [],
+    elementAttributes = M.empty,
     elementNodes = [NodeContent $ pack message]
     }
 

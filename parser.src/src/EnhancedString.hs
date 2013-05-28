@@ -81,12 +81,12 @@ chs2String (Error err s:rest) =
     red ("\nError(line:" ++ show (line s) ++ ",col:" ++ show (col s) ++ "): " ++ err ++ "\n") ++ chs2String rest
 chs2String (ExpectationError err s:rest) = red ("\nError(line:" ++ show (line s) ++ ",col:" ++ show (col s) ++ "): "
     ++ "Expecting " ++ intercalate " or " (map show err) ++ ", but got " ++ show (truncateString 10 (string s)) ++ "\n") ++ chs2String rest
---chs2String (VPush condition:rest) = show (VPush condition) ++ chs2String [] rest
---chs2String (VPop:rest) = magenta "<<VPop<<" ++ chs2String [] rest
-chs2String (VOut name:rest) = magenta ("[" ++ name ++ "]") ++ chs2String rest
+chs2String (VPush:rest) = magenta ">>VPush" ++ chs2String rest
+chs2String (VPop:rest) = magenta "<<VPop<<" ++ chs2String rest
+chs2String (VOut name:rest) = green ("[" ++ name ++ "]") ++ chs2String rest
 chs2String (VStart name _:rest) = "{" ++ name ++ "=" ++ chs2String rest
 chs2String (VEnd:rest) = "}" ++ chs2String rest
-chs2String (VAssign name val:rest) = magenta ("assign{" ++ name ++ "=" ++ val ++ "}") ++ chs2String rest
+chs2String (VAssign name val:rest) = green ("assign{" ++ name ++ "=" ++ val ++ "}") ++ chs2String rest
 chs2String (TabRight _:_) = error "There shouldn't be a tabright in chs2String"
 chs2String (TabLeft:_) = error "There shouldn't be a tableft in chs2String"
 chs2String (InfixTag priority name:rest) = "Op(" ++ show priority ++ "," ++ name ++ ")" ++ chs2String rest

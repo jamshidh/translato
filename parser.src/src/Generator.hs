@@ -49,7 +49,11 @@ tagName c = case node c of
 
 showCursor::Cursor->String
 showCursor c = case node c of
-    NodeElement element -> "<" ++ tagName c ++ " " ++ (intercalate " " (map (\(name, text) -> name2String name ++ "=\"" ++ unpack text ++ "\"") (elementAttributes element))) ++ ">"
+    NodeElement element ->
+        "<" ++ tagName c ++ " "
+            ++ (intercalate " "
+                    (map (\(name, text) -> name2String name ++ "=\"" ++ unpack text ++ "\"")
+                    ((toList . elementAttributes) element))) ++ ">"
     NodeContent text -> "Text:'" ++ unpack text
 
 -------------------------------

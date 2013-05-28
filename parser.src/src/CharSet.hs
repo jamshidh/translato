@@ -37,9 +37,9 @@ data CharType =
     | SingleChar Char
     | Space
     | UppercaseChar
-    | WordChar deriving (Eq, Show)
+    | WordChar deriving (Eq, Ord, Show)
 
-data CharSet = CharSet Bool [CharType] deriving (Eq)
+data CharSet = CharSet Bool [CharType] deriving (Eq, Ord)
 
 instance Show CharSet where
     show (CharSet isNot sets) = "[" ++ (if isNot then "^" else "") ++ showSets sets ++ "]"

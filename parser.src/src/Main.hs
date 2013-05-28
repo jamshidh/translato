@@ -37,6 +37,7 @@ import Filesystem.Path.CurrentOS hiding (concat)
 --import Graphics.UI.Gtk.Multiline.TextView
 
 import Colors
+import Context
 import Generator
 import Grammar hiding (main)
 import GrammarParser
@@ -67,17 +68,8 @@ makeWindow = do
     mainGUI--}
 
 prepareContext g =
---    Context { grammar=modifiedG, ruleMap=M.mapWithKey (\name val -> leftFactor val) (grammar2RuleMap g) }
-    Context {
-        grammar=modifiedG,
-        attributes=[],
-        currentAttribute=Nothing,
-        allSubstitutionsWithName=(grammar2RulesMap modifiedG),
-        conditions=[],
-        seq2Separator=grammarSeq2Separator modifiedG
-        }
+    grammar2Context modifiedG
         where modifiedG = stripWhitespaceFromGrammar $ addEOFToGrammar g
---    . fullySimplifyGrammar
 
 {--showElement::XML.Node->String
 showElement (NodeElement element) = TL.unpack (renderText def (element2Document (element)))
@@ -89,8 +81,8 @@ outputGrammar cx = do
 
 outputRules::Grammar->IO ()
 outputRules g = do
-    putStrLn "qqqq"
---    putStrLn $ ruleMapShow $ allSubstitutionsWithName (prepareContext g)
+    putStrLn $ ruleMapShow $ rules (prepareContext g)
+    putStrLn $ postSeqShow (prepareContext g)
 
 outputParse::Context->IO ()
 outputParse cx = do

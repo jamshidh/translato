@@ -16,7 +16,6 @@ module GrammarParser (
     parseGrammar,
     Grammar(Grammar),
     RuleName,
-    Rule,
     Sequence
 ) where
 
@@ -48,7 +47,7 @@ parseGrammar =
         eof
         return Grammar {
                             main = (assert (length classes > 0) "Grammar contains no classes")
-                                (name $ head classes),
+                                (className $ head classes),
                             classes = classes
                         }
 
@@ -58,9 +57,9 @@ parseSimpleClass =
     do
         RuleItem rule<-parseRule
         spaces
-        return Class { name=fst rule, parents=[], rules=[rule], operators=[], separator=[WhiteSpace " "] }
+        return Class { className=fst rule, parentNames=[], rawRules=[rule], operators=[], separator=[WhiteSpace " "] }
 
-data RuleOrOperatorsOrSeparator = RuleItem Rule | OperatorsItem [Sequence] | SeparatorItem Sequence
+data RuleOrOperatorsOrSeparator = RuleItem RawRule | Comment | OperatorsItem [Sequence] | SeparatorItem Sequence
 
 parseFullClass =
     do
@@ -73,23 +72,29 @@ parseFullClass =
         items<-endBy (
             parseSeparator
             <|> parseOperators
-            <|> parseRule) spaces
+            <|> parseRule
+            <|> parseComment) spaces
         spaces
         string "====[/"
         name<-ident
         char ']'
         many (char '=')
         return Class {
-                name=name,
-                parents=parents,
-                rules=[rule|RuleItem rule<-items],
+                className=name,
+                parentNames=parents,
+                rawRules=[rule|RuleItem rule<-items],
                 operators=concat [operators|OperatorsItem operators<-items],
                 separator=case [separator|SeparatorItem separator<-items] of
                     [] -> [TextMatch " "]
                     [x] -> x
                     _ -> error "Only one separator allowed for a class"}
 
-
+parseComment =
+    do
+        char '#'
+        many (noneOf "\n")
+        char '\n'
+        return Comment
 
 parseRule =
     do
@@ -100,7 +105,7 @@ parseRule =
         string "=>"
         sequence<-parseSequence
         spaces
-        string "----"
+        string ";"
         many (char '-')
         spaces
         return (RuleItem (name, (condition, sequence)))
@@ -250,10 +255,11 @@ matchLink =
 
 matchText =
     do
-        text<-many1 (noneOf "*()[]-{}@\\"
+        text<-many1 (noneOf ";*()[]-{}@\\"
             <|> (try (string "\\@") >> return '@')
             <|> (try (string "\\*") >> return '*')
             <|> (try (string "\\+") >> return '+')
+            <|> (try (string "\\;") >> return ';')
             <|> (try (string "\\(") >> return '(')
             <|> (try (string "\\)") >> return ')')
             <|> (try (string "\\[") >> return '[')

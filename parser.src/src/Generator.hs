@@ -29,12 +29,12 @@ import Control.Arrow
 import Debug.Trace
 
 --import OperatorNames
+import Colors
+import Context
+import Grammar hiding (tagName)
 import GrammarParser
 import GrammarTools
 import EnhancedString
-
-import Colors
-import Grammar
 import qualified LString as LS
 
 ------------------------------
@@ -65,9 +65,9 @@ generate::Context->Cursor->Either GenError String
 generate cx c = fmap enhancedString2String (cursor2String cx c)
 
 cursor2String::Context->Cursor->Either GenError EString
-cursor2String cx c = case lookup (tagName c) (allSubstitutionsWithName cx) of
-    Just sequences ->
-        case seq2EString cx [Or (map snd sequences)] c (child c) of
+cursor2String cx c = case lookup (tagName c) (rules cx) of
+    Just rules ->
+        case seq2EString cx [Or (map rawSequence rules)] c (child c) of
             Right (s, _) -> Right s
             Left e -> Left e
     Nothing -> error ("Link '" ++ tagName c ++ "' doesn't exist in the grammar")

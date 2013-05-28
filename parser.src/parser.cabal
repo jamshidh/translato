@@ -16,10 +16,11 @@ executable parser
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: XPath CharSet LString GrammarParser Quoter Parser
-                   Main Parser3 FakeColors OperatorNames GrammarTools LText Generator
-                   ParseError Parser2 JDebug Parser4 Grammar Colors ParseElements
-                   EnhancedString ManyWorldsParser
+    other-modules: VarAssignment EStringTools LeftFactoring Context
+                   XPath CharSet LString GrammarParser Quoter Parser Main Parser3
+                   FakeColors OperatorNames GrammarTools LText Generator ParseError
+                   Parser2 JDebug Parser4 Grammar Colors ParseElements EnhancedString
+                   ManyWorldsParser
  
 test-suite test-parser
     build-depends: base -any, bytestring -any, containers -any,

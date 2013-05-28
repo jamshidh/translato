@@ -17,7 +17,6 @@ module GrammarTools (
     --simplify,
     --removeLeftRecursionFromGrammar,
     --expandOperators,
-    leftFactor,
     addEOFToGrammar,
     stripWhitespaceFromGrammar
 ) where
@@ -40,16 +39,16 @@ stripWhitespaceFromGrammar::Grammar->Grammar
 stripWhitespaceFromGrammar g = g
     {
         classes = map
-            (\c@Class { name=name } -> if (name == main g) then c else stripWhitespaceFromClass c)
+            (\c@Class { className=name } -> if (name == main g) then c else stripWhitespaceFromClass c)
             (classes g)
 
     }
 
-mapSeq::(Sequence->Sequence)->Rule->Rule
+mapSeq::(Sequence->Sequence)->RawRule->RawRule
 mapSeq f (name, (cn, seq)) = (name, (cn, f seq))
 
 stripWhitespaceFromClass::Class->Class
-stripWhitespaceFromClass c = c { rules = map (mapSeq strip) (rules c) }
+stripWhitespaceFromClass c = c { rawRules = map (mapSeq strip) (rawRules c) }
 
 stripRule = mapSnd strip
 
@@ -80,20 +79,6 @@ removeLeftRecursion (name, e) = case result of
                 ("#" ++ name, Or [Blank, Sequence [ruleAfter, Link ("#" ++ name)]])
             ]
         where result = match (Or [Variable, Sequence [Link name, Variable]]) e --}
-
-instance Ord Expression where
-    a <= b = show a <= show b
-
-leftFactor::Sequence->Sequence
-leftFactor (Or []:rest) = leftFactor rest
-leftFactor (Or [x]:rest) = leftFactor (x ++ rest)
-leftFactor (Or sequences:rest) = --jtrace (intercalate "\n  " (map show sequences)) $
-    [Or (map (\(first, rest2) -> first:(leftFactor [Or rest2])) (toList theMap))] ++ rest
-    where theMap = M.fromListWith (++) (map (\x -> (verifyHead x, [tail x])) sequences)
-leftFactor (x:rest) = x:leftFactor rest
-leftFactor [] = []
-
-verifyHead x = if null x then error "leftFactor called with empty sequence" else head x
 
 {--or::Expression->Expression->Expression
 or (Or list1) (Or list2) = Or (list1 ++ list2)
@@ -151,12 +136,12 @@ symbol2ExpressionList s =
 addEOFToGrammar::Grammar->Grammar
 addEOFToGrammar g = g {
         classes =
-            map (\c@(Class {name=name}) -> if (name == main g) then addEOFToClass c else c)
+            map (\c@(Class {className=name}) -> if (name == main g) then addEOFToClass c else c)
                 (classes g)
     }
 
 addEOFToClass::Class->Class
-addEOFToClass c = c { rules=map (mapSeq (\e->e++[EOF])) (rules c)}
+addEOFToClass c = c { rawRules=map (mapSeq (\e->e++[EOF])) (rawRules c)}
 
 {--fullySimplifyGrammar::Grammar->Grammar
 fullySimplifyGrammar g = fst $ fromJust $ find (\(g1, g2) -> g1 == g2) (zip simplifiedProgression (tail simplifiedProgression))

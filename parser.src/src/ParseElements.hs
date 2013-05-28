@@ -23,9 +23,10 @@ import Data.Text hiding (map, concat, foldl1, foldl, head, intercalate, tail, le
 import Data.Text.Lazy (toStrict, fromStrict)
 import Data.List
 
-import ManyWorldsParser
+import Context
+--import ManyWorldsParser
 import Parser
-import Grammar
+import Grammar hiding (tagName)
 import ParseError
 
 name2String::Name->String

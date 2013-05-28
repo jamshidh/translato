@@ -38,7 +38,7 @@ import qualified Data.List as DL
 
 import JDebug
 
-data LString = LString { string::String, line::Int, col::Int } deriving (Eq, Show)
+data LString = LString { string::String, line::Int, col::Int } deriving (Eq, Ord, Show)
 
 createLString::String->LString
 createLString s = LString { string=s, line=0, col=0 }

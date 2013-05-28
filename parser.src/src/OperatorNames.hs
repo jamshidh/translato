@@ -13,7 +13,7 @@
 -----------------------------------------------------------------------------
 
 module OperatorNames (
-    OperatorSymbol,
+    --OperatorSymbol,
     --expandOperators,
     op2Name
 ) where
@@ -24,7 +24,7 @@ import Data.Text hiding (concat, map, filter, length)
 
 import Debug.Trace
 
-import Grammar
+--import Grammar
 
 {--
 operatorList2Expressions::(RuleName, [OperatorSymbol])->[(RuleName, Sequence)]
@@ -54,19 +54,19 @@ expandOperators g = g {
         operatorDefinitions = fromList []
         }--}
 
-op2Name::OperatorSymbol->String
+{--op2Name::OperatorSymbol->String
 op2Name (TextMatch s:rest) = rawOp2Name s ++ (op2Name rest)
-op2Name (x:rest) = op2Name rest
+op2Name (x:rest) = op2Name rest--}
 
-rawOp2Name::String->String
-rawOp2Name "+" = "plus"
-rawOp2Name "-" = "minus"
-rawOp2Name "*" = "times"
-rawOp2Name "/" = "divide"
-rawOp2Name "." = "dot"
-rawOp2Name "==" = "equals"
-rawOp2Name "<" = "lessThan"
-rawOp2Name ">" = "greaterThan"
-rawOp2Name "<=" = "lessThanOrEquals"
-rawOp2Name ">=" = "greaterThanOrEquals"
-rawOp2Name x = error ("Unknown operator in op2Name: \'" ++ x ++ "'")
+op2Name::String->String
+op2Name "+" = "plus"
+op2Name "-" = "minus"
+op2Name "*" = "times"
+op2Name "/" = "divide"
+op2Name "." = "dot"
+op2Name "==" = "equals"
+op2Name "<" = "lessThan"
+op2Name ">" = "greaterThan"
+op2Name "<=" = "lessThanOrEquals"
+op2Name ">=" = "greaterThanOrEquals"
+op2Name x = error ("Unknown operator in op2Name: \'" ++ x ++ "'")

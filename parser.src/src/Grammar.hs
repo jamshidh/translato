@@ -32,6 +32,7 @@ module Grammar (
 
 import Prelude hiding (lookup)
 
+import Data.Functor
 import Data.List hiding (lookup)
 import Data.Map hiding (filter, map, null, union)
 
@@ -47,7 +48,7 @@ type OperatorSymbol = Sequence
 type Sequence = [Expression]
 
 data Expression = TextMatch String | Attribute String Sequence | VEnd
-    | Or [Sequence]
+    | Or [(Int, Sequence)]
     | Bind | List Int Sequence | SepBy Int Sequence
     | Ident | Number | WhiteSpace String | Character CharSet
     | EOF
@@ -89,7 +90,7 @@ iShow (Link name) = underline $ magenta name
 iShow (Tab tabString e) = "(" ++ show tabString ++ ")==>(" ++ sShow e ++ ")"
 iShow (Character charset) = show charset
 --iShow (JustOutput eString) = green ("-->(" ++ show eString ++ ")")
-iShow (Or sequences) = intercalate " |\n         " (map sShow sequences)
+iShow (Or sequences) = intercalate " |\n         " (show <$> sequences)
 iShow EOF = "EOF"
 
 

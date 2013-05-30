@@ -71,7 +71,7 @@ generate cx c = fmap enhancedString2String (cursor2String cx c)
 cursor2String::Context->Cursor->Either GenError EString
 cursor2String cx c = case lookup (tagName c) (rules cx) of
     Just rules ->
-        case seq2EString cx [Or (map rawSequence rules)] c (child c) of
+        case seq2EString cx [Or (map (\item -> (1, rawSequence item)) rules)] c (child c) of
             Right (s, _) -> Right s
             Left e -> Left e
     Nothing -> error ("Link '" ++ tagName c ++ "' doesn't exist in the grammar")

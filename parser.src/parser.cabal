@@ -4,7 +4,6 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
-description:  
 data-dir: ""
 extra-source-files: ""
                     /home/jim/translato/parser.src/src/ManyWorldsParser.hs
@@ -17,11 +16,11 @@ executable parser
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: Context GrammarParser Quoter Parser Main Parser3
-                   FakeColors XPath OperatorNames CharSet GrammarTools LeftFactoring
-                   LText Generator ParseError Parser2 JDebug Parser4 EStringTools
-                   Grammar Colors VarAssignment LString ParseElements EnhancedString
-                   ManyWorldsParser
+    other-modules: Lookahead Context GrammarParser Quoter Parser Main
+                   Parser3 FakeColors XPath OperatorNames CharSet GrammarTools
+                   LeftFactoring LText Generator ParseError Parser2 JDebug Parser4
+                   EStringTools Grammar Colors VarAssignment LString ParseElements
+                   EnhancedString ManyWorldsParser
  
 test-suite test-parser
     build-depends: base -any, bytestring -any, containers -any,

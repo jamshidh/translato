@@ -25,6 +25,7 @@ import EStringTools
 import Grammar as G
 import GrammarTools
 import LeftFactoring
+import Lookahead
 import LString (LString, line, col, string, createLString)
 import qualified LString as LS
 import OperatorNames
@@ -76,7 +77,6 @@ continue cx (c:rest) seq s = --jtrace ("Seq=" ++ show seq) $
 continue cx [] seq s = --jtrace ("Seq2=" ++ show seq) $
     [Node {rootLabel=Sync (LS.head s), subForest=rawParse cx seq (LS.tail s)}]
 
-
 rawParse::Context->Sequence->LString->Forest EChar
 rawParse cx (EOF:rest) s | string s == [] = [Node {rootLabel=Ch '\n', subForest=rawParse cx rest s}]
 rawParse cx (EOF:rest) s = expectErr s "EOF"
@@ -94,10 +94,8 @@ rawParse cx (Attribute name seq:rest) s =
 
 rawParse cx (Tab _ e:rest) s = rawParse cx (e ++ rest) s
 
---rawParse cx (Or sequences:rest) s | haveSameStart sequences =
---    rawParse cx ([head $ head $ sequences] ++ [Or (map tail sequences)] ++ rest) s
-rawParse cx (Or sequences:rest) s =
-    concat  (map (\seq -> rawParse cx (seq ++ rest) s) sequences)
+rawParse cx (Or [(_, singleSequence)]:rest) s = rawParse cx (singleSequence ++ rest) s
+rawParse cx (Or items:rest) s = rawParse cx (chooseOne cx items s ++ rest) s
 
 rawParse cx (Bind:rest) s = --rawParse cx (JustOutput [Bound]:rest) s
     [Node { rootLabel=Bound, subForest=rawParse cx rest s}]
@@ -114,7 +112,7 @@ rawParse cx (G.VEnd:rest) s =
 rawParse cx (SepBy count seq@[Character charset]:rest) s = rawParse cx (List count seq:rest) s
 
 rawParse cx (SepBy 0 seq:rest) s =
-    rawParse cx [Or [seq ++ [Bind] ++ [List 0 (separator ++ seq)] ++ cleanedRest, cleanedRest]] s
+    rawParse cx [Or [(1, seq ++ [Bind] ++ [List 0 (separator ++ seq)] ++ cleanedRest), (2, cleanedRest)]] s
     where separator = (seq2Separator cx) seq; cleanedRest = removeBind rest
 rawParse cx (SepBy count seq:rest) s =
     rawParse cx (seq ++ [List (count -1) (separator++seq)] ++ rest) s
@@ -127,7 +125,7 @@ rawParse cx (List 0 [Character charset]:rest) s | LS.head s `isIn` charset =
 rawParse cx (List 0 [Character charset]:rest) s =
     rawParse cx rest s
 
-rawParse cx (List 0 seq:rest) s = rawParse cx [Or [seq ++ [Bind] ++ [List 0 seq] ++ cleanedRest, cleanedRest]] s
+rawParse cx (List 0 seq:rest) s = rawParse cx [Or [(1, seq ++ [Bind] ++ [List 0 seq] ++ cleanedRest), (2, cleanedRest)]] s
     where cleanedRest = removeBind rest
 rawParse cx (List min seq:rest) s = rawParse cx (seq ++ [List (min-1) seq] ++ rest) s
 
@@ -144,15 +142,10 @@ rawParse cx (G.InfixTag priority name:rest) s = --rawParse cx [Or seqsWithOutput
     [Node { rootLabel=E.InfixTag priority name, subForest=rawParse cx rest s}]
 
 rawParse cx (LinkStream name:rest) s =
---    case lookup name (rules cx) of
-    case fmap (filter (not . isLRecursive)) (lookup name (rules cx)) of
-            Just [Rule {condition=condition, fullSequence=fullSequence}] ->
-                rawParse cx (fullSequence ++ rest) s
-            Just rules ->
-                concat $ map (\(cn, seq) -> rawParse cx seq s)
-                    (map (mapSnd (\seqs -> leftFactor (Or seqs:rest))) (toList cnSeqMap))
-                            where cnSeqMap =
-                                    fromListWith (++) (map (\rule -> (condition rule, [fullSequence rule])) rules)
+    case fmap (filter (not . isLRecursive)) (lookup name (sequences cx)) of
+            Just [sequence] -> rawParse cx (sequence ++ rest) s
+            Just rules -> rawParse cx (leftFactor (Or (addPriority 1 <$> fullSequence <$> rules):rest)) s
+                where addPriority p seq = (p, seq)
             Nothing -> error ("The grammar links to a non-existant rule named '" ++ name ++ "'")
 
 rawParse cx (WhiteSpace _:rest) s | LS.null s = rawParse cx rest s

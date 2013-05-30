@@ -16,6 +16,7 @@ module LeftFactoring (
     leftFactor
 ) where
 
+import Data.Functor
 import Data.List
 import Data.Map hiding (map, null)
 
@@ -27,10 +28,14 @@ verifyHead x = if null x then error "leftFactor called with empty sequence" else
 
 leftFactor::Sequence->Sequence
 leftFactor (Or []:rest) = leftFactor rest
-leftFactor (Or [x]:rest) = leftFactor (x ++ rest)
-leftFactor (Or sequences:rest) = --jtrace ("Left factoring: " ++ intercalate "\n  " (map show sequences)) $
-    [Or (map (\(first, rest2) -> first:(leftFactor [Or rest2])) (toList theMap))] ++ rest
-    where theMap = fromListWith (++) (map (\x -> (verifyHead x, [tail x])) sequences)
+leftFactor (Or [(_, seq)]:rest) = leftFactor (seq ++ rest)
+
+leftFactor (Or items:rest) = --jtrace ("Left factoring: " ++ intercalate "\n  " (map show sequences)) $
+    [Or (makeSeq <$> theMap)] ++ rest
+    where
+        theMap = toList (fromListWith (++) ((\(priority, seq) -> ((priority, verifyHead seq), [(priority, tail seq)])) <$> items))
+        makeSeq ((priority, first), rest2) = (priority, first:(leftFactor [Or rest2]))
+
 leftFactor (x:rest) = x:leftFactor rest
 leftFactor [] = []
 

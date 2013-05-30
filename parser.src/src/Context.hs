@@ -13,12 +13,9 @@
 -----------------------------------------------------------------------------
 
 module Context (
-    Context (Context),
+    Context (..),
     grammar2Context,
-    rules,
-    grammar,
     postSequence,
-    seq2Separator,
     postSeqShow,
     classParseType,
     name2Class
@@ -29,6 +26,7 @@ import Prelude hiding (lookup)
 import Data.Functor
 import Data.List hiding (lookup)
 import Data.Map hiding (map, union, null, filter)
+import qualified Data.Map as M (map)
 import Data.Maybe
 
 import Colors
@@ -40,8 +38,11 @@ import XPath
 
 import JDebug
 
+type LinkName = String
+
 data Context = Context {
     grammar::Grammar,
+    sequences::Map LinkName Sequence,
     rules::Map String [Rule],
     seq2Separator::Sequence->Sequence
     }
@@ -52,19 +53,30 @@ postSeqShow cx = "Post Sequences:\n"
             (map (\cl -> blue (className cl) ++ ": " ++ show (postSequence cx cl)) classesWithPostSequence)
         where classesWithPostSequence = filter (\cl -> classParseType (grammar cx) cl == Block) (classes (grammar cx))
 
+listMapWith::Ord k=>(a->k)->[a]->Map k [a]
+listMapWith f items = fromListWith (++) ((\x -> (f x, [x])) <$> items)
+
 grammar2Context::Grammar->Context
 grammar2Context g =
     Context {
         grammar=g,
-        rules=fromListWith (++) (map (\rule@Rule { name=name } -> (name, [rule]))
-                    (concat (map (rulesForClass g) (classes g)))),
+        sequences=M.map
+                (replicate 1 . Or . map (addPriority 1).  map fullSequence)
+                ruleMap,
+
+        rules=ruleMap,
         seq2Separator=grammarSeq2Separator g
         }
+            where ruleMap=listMapWith name (classes g >>= rulesForClass g)
+
+
+addPriority::Int->Sequence->(Int, Sequence)
+addPriority priority seq = (priority, seq)
 
 postSequence::Context->Class->Sequence
 postSequence cx cl = leftFactor [Or
-    ((classRules >>= rule2PostSequence)
-    ++ (operator2PostSequence cl (class2AllOpSymbols (grammar cx) cl)))]
+    (addPriority 1 <$> ((classRules >>= rule2PostSequence)
+    ++ (operator2PostSequence cl (class2AllOpSymbols (grammar cx) cl))))]
         where classRules = fromJust (lookup (className cl) (rules cx))
 
 rule2PostSequence::Rule->[Sequence]

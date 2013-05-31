@@ -16,9 +16,10 @@ module Context (
     Context (..),
     grammar2Context,
     postSequence,
-    postSeqShow,
-    classParseType,
-    name2Class
+{--    postSeqShow,
+    classParseType,--}
+    name2Class,
+    linksShow
 ) where
 
 import Prelude hiding (lookup)
@@ -34,6 +35,7 @@ import EnhancedString as E hiding (EStart, EEnd)
 import Grammar as G
 import LeftFactoring
 import OperatorNames
+import SequenceTools
 import XPath
 
 import JDebug
@@ -47,35 +49,51 @@ data Context = Context {
     seq2Separator::Sequence->Sequence
     }
 
-postSeqShow::Context->String
+linksShow::Map LinkName Sequence->String
+linksShow theMap = intercalate "\n" (linkShow <$> (toList theMap)) ++ "\n"
+
+linkShow::(LinkName, Sequence)->String
+linkShow (name, seq) = name ++ " => " ++ sShow seq
+
+{--postSeqShow::Context->String
 postSeqShow cx = "Post Sequences:\n"
     ++ intercalate "\n\n"
             (map (\cl -> blue (className cl) ++ ": " ++ show (postSequence cx cl)) classesWithPostSequence)
-        where classesWithPostSequence = filter (\cl -> classParseType (grammar cx) cl == Block) (classes (grammar cx))
+        where classesWithPostSequence = filter (\cl -> classParseType (grammar cx) cl == Block) (classes (grammar cx))--}
 
 listMapWith::Ord k=>(a->k)->[a]->Map k [a]
 listMapWith f items = fromListWith (++) ((\x -> (f x, [x])) <$> items)
+
+addOrIfNeeded::[Sequence]->Sequence
+addOrIfNeeded [singleSeq] = singleSeq
+addOrIfNeeded seqs = [Or seqs]
 
 grammar2Context::Grammar->Context
 grammar2Context g =
     Context {
         grammar=g,
-        sequences=M.map
-                (replicate 1 . Or . map (addPriority 1).  map fullSequence)
-                ruleMap,
+        sequences=M.map (
+                leftFactor
+                . expandList
+                . expandSepBy seq2Sep
+                . addOrIfNeeded
+                . (fullSequence <$>)
+                . filter (not . isLRecursive)
+                ) ruleMap,
 
         rules=ruleMap,
-        seq2Separator=grammarSeq2Separator g
+        seq2Separator=seq2Sep
         }
-            where ruleMap=listMapWith name (classes g >>= rulesForClass g)
-
+            where
+                ruleMap = listMapWith name (classes g >>= rulesForClass g)
+                seq2Sep = grammarSeq2Separator g
 
 addPriority::Int->Sequence->(Int, Sequence)
 addPriority priority seq = (priority, seq)
 
 postSequence::Context->Class->Sequence
 postSequence cx cl = leftFactor [Or
-    (addPriority 1 <$> ((classRules >>= rule2PostSequence)
+    (((classRules >>= rule2PostSequence)
     ++ (operator2PostSequence cl (class2AllOpSymbols (grammar cx) cl))))]
         where classRules = fromJust (lookup (className cl) (rules cx))
 
@@ -97,10 +115,10 @@ rulesForClass g cl =
         (map (rawRule2Rule g cl) (rawRules cl))
         (rulesWithClassName g cl)
 
-classParseType::Grammar->Class->ParseType
+{--classParseType::Grammar->Class->ParseType
 classParseType g c | (not . null) (class2AllOpSymbols g c) = Block
 classParseType g c | any isLRecursive (rulesForClass g c) = Block
-classParseType g c = Stream
+classParseType g c = Stream--}
 
 grammarSeq2Separator::Grammar->Sequence->Separator
 grammarSeq2Separator g [Link name] =

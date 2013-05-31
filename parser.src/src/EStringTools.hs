@@ -22,11 +22,7 @@ import Data.List
 import Data.Tree
 
 import EnhancedString
-
-cleanTree::Tree EChar->Tree EString
-cleanTree (Node {rootLabel=c, subForest=[next]})=Node { rootLabel=c:rootLabel nextResult, subForest=subForest nextResult }
-    where nextResult = cleanTree next
-cleanTree (Node {rootLabel=c, subForest=subForest}) = Node {rootLabel=[c], subForest=cleanTree <$> subForest}
+import TreeTools
 
 cleanDraw::Tree EChar->String
 cleanDraw = drawTree . (fmap ((intercalate ", ") . cleanEString)) . cleanTree

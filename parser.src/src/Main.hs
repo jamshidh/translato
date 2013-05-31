@@ -81,8 +81,8 @@ outputGrammar cx = do
 
 outputRules::Grammar->IO ()
 outputRules g = do
-    putStrLn $ ruleMapShow $ rules (prepareContext g)
-    putStrLn $ postSeqShow (prepareContext g)
+    putStrLn $ linksShow $ sequences (prepareContext g)
+--    putStrLn $ postSeqShow (prepareContext g)
 
 outputParse::Context->IO ()
 outputParse cx = do

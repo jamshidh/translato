@@ -1,6 +1,6 @@
 -----------------------------------------------------------------------------
 --
--- Module      :  Grammar
+-- Module      :  Atom
 -- Copyright   :
 -- License     :  AllRightsReserved
 --
@@ -11,6 +11,10 @@
 -- |
 --
 -----------------------------------------------------------------------------
+
+module Atom (
+
+) where
 
 module Grammar (
     Sequence,
@@ -50,21 +54,20 @@ type Sequence = [Expression]
 
 type SequenceForest = Forest Expression
 
-data Expression = TextMatch String | Attribute String Sequence | VEnd
-    | Or [Sequence]
-    | Bind | List Int Sequence | SepBy Int Sequence
-    | Ident | Number | WhiteSpace String | Character CharSet
+data Atom =
+    Ch String
+    | ChType CharSet
+    | WhiteSpace String
     | EOF
-    -- | AnyCharBut String
-    | Link String | LinkStream String
-    | Reparse Sequence Sequence
-    -- | JustOutput EString
+    | Attribute String Sequence
+    | VEnd
+    | Bind
     | InfixTag Int String
     | EStart String [String] Condition
     | EEnd String
     | Tab String Sequence deriving (Eq, Ord)
 
-instance Show Expression where show = iShow
+instance Show Atom where show = iShow
 
 sequence2SequenceForest::Sequence->SequenceForest
 sequence2SequenceForest [Or seqs] = seqs >>= sequence2SequenceForest
@@ -113,72 +116,3 @@ iShow (Character charset) = show charset
 iShow (Or sequences) = intercalate " |\n         " (show <$> sequences)
 iShow EOF = "EOF"
 
-
-type RuleName = String
-
-
-type RawRule = (RuleName, (Condition, Sequence))
-data Rule = Rule {
-    name::String,
-    tagName::RuleName,
-    --theClass::Class,
-    rawSequence::Sequence,
-    fullSequence::Sequence,
-    condition::Condition,
-    isLRecursive::Bool
-    } deriving (Eq)
-
-
-rawRuleShow::RawRule->String
-rawRuleShow (name, (condition, sequence)) =
-    blue (name) ++ "[" ++ show condition ++ "] => " ++ sShow sequence ++ "\n"
-
-ruleShow::(String,Rule)->String
-ruleShow (className, Rule {tagName=name,condition=condition,fullSequence=sequence, isLRecursive=isLRecursive}) =
-    (if isLRecursive then magenta "lRecurse: " else "")
-    ++ (if (className == name)
-            then blue (name)
-            else blue ("(" ++ className ++ "," ++ name ++ ")"))
-        ++ (if condition /= CnTrue then "[" ++ show condition ++ "]" else "")
-        ++ " => " ++ sShow sequence ++ "\n"
-
-ruleMapShow::Map RuleName [Rule]->String
-ruleMapShow rm = intercalate "\n" (map ruleShow (concat (map expand (toList rm)))) ++ "\n"
-
-expand::(a, [b])->[(a, b)]
-expand (x, []) = []
-expand (x, (y:rest)) = (x, y):expand (x, rest)
-
-type ClassName=String
-
-data Name = ClassName | RuleName
-
-type Separator = Sequence
-
-data Class = Class {
-    rawRules::[RawRule],
-    operators::[OperatorSymbol],
-    separator::Separator,
-    className::ClassName,
-    parentNames::[String]
-    } deriving (Eq)
-
-instance Show Class where
-    show c = "====[" ++ className c
-        ++ (if null (parentNames c) then ":" ++ intercalate "," (parentNames c) else "")
-        ++ "]====\n  "
-        ++ intercalate "  " (map rawRuleShow (rawRules c))
-        ++ "  separator: " ++ sShow (separator c) ++ "\n"
-        ++ (if (length (operators c) > 0)
-            then "  operators: " ++ intercalate ", " (map sShow (operators c)) ++ "\n" else "")
-        ++ "====[/" ++ className c ++ "]===="
-
-data Grammar = Grammar { main::String,
-                        classes::[Class] }
-
-instance Show Grammar where
-    show g =
-        "-----------" ++ replicate (length $ main g) '-' ++ "\n"
-        ++ "| main = " ++ main g ++ " |\n"
-        ++ "-----------" ++ replicate (length $ main g) '-' ++ "\n\n"
-        ++ (intercalate "\n\n" (map show (classes g))) ++ "\n\n"

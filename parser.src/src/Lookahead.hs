@@ -42,16 +42,16 @@ firstMatcher cx(Attribute _ seq:rest) = firstMatcher cx (seq ++ rest)
 firstMatcher cx (Link name:rest) = case lookup name (rules cx) of
     Nothing -> error "qqqq"
     Just [rule] -> firstMatcher cx (fullSequence rule ++ rest)
-    Just rules -> firstMatcher cx (leftFactor (Or ((\item -> (1, fullSequence item)) <$> rules):rest))
+    Just rules -> firstMatcher cx (leftFactor (Or (fullSequence <$> rules):rest))
 firstMatcher cx seq@(WhiteSpace _:rest) = (\item -> (fst item, True)) <$> result
     where result = firstMatcher cx rest
 firstMatcher cx (EStart _ _ _:rest) = firstMatcher cx rest
 firstMatcher cx (EEnd _:rest) = firstMatcher cx rest
 firstMatcher cx (SepBy count seq:rest) | count > 0 = firstMatcher cx seq
 firstMatcher cx (List count seq:rest) | count > 0 = firstMatcher cx seq
-firstMatcher cx (List count seq:rest)  = firstMatcher cx [Or [(1, seq), (2, rest)]]
+firstMatcher cx (List count seq:rest)  = firstMatcher cx [Or [seq, rest]]
 firstMatcher cx seq@(Character charset:rest) = [(Character charset, False)]
-firstMatcher cx (Or items:rest) = items >>= (\(p, seq) -> (firstMatcher cx (seq ++ rest)))
+firstMatcher cx (Or items:rest) = items >>= (\seq -> (firstMatcher cx (seq ++ rest)))
     where changePriority p (a, b, c) = (p, b, c)
 firstMatcher cx seq = error ("Missing case in firstMatcher: " ++ show (head seq))
 
@@ -64,17 +64,15 @@ check s (Ident, _) = isAlpha $ LS.head s
 checkList::LString->[(Expression, Bool)]->Bool
 checkList s items = or (check s <$> items)
 
-chooseOne::Context->[(Int, Sequence)]->LString->Sequence
-chooseOne cx [(_, seq)] s = seq
-chooseOne cx items s = --jtrace ("Choice: " ++ show (length sequences)) $
-    case filter (checkList s . firstMatcher cx . snd) items of
+chooseOne::Context->[Sequence]->LString->Sequence
+chooseOne cx [seq] s = seq
+chooseOne cx seqs s = jtrace ("Choice: " ++ show (length seqs)) $
+    case filter (checkList s . firstMatcher cx) seqs of
         [] -> error "Nothing matched in chooseOne"
-        [(_, sequence)] -> sequence
-        items -> case maximumsUsing fst items of
-            [(_, sequence)] -> sequence
-            _ -> error (
+        [singleSeq] -> singleSeq
+        seqs -> error (
                     "multiple things matched in chooseOne:"
-                        ++ concat (("\n--------------\n" ++) <$> (show <$> items))
+                        ++ concat (("\n--------------\n" ++) <$> (show <$> seqs))
                         ++ "\ns = " ++ LS.string s)
 
 maximumsUsing::Ord b=>(a->b)->[a]->[a]

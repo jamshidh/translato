@@ -94,7 +94,7 @@ rawParse cx (Attribute name seq:rest) s =
 
 rawParse cx (Tab _ e:rest) s = rawParse cx (e ++ rest) s
 
-rawParse cx (Or [(_, singleSequence)]:rest) s = rawParse cx (singleSequence ++ rest) s
+rawParse cx (Or [singleSequence]:rest) s = rawParse cx (singleSequence ++ rest) s
 rawParse cx (Or items:rest) s = rawParse cx (chooseOne cx items s ++ rest) s
 
 rawParse cx (Bind:rest) s = --rawParse cx (JustOutput [Bound]:rest) s
@@ -112,7 +112,7 @@ rawParse cx (G.VEnd:rest) s =
 rawParse cx (SepBy count seq@[Character charset]:rest) s = rawParse cx (List count seq:rest) s
 
 rawParse cx (SepBy 0 seq:rest) s =
-    rawParse cx [Or [(1, seq ++ [Bind] ++ [List 0 (separator ++ seq)] ++ cleanedRest), (2, cleanedRest)]] s
+    rawParse cx [Or [seq ++ [Bind] ++ [List 0 (separator ++ seq)] ++ cleanedRest, cleanedRest]] s
     where separator = (seq2Separator cx) seq; cleanedRest = removeBind rest
 rawParse cx (SepBy count seq:rest) s =
     rawParse cx (seq ++ [List (count -1) (separator++seq)] ++ rest) s
@@ -125,28 +125,19 @@ rawParse cx (List 0 [Character charset]:rest) s | LS.head s `isIn` charset =
 rawParse cx (List 0 [Character charset]:rest) s =
     rawParse cx rest s
 
-rawParse cx (List 0 seq:rest) s = rawParse cx [Or [(1, seq ++ [Bind] ++ [List 0 seq] ++ cleanedRest), (2, cleanedRest)]] s
+rawParse cx (List 0 seq:rest) s = rawParse cx [Or [seq ++ [Bind] ++ [List 0 seq] ++ cleanedRest, cleanedRest]] s
     where cleanedRest = removeBind rest
 rawParse cx (List min seq:rest) s = rawParse cx (seq ++ [List (min-1) seq] ++ rest) s
 
 rawParse cx (Link name:rest) s =
-    case name2Class (grammar cx) name of
-        Just cl -> case classParseType (grammar cx) cl of
-            Block -> rawParse cx ([LinkStream name, List 0 (postSequence cx cl)] ++ rest) s
-            Stream -> rawParse cx (LinkStream name:rest) s
-        Nothing -> rawParse cx (LinkStream name:rest) s
+   case lookup name (sequences cx) of
+            Just sequence -> rawParse cx (sequence ++ rest) s
+            Nothing -> error ("The grammar links to a non-existant rule named '" ++ name ++ "'")
 
 rawParse cx (G.InfixTag priority name:rest) s = --rawParse cx [Or seqsWithOutputs] s
 --    where seqsWithOutputs =
 --            map (\(priority, name, symbol) -> symbol ++ [JustOutput [InfixOpSymbol priority name]] ++ rest) symbols
     [Node { rootLabel=E.InfixTag priority name, subForest=rawParse cx rest s}]
-
-rawParse cx (LinkStream name:rest) s =
-    case fmap (filter (not . isLRecursive)) (lookup name (sequences cx)) of
-            Just [sequence] -> rawParse cx (sequence ++ rest) s
-            Just rules -> rawParse cx (leftFactor (Or (addPriority 1 <$> fullSequence <$> rules):rest)) s
-                where addPriority p seq = (p, seq)
-            Nothing -> error ("The grammar links to a non-existant rule named '" ++ name ++ "'")
 
 rawParse cx (WhiteSpace _:rest) s | LS.null s = rawParse cx rest s
 --rawParse cx seq@(WhiteSpace _:rest) s | isSpace (LS.head s) = continue cx [] seq s
@@ -274,14 +265,14 @@ removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=next}) =
 
 createParserForClass::String->Context->Parser
 createParserForClass startRule cx s =
-    jtrace "\nResulting Forest:"
+    --jtrace "\nResulting Forest:"
 --    jtrace (drawForest (map (fmap show) (map simplifyUsingLookahead forest))) $
-    jtrace (cleanDrawForest forest) $
-    jtrace "\nIn between\n" $
-    jtrace (cleanDrawForest (assignVariables forest)) $
+    --jtrace (cleanDrawForest forest) $
+    --jtrace "\nIn between\n" $
+    --jtrace (cleanDrawForest (assignVariables forest)) $
 --    jtrace (cleanDrawForest (simplifyUsingLookahead <$> forest)) $
 --    jtrace (cleanDrawForest (simplifyUsingLookahead <$> (assignVariables forest))) $
-    jtrace "End Resulting Forest\n"
+    --jtrace "End Resulting Forest\n"
         enhancedString2String (correctPath (map (simplifyUsingLookahead) (assignVariables forest)))
             where forest=rawParse cx [Link startRule] (createLString s)
 

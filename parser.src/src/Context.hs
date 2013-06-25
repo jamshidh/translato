@@ -74,8 +74,8 @@ grammar2Context g =
         grammar=g,
         sequences=M.map (
                 leftFactor
-                . expandList
-                . expandSepBy seq2Sep
+--                . expandList
+--                . expandSepBy seq2Sep
                 . addOrIfNeeded
                 . (fullSequence <$>)
                 . filter (not . isLRecursive)

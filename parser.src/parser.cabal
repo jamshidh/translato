@@ -16,8 +16,8 @@ executable parser
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: Atom SequenceTools TreeTools Lookahead Context
-                   GrammarParser Quoter Parser Main Parser3 FakeColors XPath
+    other-modules: ETreeTools Atom SequenceTools TreeTools Lookahead
+                   Context GrammarParser Quoter Parser Main Parser3 FakeColors XPath
                    OperatorNames CharSet GrammarTools LeftFactoring LText Generator
                    ParseError Parser2 JDebug Parser4 EStringTools Grammar Colors
                    VarAssignment LString ParseElements EnhancedString ManyWorldsParser

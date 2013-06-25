@@ -46,7 +46,7 @@ isElement c = case node c of
     NodeElement element -> True
     _ -> False
 
-parseElements::Context->Cursor->Document
+parseElements::Grammar->Cursor->Document
 parseElements cx c = node2Document (input2Output cx c)
 
 node2Document::Node->Document
@@ -76,7 +76,7 @@ errorElement message =
     }
 
 
-input2Output::Context->Cursor->Node
+input2Output::Grammar->Cursor->Node
 input2Output cx c | isElement c && tagName c == "parse" =
     case getAttribute "using" c of
         Nothing -> errorElement "<rule> element missing 'using' attribute"

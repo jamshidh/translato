@@ -14,7 +14,9 @@
 
 module TreeTools (
     cleanForest,
-    cleanTree
+    cleanTree,
+    treeTake,
+    forestTake
 ) where
 
 import Data.Functor
@@ -28,3 +30,11 @@ cleanTree (Node {rootLabel=c, subForest=subForest}) = Node {rootLabel=[c], subFo
 cleanForest::Forest a->Forest [a]
 cleanForest forest = cleanTree <$> forest
 
+treeTake::Int->Tree a->Tree a
+treeTake 0 _ = error "tree can't be truncated"
+treeTake count tree = Node{rootLabel=rootLabel tree,subForest=forestTake (count-1) (subForest tree)}
+
+forestTake::Int->Forest a->Forest a
+forestTake 0 _ = []
+forestTake count trees =
+    trees >>= (\tree -> [Node{rootLabel=rootLabel tree,subForest=forestTake (count-1) (subForest tree)}])

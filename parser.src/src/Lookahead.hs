@@ -13,7 +13,9 @@
 -----------------------------------------------------------------------------
 
 module Lookahead (
-    chooseOne
+    chooseOne,
+    firstMatcher,
+    removeFirstMatcher
 ) where
 
 import Prelude hiding (lookup)
@@ -22,58 +24,66 @@ import Data.Char
 import Data.Functor
 import Data.List hiding (lookup)
 import Data.Map hiding (filter, map)
+import Data.Tree
 
 import CharSet
 import Context
-import Grammar
+import Atom
+--import Grammar
 import LeftFactoring
 import qualified LString as LS
 import LString (LString)
+import TreeTools
 
 import JDebug
 
 fst3 (a, _, _) = a
 snd3 (_, b, _) = b
 
-firstMatcher::Context->Sequence->[(Expression, Bool)]
-firstMatcher cx seq@(TextMatch text:_) = [(TextMatch text, False)]
-firstMatcher cx seq@(Ident:_) = [(Ident, False)]
-firstMatcher cx(Attribute _ seq:rest) = firstMatcher cx (seq ++ rest)
-firstMatcher cx (Link name:rest) = case lookup name (rules cx) of
-    Nothing -> error "qqqq"
-    Just [rule] -> firstMatcher cx (fullSequence rule ++ rest)
-    Just rules -> firstMatcher cx (leftFactor (Or (fullSequence <$> rules):rest))
-firstMatcher cx seq@(WhiteSpace _:rest) = (\item -> (fst item, True)) <$> result
-    where result = firstMatcher cx rest
-firstMatcher cx (EStart _ _ _:rest) = firstMatcher cx rest
-firstMatcher cx (EEnd _:rest) = firstMatcher cx rest
-firstMatcher cx (SepBy count seq:rest) | count > 0 = firstMatcher cx seq
-firstMatcher cx (List count seq:rest) | count > 0 = firstMatcher cx seq
-firstMatcher cx (List count seq:rest)  = firstMatcher cx [Or [seq, rest]]
-firstMatcher cx seq@(Character charset:rest) = [(Character charset, False)]
-firstMatcher cx (Or items:rest) = items >>= (\seq -> (firstMatcher cx (seq ++ rest)))
-    where changePriority p (a, b, c) = (p, b, c)
-firstMatcher cx seq = error ("Missing case in firstMatcher: " ++ show (head seq))
+firstMatcher::Exp->(Atom, Bool)
+firstMatcher Node{rootLabel=Ch c} = (Ch c, False)
+firstMatcher Node{rootLabel=ChType charset} = (ChType charset, False)
+firstMatcher Node{rootLabel=Out _, subForest=[rest]} = firstMatcher rest
+firstMatcher Node{rootLabel=Out _, subForest=[]} = (EOF, False)
+firstMatcher Node{rootLabel=WhiteSpace _, subForest=[rest]} = (\item -> (fst item, True)) result
+    where result = firstMatcher rest
+firstMatcher exp = error ("Missing case in firstMatcher: " ++ show exp)
 
-check::LString->(Expression, Bool)->Bool
+removeFirstMatcher::Exp->[Exp]
+removeFirstMatcher = removeFirstMatcher' 2
+
+removeFirstMatcher'::Int->Exp->[Exp]
+removeFirstMatcher' 0 _ = error "Dug too deep into removeFirstMatcher'"
+removeFirstMatcher' count Node{rootLabel=Ch c, subForest=rest} = jtrace "a" $
+    rest
+removeFirstMatcher' count Node{rootLabel=ChType charset, subForest=rest} = jtrace "b" $
+    rest
+removeFirstMatcher' count node@Node{rootLabel=Out _, subForest=[rest]} = jtrace "c" $
+    [node{subForest=removeFirstMatcher' (count-1) rest}]
+--removeFirstMatcher' Node{rootLabel=Out _, subForest=[]} = (EOF, False)
+--removeFirstMatcher' Node{rootLabel=WhiteSpace _, subForest=[rest]} = (\item -> (fst item, True)) result
+--    where result = removeFirstMatcher' rest
+removeFirstMatcher' count exp = error ("Missing case in removeFirstMatcher': " ++ show exp)
+
+
+check::LString->(Atom, Bool)->Bool
+check s (EOF, _) = LS.null s
+check s _ | LS.null s = False
 check s x@(_, True) | isSpace (LS.head s) = check (LS.tail s) x
-check s (TextMatch text, _) = text `LS.isPrefixOf` s
-check s (Character charset, _) = LS.head s `isIn` charset
-check s (Ident, _) = isAlpha $ LS.head s
+check s (Ch c, _) = c == LS.head s
+check s (ChType charset, _) = LS.head s `isIn` charset
 
-checkList::LString->[(Expression, Bool)]->Bool
-checkList s items = or (check s <$> items)
-
-chooseOne::Context->[Sequence]->LString->Sequence
-chooseOne cx [seq] s = seq
-chooseOne cx seqs s = jtrace ("Choice: " ++ show (length seqs)) $
-    case filter (checkList s . firstMatcher cx) seqs of
-        [] -> error "Nothing matched in chooseOne"
+chooseOne::[Exp]->LString->Exp
+chooseOne [exp] s = exp
+chooseOne seqs s =
+    case filter (check s . firstMatcher) seqs of
+        [] -> error ("Nothing matched in chooseOne, s=" ++ show (LS.string s) ++ ", exp = " ++ ((forestTake 4 seqs) >>= expShow))
         [singleSeq] -> singleSeq
         seqs -> error (
                     "multiple things matched in chooseOne:"
-                        ++ concat (("\n--------------\n" ++) <$> (show <$> seqs))
-                        ++ "\ns = " ++ LS.string s)
+                         ++ (seqs >>= safeExpShow 4)
+                         ++ "\ns = " ++ LS.string s
+                        )
 
 maximumsUsing::Ord b=>(a->b)->[a]->[a]
 maximumsUsing f list = filter (\x -> f x == max) list

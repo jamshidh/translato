@@ -18,11 +18,13 @@ import Text.XML
 import Data.List as L hiding (union, lookup, insert)
 import Data.Map hiding (map, foldl, filter)
 
+import Atom as A
 import CharSet
 import Context
 import EnhancedString as E
 import EStringTools
-import Grammar as G
+import ETreeTools
+import Grammar as G hiding (WhiteSpace)
 import GrammarTools
 import LeftFactoring
 import Lookahead
@@ -48,125 +50,46 @@ expectErr s expectation = [Node { rootLabel=ExpectationError [expectation] s, su
 
 -------------------------------
 
-removeBind::Sequence->Sequence
+{--removeBind::Sequence->Sequence
 removeBind (Bind:rest)=removeBind rest
 removeBind (x:rest) = x:removeBind rest
-removeBind [] = []
+removeBind [] = []--}
 
-haveSameStart::(Eq a, Show a)=>[[a]]->Bool
-haveSameStart [] = False
-haveSameStart [[]] = False
-haveSameStart sequences = (length $ nub (map head sequences)) == 1
+continue::Maybe EChar->[Exp]->LString->Forest EChar
+continue (Just c) seq s = --jtrace ("Seq=" ++ show seq) $
+    [Node {rootLabel=c, subForest=continue Nothing seq s}]
+continue Nothing seq s = --jtrace ("Seq2=" ++ show seq) $
+    [Node {rootLabel=Sync (LS.head s), subForest=rawParse seq (LS.tail s)}]
 
-getSingleCondition::[Condition]->Condition
-getSingleCondition cns = case nub cns of
-    [cn] -> cn
-    _ -> error "Elements with the same name must have the same condition"
-
-continue::Context->EString->Sequence->LString->Forest EChar
---continue cx item (Bind:rest) s = continue cx (item ++ [Bound]) rest s
---continue cx item (JustOutput value:rest) s = continue cx (item ++ value) rest s
---continue cx item (WhiteSpace _:JustOutput value:rest) s = continue cx (item ++ value) (WhiteSpace " ":rest) s
---continue cx item (WhiteSpace _:Bind:rest) s = continue cx (item ++ [Bound]) (WhiteSpace " ":rest) s
---continue cx item (JustOutput value:Bind:rest) s = continue cx (item ++ [Bound]) (JustOutput value:rest) s
---continue cx (c:rest) seq s | string s == [] = [Node {rootLabel=c, subForest=continue cx rest seq s}]
---continue cx [] seq s | string s == [] = [Node {rootLabel=Sync, subForest=rawParse cx seq (LS.tail s)}]
-
-continue cx (c:rest) seq s = --jtrace ("Seq=" ++ show seq) $
-    [Node {rootLabel=c, subForest=continue cx rest seq s}]
-continue cx [] seq s = --jtrace ("Seq2=" ++ show seq) $
-    [Node {rootLabel=Sync (LS.head s), subForest=rawParse cx seq (LS.tail s)}]
-
-rawParse::Context->Sequence->LString->Forest EChar
-rawParse cx (EOF:rest) s | string s == [] = [Node {rootLabel=Ch '\n', subForest=rawParse cx rest s}]
+rawParse::[Exp]->LString->Forest EChar
+{--rawParse cx (EOF:rest) s | string s == [] = [Node {rootLabel=Ch '\n', subForest=rawParse cx rest s}]
 rawParse cx (EOF:rest) s = expectErr s "EOF"
 --rawParse cx seq s | string s == [] =  [err s ("File ends too soon, expecting " ++ show seq)]--}
-rawParse cx [] s = [Node { rootLabel=(Ch '\n'), subForest=[] }]
+rawParse [] s | (not . LS.null) s = (expectErr s "EOF")
+rawParse [] s = [Node { rootLabel=(E.Ch '\n'), subForest=[] }]
 
-rawParse cx (TextMatch [c]:rest) s | LS.isPrefixOf [c] s = continue cx [] rest s
-rawParse cx (TextMatch matchString:rest) s | LS.isPrefixOf matchString s =
-        continue cx [] (TextMatch (tail matchString):rest) s
-rawParse cx (TextMatch matchString:rest) s = expectErr s matchString
+rawParse [Node{rootLabel=A.Ch c, subForest=rest}] s | LS.null s = expectErr s (show c)
+rawParse [Node{rootLabel=A.Ch c, subForest=rest}] s | c == LS.head s = continue Nothing rest s
+rawParse [Node{rootLabel=A.Ch c, subForest=rest}] s = jtrace ("e2: " ++ LS.string s) $ expectErr s (show c)
 
-rawParse cx (Attribute name seq:rest) s =
-    [Node {rootLabel=VStart ("@" ++ name) s, subForest=rawParse cx (seq ++ [G.VEnd] ++ rest) s}]
---        where nextCx = beginCurrentAttribute cx name
+rawParse [Node{rootLabel=A.ChType charset, subForest=rest}] s | LS.null s = expectErr s (show charset)
+rawParse [Node{rootLabel=A.ChType charset, subForest=rest}] s | LS.head s `isIn` charset =
+    continue (Just (E.Ch (LS.head s))) rest s
+rawParse [Node{rootLabel=A.ChType charset, subForest=rest}] s = expectErr s (show charset)
 
-rawParse cx (Tab _ e:rest) s = rawParse cx (e ++ rest) s
+rawParse [Node{rootLabel=Out ec, subForest=rest}] s =
+    [Node {rootLabel=ec, subForest=rawParse rest s}]
 
-rawParse cx (Or [singleSequence]:rest) s = rawParse cx (singleSequence ++ rest) s
-rawParse cx (Or items:rest) s = rawParse cx (chooseOne cx items s ++ rest) s
+rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | LS.null s = rawParse rest s
+--rawParse seq@(WhiteSpace _:rest) s | isSpace (LS.head s) = continue cx [] seq s
+rawParse seq@[Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.head s) = rawParse seq (LS.tail s)
+rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
 
-rawParse cx (Bind:rest) s = --rawParse cx (JustOutput [Bound]:rest) s
-    [Node { rootLabel=Bound, subForest=rawParse cx rest s}]
+rawParse [Node{rootLabel=x}] s = error ("Missing case in rawParse: " ++ show x)
 
-rawParse cx (G.EStart tagName attributes condition:rest) s =
-    [Node { rootLabel=E.EStart tagName attributes condition, subForest=rawParse cx rest s}]
+rawParse items s = rawParse [chooseOne items s] s
 
-rawParse cx (G.EEnd tagName:rest) s =
-    [Node { rootLabel=E.EEnd tagName, subForest=rawParse cx rest s}]
 
-rawParse cx (G.VEnd:rest) s =
-    [Node { rootLabel=E.VEnd, subForest=rawParse cx rest s}]
-
-rawParse cx (SepBy count seq@[Character charset]:rest) s = rawParse cx (List count seq:rest) s
-
-rawParse cx (SepBy 0 seq:rest) s =
-    rawParse cx [Or [seq ++ [Bind] ++ [List 0 (separator ++ seq)] ++ cleanedRest, cleanedRest]] s
-    where separator = (seq2Separator cx) seq; cleanedRest = removeBind rest
-rawParse cx (SepBy count seq:rest) s =
-    rawParse cx (seq ++ [List (count -1) (separator++seq)] ++ rest) s
-    where separator = (seq2Separator cx) seq
-
-rawParse cx (List 0 [Character charset]:rest) s | LS.null s =
-    rawParse cx rest s
-rawParse cx (List 0 [Character charset]:rest) s | LS.head s `isIn` charset =
-    continue cx [Ch (LS.head s)] (List 0 [Character charset]:rest) s
-rawParse cx (List 0 [Character charset]:rest) s =
-    rawParse cx rest s
-
-rawParse cx (List 0 seq:rest) s = rawParse cx [Or [seq ++ [Bind] ++ [List 0 seq] ++ cleanedRest, cleanedRest]] s
-    where cleanedRest = removeBind rest
-rawParse cx (List min seq:rest) s = rawParse cx (seq ++ [List (min-1) seq] ++ rest) s
-
-rawParse cx (Link name:rest) s =
-   case lookup name (sequences cx) of
-            Just sequence -> rawParse cx (sequence ++ rest) s
-            Nothing -> error ("The grammar links to a non-existant rule named '" ++ name ++ "'")
-
-rawParse cx (G.InfixTag priority name:rest) s = --rawParse cx [Or seqsWithOutputs] s
---    where seqsWithOutputs =
---            map (\(priority, name, symbol) -> symbol ++ [JustOutput [InfixOpSymbol priority name]] ++ rest) symbols
-    [Node { rootLabel=E.InfixTag priority name, subForest=rawParse cx rest s}]
-
-rawParse cx (WhiteSpace _:rest) s | LS.null s = rawParse cx rest s
---rawParse cx seq@(WhiteSpace _:rest) s | isSpace (LS.head s) = continue cx [] seq s
-rawParse cx seq@(WhiteSpace _:rest) s | isSpace (LS.head s) = rawParse cx seq (LS.tail s)
-rawParse cx (WhiteSpace _:rest) s = rawParse cx rest s
-
-rawParse cx (Character charset:rest) s | LS.null s = expectErr s (show charset)
-rawParse cx (Character charset:rest) s | LS.head s `isIn` charset = continue cx [Ch (LS.head s)] rest s
-rawParse cx (Character charset:rest) s = expectErr s (show charset)
-
-rawParse cx (Ident:rest) s | LS.null s = expectErr s "Ident"
-rawParse cx (Ident:rest) s | isAlpha (LS.head s) =
-    rawParse cx (List 1 [Character (CharSet False [WordChar])]:rest) s
-rawParse cx (Ident:rest) s = expectErr s "Ident"
-
-{--rawParse cx (JustOutput (EEnd:remainingChars):rest) s =
-    [Node { rootLabel=EEnd, subForest=rawParse (popCondition cx) (JustOutput remainingChars:rest) s}]--}
-
-{--rawParse cx (JustOutput (AEnd:remainingChars):rest) s =
-    case eval (head $ attributes newCx) (head $ conditions cx) of
-        Just CnFalse -> err s "Condition failed"
-        _ -> [Node { rootLabel=AEnd, subForest=rawParse newCx (JustOutput remainingChars:rest) s}]
-    where newCx = moveCurrentAttributeToAttributes cx--}
-
-{--rawParse cx (JustOutput (char:remainingChars):rest) s =
-    [Node { rootLabel=char, subForest=rawParse cx (JustOutput remainingChars:rest) s}]
-rawParse cx (JustOutput []:rest) s = rawParse cx rest s--}
-
-rawParse cx (x:_) s = error ("Missing case in rawParse: " ++ show x)
 
 ------------------------
 
@@ -263,8 +186,8 @@ removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=[next@(Node {rootLabel=S
 removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=next}) =
     Node {rootLabel=rootLabel, subForest=map removeDoubleSyncs next}
 
-createParserForClass::String->Context->Parser
-createParserForClass startRule cx s =
+createParserForClass::String->Grammar->Parser
+createParserForClass startRule g s =
     --jtrace "\nResulting Forest:"
 --    jtrace (drawForest (map (fmap show) (map simplifyUsingLookahead forest))) $
     --jtrace (cleanDrawForest forest) $
@@ -273,8 +196,8 @@ createParserForClass startRule cx s =
 --    jtrace (cleanDrawForest (simplifyUsingLookahead <$> forest)) $
 --    jtrace (cleanDrawForest (simplifyUsingLookahead <$> (assignVariables forest))) $
     --jtrace "End Resulting Forest\n"
-        enhancedString2String (correctPath (map (simplifyUsingLookahead) (assignVariables forest)))
-            where forest=rawParse cx [Link startRule] (createLString s)
+        enhancedString2String (correctPath (simplifyUsingLookahead <$> (assignVariables forest)))
+            where forest=rawParse (name2Exp g startRule) (createLString s)
 
-createParser::Context->Parser
-createParser cx = createParserForClass (main (grammar cx)) cx
+createParser::Grammar->Parser
+createParser g = createParserForClass (main g) g

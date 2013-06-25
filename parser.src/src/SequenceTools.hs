@@ -38,10 +38,10 @@ expandSepBy seq2Sep (first:rest) = first:expandSepBy seq2Sep rest
 expandSepBy _ [] = []
 
 expandList::Sequence->Sequence
-expandList (List 0 seq:rest) = expanded
+{--expandList (List 0 seq:rest) = expanded
     where
         expanded = [Or [seq ++ [Bind] ++ expanded, cleanedRest]]
-        cleanedRest = removeBind rest
+        cleanedRest = removeBind rest--}
 
 expandList (List count seq:rest) = seq ++ [List (count -1) seq] ++ rest
 expandList (Or seqs:rest) = (Or (expandList <$> seqs)):expandList rest

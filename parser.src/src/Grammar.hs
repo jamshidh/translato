@@ -68,7 +68,7 @@ instance Show Expression where show = iShow
 
 sequence2SequenceForest::Sequence->SequenceForest
 sequence2SequenceForest [Or seqs] = seqs >>= sequence2SequenceForest
-sequence2SequenceForest (Or _:_) = error "An 'Or' is not at the end of a sequence"
+sequence2SequenceForest (Or seqs:rest) = (++rest) <$> seqs >>= sequence2SequenceForest --error "An 'Or' is not at the end of a sequence"
 sequence2SequenceForest (first:rest) = [Node {rootLabel=first,subForest=sequence2SequenceForest rest}]
 sequence2SequenceForest [] = []
 

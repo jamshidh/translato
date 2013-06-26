@@ -55,39 +55,28 @@ removeBind (Bind:rest)=removeBind rest
 removeBind (x:rest) = x:removeBind rest
 removeBind [] = []--}
 
-continue::Maybe EChar->[Exp]->LString->Forest EChar
-continue (Just c) seq s = --jtrace ("Seq=" ++ show seq) $
-    [Node {rootLabel=c, subForest=continue Nothing seq s}]
-continue Nothing seq s = --jtrace ("Seq2=" ++ show seq) $
-    [Node {rootLabel=Sync (LS.head s), subForest=rawParse seq (LS.tail s)}]
-
-rawParse::[Exp]->LString->Forest EChar
+rawParse::[Exp]->Maybe LString->Forest EChar
 {--rawParse cx (EOF:rest) s | string s == [] = [Node {rootLabel=Ch '\n', subForest=rawParse cx rest s}]
 rawParse cx (EOF:rest) s = expectErr s "EOF"
 --rawParse cx seq s | string s == [] =  [err s ("File ends too soon, expecting " ++ show seq)]--}
-rawParse [] s | (not . LS.null) s = (expectErr s "EOF")
+--rawParse [] s | (not . LS.null) s = (expectErr s "EOF")
 rawParse [] s = [Node { rootLabel=(E.Ch '\n'), subForest=[] }]
-
-rawParse [Node{rootLabel=A.Ch c, subForest=rest}] s | LS.null s = expectErr s (show c)
-rawParse [Node{rootLabel=A.Ch c, subForest=rest}] s | c == LS.head s = continue Nothing rest s
-rawParse [Node{rootLabel=A.Ch c, subForest=rest}] s = jtrace ("e2: " ++ LS.string s) $ expectErr s (show c)
-
-rawParse [Node{rootLabel=A.ChType charset, subForest=rest}] s | LS.null s = expectErr s (show charset)
-rawParse [Node{rootLabel=A.ChType charset, subForest=rest}] s | LS.head s `isIn` charset =
-    continue (Just (E.Ch (LS.head s))) rest s
-rawParse [Node{rootLabel=A.ChType charset, subForest=rest}] s = expectErr s (show charset)
 
 rawParse [Node{rootLabel=Out ec, subForest=rest}] s =
     [Node {rootLabel=ec, subForest=rawParse rest s}]
 
-rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | LS.null s = rawParse rest s
---rawParse seq@(WhiteSpace _:rest) s | isSpace (LS.head s) = continue cx [] seq s
-rawParse seq@[Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.head s) = rawParse seq (LS.tail s)
-rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
+rawParse _ Nothing = error "No more input"
 
-rawParse [Node{rootLabel=x}] s = error ("Missing case in rawParse: " ++ show x)
+--rawParse [Node{rootLabel=A.Ch charset, subForest=rest}] s | LS.null s = expectErr s (formatAsRegex charset)
+rawParse [Node{rootLabel=A.Ch charset, subForest=rest}] (Just s) | listToMaybe (LS.string s) `isIn` charset =
+    rawParse rest (LS.tailOrMaybe s)
 
-rawParse items s = rawParse [chooseOne items s] s
+rawParse [Node{rootLabel=A.Ch charset, subForest=rest}] (Just s) = expectErr s (formatAsRegex charset)
+
+
+--rawParse [Node{rootLabel=x}] s = error ("Missing case in rawParse: " ++ show x)
+
+rawParse items (Just s) = rawParse [chooseOne items s] (Just s)
 
 
 
@@ -197,7 +186,7 @@ createParserForClass startRule g s =
 --    jtrace (cleanDrawForest (simplifyUsingLookahead <$> (assignVariables forest))) $
     --jtrace "End Resulting Forest\n"
         enhancedString2String (correctPath (simplifyUsingLookahead <$> (assignVariables forest)))
-            where forest=rawParse (name2Exp g startRule) (createLString s)
+            where forest=rawParse (name2Exp g startRule) (Just (createLString s))
 
 createParser::Grammar->Parser
 createParser g = createParserForClass (main g) g

@@ -24,7 +24,8 @@ module LString (
     LString.drop,
     LString.take,
     LString.head,
-    LString.tail
+    LString.tail,
+    LString.tailOrMaybe
 {--    finish,
     initialize,
     text2LText,
@@ -76,6 +77,10 @@ tail s =
         col=if (lineDelta == 0) then col s+1 else 0
         }
     where lineDelta = if (DL.head (string s) == '\n') then 1 else 0
+
+tailOrMaybe::LString->Maybe LString
+tailOrMaybe s | LString.null s = Nothing
+tailOrMaybe x = Just (LString.tail x)
 
 {--instance Show LText where
     show (LText { text=text, start=start, finish=finish }) = show (T.take (finish-start) (T.drop start text))

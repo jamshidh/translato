@@ -79,8 +79,8 @@ chs2String::EString->String
 chs2String (Ch x:rest) = x:chs2String rest
 chs2String (Error err s:rest) =
     red ("\nError(line:" ++ show (line s) ++ ",col:" ++ show (col s) ++ "): " ++ err ++ "\n") ++ chs2String rest
-chs2String (ExpectationError err s:rest) = red ("\nError(line:" ++ show (line s) ++ ",col:" ++ show (col s) ++ "): "
-    ++ "Expecting " ++ intercalate " or " (map show err) ++ ", but got " ++ show (truncateString 10 (string s)) ++ "\n") ++ chs2String rest
+chs2String (ExpectationError expected s:rest) = red ("\nError(line:" ++ show (line s) ++ ",col:" ++ show (col s) ++ "): "
+    ++ "Expecting " ++ intercalate " or " (show <$> expected) ++ ", but got " ++ show (truncateString 10 (string s)) ++ "\n") ++ chs2String rest
 chs2String (VPush:rest) = magenta ">>VPush" ++ chs2String rest
 chs2String (VPop:rest) = magenta "<<VPop<<" ++ chs2String rest
 chs2String (VOut name:rest) = green ("[" ++ name ++ "]") ++ chs2String rest

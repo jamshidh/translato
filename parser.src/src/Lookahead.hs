@@ -24,6 +24,7 @@ import Data.Char
 import Data.Functor
 import Data.List hiding (lookup)
 import Data.Map hiding (filter, map)
+import Data.Maybe
 import Data.Tree
 
 import CharSet
@@ -42,36 +43,29 @@ snd3 (_, b, _) = b
 
 firstMatcher::Exp->(Atom, Bool)
 firstMatcher Node{rootLabel=Ch c} = (Ch c, False)
-firstMatcher Node{rootLabel=ChType charset} = (ChType charset, False)
 firstMatcher Node{rootLabel=Out _, subForest=[rest]} = firstMatcher rest
-firstMatcher Node{rootLabel=Out _, subForest=[]} = (EOF, False)
-firstMatcher Node{rootLabel=WhiteSpace _, subForest=[rest]} = (\item -> (fst item, True)) result
-    where result = firstMatcher rest
-firstMatcher exp = error ("Missing case in firstMatcher: " ++ show exp)
+firstMatcher exp@Node{rootLabel=Out _, subForest=[]} = error ("The tree has a choice of 'Out', but no 'Ch' before it ends: " ++ show (treeTake 4 exp))
+firstMatcher exp = error ("Missing case in firstMatcher: " ++ expShow (treeTake 4 exp))
 
 removeFirstMatcher::Exp->[Exp]
 removeFirstMatcher = removeFirstMatcher' 2
 
 removeFirstMatcher'::Int->Exp->[Exp]
 removeFirstMatcher' 0 _ = error "Dug too deep into removeFirstMatcher'"
-removeFirstMatcher' count Node{rootLabel=Ch c, subForest=rest} = jtrace "a" $
+removeFirstMatcher' count Node{rootLabel=Ch charset, subForest=rest} =
     rest
-removeFirstMatcher' count Node{rootLabel=ChType charset, subForest=rest} = jtrace "b" $
-    rest
-removeFirstMatcher' count node@Node{rootLabel=Out _, subForest=[rest]} = jtrace "c" $
+removeFirstMatcher' count node@Node{rootLabel=Out _, subForest=[rest]} =
     [node{subForest=removeFirstMatcher' (count-1) rest}]
 --removeFirstMatcher' Node{rootLabel=Out _, subForest=[]} = (EOF, False)
 --removeFirstMatcher' Node{rootLabel=WhiteSpace _, subForest=[rest]} = (\item -> (fst item, True)) result
 --    where result = removeFirstMatcher' rest
-removeFirstMatcher' count exp = error ("Missing case in removeFirstMatcher': " ++ show exp)
+removeFirstMatcher' count exp = error ("Missing case in removeFirstMatcher': " ++ show (treeTake 4 exp))
 
 
 check::LString->(Atom, Bool)->Bool
-check s (EOF, _) = LS.null s
-check s _ | LS.null s = False
-check s x@(_, True) | isSpace (LS.head s) = check (LS.tail s) x
-check s (Ch c, _) = c == LS.head s
-check s (ChType charset, _) = LS.head s `isIn` charset
+--check s _ | LS.null s = False
+--check s x@(_, True) | isSpace (LS.head s) = check (LS.tail s) x
+check s (Ch charset, _) = listToMaybe (LS.string s) `isIn` charset
 
 chooseOne::[Exp]->LString->Exp
 chooseOne [exp] s = exp

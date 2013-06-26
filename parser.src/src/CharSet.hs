@@ -14,16 +14,8 @@
 
 module CharSet (
     CharSet (CharSet),
-    CharType (
-        Alpha,
-        Alphanum,
-        Digit,
-        LowercaseChar,
-        SingleChar,
-        Space,
-        UppercaseChar,
-        WordChar
-    ),
+    CharType (..),
+    formatAsRegex,
     isIn
 ) where
 
@@ -34,15 +26,41 @@ data CharType =
     | Alphanum
     | Digit
     | LowercaseChar
+    | NoChar --Same as EOF, but 'EOF' is used elsewhere, so it is easier to use a different name here
     | SingleChar Char
     | Space
     | UppercaseChar
-    | WordChar deriving (Eq, Ord, Show)
+    | WordChar deriving (Eq, Ord)
 
 data CharSet = CharSet Bool [CharType] deriving (Eq, Ord)
 
 instance Show CharSet where
     show (CharSet isNot sets) = "[" ++ (if isNot then "^" else "") ++ showSets sets ++ "]"
+
+formatAsRegex::CharSet->String
+formatAsRegex (CharSet invert [SingleChar c]) = [c]
+formatAsRegex (CharSet invert [WordChar]) = "\\w"
+formatAsRegex (CharSet invert [NoChar]) = "<EOF>"
+formatAsRegex (CharSet invert types) =
+    "["
+    ++ (if invert then "^" else "")
+    ++ (types >>= formatCharTypeAsRegex)
+    ++ "]"
+
+formatCharTypeAsRegex::CharType->String
+formatCharTypeAsRegex (SingleChar '\n') = "\\n"
+formatCharTypeAsRegex (SingleChar '\r') = "\\r"
+formatCharTypeAsRegex (SingleChar '\t') = "\\t"
+formatCharTypeAsRegex (SingleChar c) = [c]
+formatCharTypeAsRegex Alpha = "[a-zA-Z]"
+formatCharTypeAsRegex Alphanum = "[a-zA-Z0-9]"
+formatCharTypeAsRegex Digit = "\\d"
+formatCharTypeAsRegex LowercaseChar = "[a-z]"
+formatCharTypeAsRegex NoChar = error "NoChar should be taken care of in formatAsRegex"
+formatCharTypeAsRegex Space = "\\s"
+formatCharTypeAsRegex UppercaseChar = "[A-Z]"
+formatCharTypeAsRegex WordChar = "\\w"
+
 
 showSets::[CharType]->String
 showSets (SingleChar '\n':rest) = "\\n" ++ showSets rest
@@ -58,21 +76,22 @@ showSets (UppercaseChar:rest) = "[A-Z]" ++ showSets rest
 showSets (WordChar:rest) = "\\w" ++ showSets rest
 showSets [] = []
 
-isIn::Char->CharSet->Bool
+isIn::Maybe Char->CharSet->Bool
 isIn c (CharSet False (chartype:_)) | isInCharType c chartype = True
 isIn c (CharSet False (_:rest)) = isIn c (CharSet False rest)
 isIn c (CharSet False []) = False
 isIn c (CharSet True charTypes) = not $ isIn c (CharSet False charTypes)
 
-isInCharType::Char->CharType->Bool
-isInCharType c Alpha | isAlpha c = True
-isInCharType c Alphanum | isAlphaNum c = True
-isInCharType c Digit | isDigit c = True
-isInCharType c LowercaseChar | isLower c = True
-isInCharType c Space | isSpace c = True
-isInCharType c UppercaseChar | isUpper c = True
-isInCharType c WordChar | isAlphaNum c || c == '_' = True
-isInCharType c1 (SingleChar c2) | c1 == c2 = True
-isInCharType c _ = False
+isInCharType::Maybe Char->CharType->Bool
+isInCharType Nothing NoChar = True --The EOF case
+isInCharType (Just c) Alpha | isAlpha c = True
+isInCharType (Just c) Alphanum | isAlphaNum c = True
+isInCharType (Just c) Digit | isDigit c = True
+isInCharType (Just c) LowercaseChar | isLower c = True
+isInCharType (Just c) Space | isSpace c = True
+isInCharType (Just c) UppercaseChar | isUpper c = True
+isInCharType (Just c) WordChar | isAlphaNum c || c == '_' = True
+isInCharType (Just c1) (SingleChar c2) | c1 == c2 = True
+isInCharType _ _ = False
 
 

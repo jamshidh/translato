@@ -37,10 +37,7 @@ import JDebug
 type Exp = Tree Atom
 
 data Atom =
-    Ch Char
-    | ChType CharSet
-    | WhiteSpace String
-    | EOF
+    Ch CharSet
     | Out EChar
     {--| Attribute String
     | VEnd
@@ -73,9 +70,6 @@ safeExpShow::Int->Exp->String
 safeExpShow num = expShow . treeTake num
 
 atomShow::Atom->String
-atomShow (Ch c) = green ("'" ++ [c] ++ "'")
-atomShow (ChType charset) = show charset
+atomShow (Ch c) = green ("'" ++ formatAsRegex c ++ "'")
 atomShow (Out ec) = "Out(" ++ show ec ++ ")"
-atomShow (WhiteSpace defaultValue) = "_"
-atomShow EOF = "EOF"
 

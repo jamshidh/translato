@@ -67,6 +67,7 @@ showSets (SingleChar '\n':rest) = "\\n" ++ showSets rest
 showSets (SingleChar '\r':rest) = "\\r" ++ showSets rest
 showSets (SingleChar '\t':rest) = "\\t" ++ showSets rest
 showSets (SingleChar c:rest) = c:showSets rest
+showSets (NoChar:rest) = "<EOF>" ++ showSets rest
 showSets (Alpha:rest) = "[a-zA-Z]" ++ showSets rest
 showSets (Alphanum:rest) = "[a-zA-Z0-9]" ++ showSets rest
 showSets (Digit:rest) = "\\d" ++ showSets rest

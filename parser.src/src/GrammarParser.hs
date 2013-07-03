@@ -57,9 +57,18 @@ parseSimpleClass =
     do
         RuleItem rule<-parseRule
         spaces
-        return Class { className=fst rule, parentNames=[], rawRules=[rule], operators=[], separator=[WhiteSpace " "] }
+        return Class {
+                    className=fst rule,
+                    parentNames=[],
+                    rawRules=[rule],
+                    operators=[],
+                    left=[],
+                    right=[],
+                    separator=[WhiteSpace " "]
+               }
 
-data RuleOrOperatorsOrSeparator = RuleItem RawRule | Comment | OperatorsItem [Sequence] | SeparatorItem Sequence
+data RuleOrParameter =
+    RuleItem RawRule | Comment | OperatorsItem [Sequence] | SeparatorItem Sequence | LeftItem Sequence | RightItem Sequence
 
 parseFullClass =
     do
@@ -71,6 +80,8 @@ parseFullClass =
         spaces
         items<-endBy (
             parseSeparator
+            <|> parseLeft
+            <|> parseRight
             <|> parseOperators
             <|> parseRule
             <|> parseComment) spaces
@@ -84,10 +95,19 @@ parseFullClass =
                 parentNames=parents,
                 rawRules=[rule|RuleItem rule<-items],
                 operators=concat [operators|OperatorsItem operators<-items],
+                left=case [separator|LeftItem separator<-items] of
+                    [] -> [TextMatch " "]
+                    [x] -> x
+                    _ -> error "Only one separator allowed for a class",
+                right=case [separator|RightItem separator<-items] of
+                    [] -> [TextMatch " "]
+                    [x] -> x
+                    _ -> error "Only one separator allowed for a class",
                 separator=case [separator|SeparatorItem separator<-items] of
                     [] -> [TextMatch " "]
                     [x] -> x
-                    _ -> error "Only one separator allowed for a class"}
+                    _ -> error "Only one separator allowed for a class"
+            }
 
 parseComment =
     do
@@ -116,6 +136,25 @@ parseOperators =
         spaces
         operators<- endBy parseQuote spaces
         return (OperatorsItem operators)
+
+parseLeft =
+    do
+        try (string "left:")
+        spaces
+        sequence<-parseSequence
+        spaces
+        string ";"
+        return (RightItem sequence)
+
+parseRight =
+    do
+        try (string "right:")
+        spaces
+        sequence<-parseSequence
+        spaces
+        string ";"
+        spaces
+        return (RightItem sequence)
 
 parseSeparator =
     do

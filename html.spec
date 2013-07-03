@@ -41,11 +41,15 @@ script =><script src="@src([^"]*)">_</script>;
 
 element[@tagName != "script"] =><@tagName {attribute}* />;
 
-element[@tagName != "script"] =><@tagName {attribute}*_>
-  {node}*
-</@tagName>;
+element[@tagName != "script"] =>{node}*;
+
 
 text => {word}+;
+
+left: <@tagName {attribute}*_>;
+
+right: </@tagName>;
+
 
 separator: '\n'
 

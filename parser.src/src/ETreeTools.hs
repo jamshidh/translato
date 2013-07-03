@@ -33,7 +33,7 @@ import JDebug
 
 name2Exp::Grammar->String->[Exp]
 --name2Exp g name = seq2Exp cx [Link name]
-name2Exp g name = leftFactor (seq2Exp cx [Link name])
+name2Exp g name = leftFactor2 (seq2Exp cx [Link name])
             where cx = grammar2Context g
 
 
@@ -58,7 +58,7 @@ seq2Exp cx (TextMatch []:rest) = seq2Exp cx rest
 seq2Exp cx (TextMatch (c:cs):rest) = [Node{rootLabel=A.Ch (CharSet False [SingleChar c]), subForest=seq2Exp cx (TextMatch cs:rest)}]
 --seq2Exp cx (Link name:rest) = [Node{rootLabel=A.Ch 'q', subForest=seq2Exp cx rest}]
 
-seq2Exp cx (G.SepBy count seq:rest) | count > 0 = jtrace ("count = " ++ show count) $ seq2Exp cx (seq ++ [G.SepBy (count-1) seq] ++ rest)
+seq2Exp cx (G.SepBy count seq:rest) | count > 0 = seq2Exp cx (seq ++ [G.SepBy (count-1) seq] ++ rest)
 seq2Exp cx (G.SepBy 0 seq:rest) = seq2Exp cx seq1 ++ seq2Exp cx rest
     where
 --    seq2Exp cx (seq ++ [Bind] ++ [List 0 (separator ++ seq)] ++ cleanedRest)
@@ -85,7 +85,7 @@ expandSepBy seq2Sep (Or seqs:rest) = (Or (expandSepBy seq2Sep <$> seqs)):expandS
 expandSepBy seq2Sep (first:rest) = first:expandSepBy seq2Sep rest
 expandSepBy _ [] = []--}
 
-listMapWith::Ord k=>(a->k)->[a]->Map k [a]
+{--listMapWith::Ord k=>(a->k)->[a]->Map k [a]
 listMapWith f items = fromListWith (++) ((\x -> (f x, [x])) <$> items)
 
 leftFactor::[Exp]->[Exp]
@@ -96,4 +96,20 @@ leftFactor items  = addPrefix <$> toList (listMapWith firstMatcher items)
             case prefix of
                 (_, [item]) -> item{subForest=leftFactor (subForest item)}
                 ((x, False), items') ->
-                    Node{rootLabel=x, subForest=leftFactor (items' >>= removeFirstMatcher)}
+                    Node{rootLabel=x, subForest=leftFactor (items' >>= removeFirstMatcher)}--}
+
+separateFirstMatcher::Exp->[(Atom, [Exp])]
+--separateFirstMatcher Node{rootLabel=A.Ch c, subForest=[]} = [(A.Ch c, Node{rootLabel=A.Out (E.Ch 'q'), subForest=[]})]
+separateFirstMatcher Node{rootLabel=A.Ch c, subForest=rest} = [(A.Ch c, rest)]
+separateFirstMatcher Node{rootLabel=A.Out val, subForest=[]} =
+    error ("Can not call separateFirstMatcher on an 'Out' at the end of an exp: " ++ show val)
+separateFirstMatcher Node{rootLabel=A.Out val, subForest=rest} =
+    (\(first, exps)->(first, [Node{rootLabel=A.Out val, subForest=exps}]))
+        <$> (rest >>= separateFirstMatcher)
+
+leftFactor2::[Exp]->[Exp]
+leftFactor2 [item] = [item{subForest=leftFactor2 (subForest item)}]
+leftFactor2 items  = --jtrace ("leftFactor2: " ++ ((forestTake 6 items) >>= expShow)) $
+    addPrefix <$> toList (fromListWith (++) (items >>= separateFirstMatcher))
+        where
+            addPrefix (prefix, exps) = Node{rootLabel=prefix, subForest=leftFactor2 exps}

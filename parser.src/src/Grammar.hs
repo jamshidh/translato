@@ -53,6 +53,8 @@ type SequenceForest = Forest Expression
 data Expression = TextMatch String | Attribute String Sequence | VEnd
     | Or [Sequence]
     | Bind | List Int Sequence | SepBy Int Sequence
+    | Loop Sequence
+    | Exit
     | Ident | Number | WhiteSpace String | Character CharSet
     | EOF
     -- | AnyCharBut String
@@ -158,6 +160,8 @@ type Separator = Sequence
 data Class = Class {
     rawRules::[RawRule],
     operators::[OperatorSymbol],
+    left::Sequence,
+    right::Sequence,
     separator::Separator,
     className::ClassName,
     parentNames::[String]

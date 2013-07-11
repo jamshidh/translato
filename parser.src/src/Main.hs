@@ -17,6 +17,7 @@ module Main (
     main
 ) where
 
+import Data.Functor
 import Data.List
 import qualified Data.Map as M
 import Data.Sequence hiding (drop)
@@ -51,6 +52,7 @@ import LText as L hiding (head, drop)
 import Parser
 import ParseElements
 --import ParseError
+import SequenceMap
 
 import JDebug
 
@@ -67,42 +69,41 @@ makeWindow = do
     widgetShowAll window
     mainGUI--}
 
-prepareContext g =
+{--prepareContext g =
     grammar2Context modifiedG
-        where modifiedG = stripWhitespaceFromGrammar $ addEOFToGrammar g
+        where modifiedG = stripWhitespaceFromGrammar $ addEOFToGrammar g--}
 
 {--showElement::XML.Node->String
 showElement (NodeElement element) = TL.unpack (renderText def (element2Document (element)))
 showElement (NodeContent text) = show text--}
 
-outputGrammar::Context->IO ()
-outputGrammar cx = do
-    putStrLn $ show (grammar cx)
+outputGrammar::Grammar->IO ()
+outputGrammar g = do
+    putStrLn $ show g
 
-outputRules::Grammar->IO ()
-outputRules g = do
-    putStrLn $ ruleMapShow $ rules (prepareContext g)
-    putStrLn $ postSeqShow (prepareContext g)
+outputSequenceMap::Grammar->IO ()
+outputSequenceMap g = do
+    putStrLn $ formatSequenceMap (sequenceMap g)
 
-outputParse::Context->IO ()
-outputParse cx = do
-    interact (createParser cx)
+outputParse::Grammar->IO ()
+outputParse g = do
+    interact (createParser g)
 
-outputParseElements::Context->IO ()
+outputParseElements::Grammar->IO ()
 outputParseElements cx = do
     contents<-TL.getContents
     let doc=try(parseText def contents)
     putStrLn (TL.unpack (renderText def (parseElements cx (fromDocument doc))))
 
-outputString::Context->IO ()
-outputString cx = do
+outputString::Grammar->IO ()
+outputString g = do
     contents<-TL.getContents
     let doc=try(parseText def contents)
-    case generate cx (fromDocument doc) of
+    case generate g (fromDocument doc) of
         Right s -> putStrLn s
         Left err -> error (show err)
 
-data Task = OutputGrammar | OutputRules | Parse | ParseElements | Generate
+data Task = OutputGrammar | OutputSequenceMap | Parse | ParseElements | Generate
 
 try::(Show err)=>Either err a->a
 try (Left err) = error ("Error:" ++ show err)
@@ -112,11 +113,24 @@ data Opts = Opts { grammarFilename::String, task::Task }
 
 defaults = Opts { grammarFilename="grammar.spec", task=Parse }
 
+options = M.fromList
+    [
+        ("optputGrammar", OutputGrammar),
+        ("outputSequenceMap", OutputSequenceMap ),
+        ("generate", Generate),
+        ("parseElements", ParseElements)
+    ]
+
+usage::String
+usage = "parser [option] " ++ underline("PARSEFILE") ++ "\n"
+    ++ "Options:\n"
+    ++ concat ((++ "\n") <$> ("\t--" ++) <$> fst <$> M.toList options)
+
 args2Opts::[String]->Opts->Opts
-args2Opts ("--outputGrammar":rest) o = args2Opts rest (o { task=OutputGrammar })
-args2Opts ("--outputRules":rest) o = args2Opts rest (o { task=OutputRules })
-args2Opts ("--generate":rest) o = args2Opts rest (o { task=Generate })
-args2Opts ("--parseElements":rest) o = args2Opts rest (o { task=ParseElements })
+args2Opts (('-':'-':word):rest) o =
+    case M.lookup word options of
+        Just option -> args2Opts rest (o { task=option })
+        Nothing -> error ("Unknown option: " ++ word ++ "\nUsage:\n" ++ usage)
 args2Opts (filename:rest) o = args2Opts rest (o { grammarFilename=filename })
 args2Opts [] o = o
 
@@ -139,8 +153,8 @@ main = do
     let grammar = try (P.parse parseGrammar "grammar" (TL.unpack grammarFile))
 
     case task opts of
-      OutputGrammar -> outputGrammar $ prepareContext grammar
-      OutputRules -> outputRules grammar
-      Parse -> outputParse $ prepareContext grammar
-      ParseElements -> outputParseElements $ prepareContext grammar
-      Generate -> outputString $ prepareContext grammar
+      OutputGrammar -> outputGrammar grammar
+      OutputSequenceMap -> outputSequenceMap grammar
+      Parse -> outputParse grammar
+      ParseElements -> outputParseElements grammar
+      Generate -> outputString grammar

@@ -20,14 +20,15 @@ module Grammar (
     OperatorSymbol,
     Class (..),
     RuleName,
-    RawRule,
+    Name,
+    --RawRule,
     Rule (..),
     Grammar (..),
-    sShow,
+    formatSequence,
     ParseType (..),
     Separator,
     ruleShow,
-    ruleMapShow
+    --ruleMapShow
 ) where
 
 import Prelude hiding (lookup)
@@ -47,9 +48,9 @@ type OperatorSymbol = Sequence
 
 type Sequence = [Expression]
 
-data Expression = TextMatch String | Attribute String Sequence | VEnd
-    | Or [(Int, Sequence)]
-    | Bind | List Int Sequence | SepBy Int Sequence
+data Expression = TextMatch String
+    | Or [Sequence]
+    | List Int Sequence | SepBy Int Sequence
     | Ident | Number | WhiteSpace String | Character CharSet
     | EOF
     -- | AnyCharBut String
@@ -57,23 +58,24 @@ data Expression = TextMatch String | Attribute String Sequence | VEnd
     | Reparse Sequence Sequence
     -- | JustOutput EString
     | InfixTag Int String
-    | EStart String [String] Condition
+    | AStart String
+    | AEnd
+    | EStart String [String]
     | EEnd String
-    | Tab String Sequence deriving (Eq, Ord)
+    | TabStart String
+    | TabEnd deriving (Eq, Ord)
 
 instance Show Expression where show = iShow
 
-sShow::Sequence->String
-sShow seq = intercalate " " (map show seq)
+formatSequence::Sequence->String
+formatSequence seq = intercalate " " (map show seq)
 
 iShow::Expression->String
 iShow (TextMatch text) = show text
-iShow (Attribute name [Ident]) = "@" ++ name
-iShow (Attribute name theType) = "@" ++ name ++ "(" ++ sShow theType ++ ")"
-iShow VEnd = green "VEnd"
-iShow Bind = "Bind"
-iShow (SepBy min e) = "SepBy" ++ (if (min > 0) then show min else "") ++ "(" ++ sShow e ++ ")"
-iShow (List min e) = "list" ++ (if (min > 0) then show min else "") ++ "(" ++ sShow e ++ ")"
+iShow (AStart name) = "@" ++ name ++ "("
+iShow AEnd = ")"
+iShow (SepBy min e) = "SepBy" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
+iShow (List min e) = "list" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
 --iShow (Reparse second first) = "reparse(" ++ sShow second ++ ", " ++ sShow first ++ ")"
 iShow Ident = "Ident"
 iShow Number = underline "number"
@@ -81,13 +83,14 @@ iShow (InfixTag priority tagName) =
     "InfixTag("
         ++ show priority ++ "," ++ tagName
         ++ ")"
-iShow (EStart tagName attributes condition) = cyan ("<" ++ tagName ++ concat (map (" " ++) attributes) ++ ">")
+iShow (EStart tagName attributes) = cyan ("<" ++ tagName ++ concat (map (" " ++) attributes) ++ ">")
 iShow (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
 iShow (WhiteSpace defaultValue) = "_"
 --iShow (AnyCharBut chars) = "anyCharBut(" ++ show chars ++ ")"
 iShow (LinkStream name) = underline $ magenta ("LS(" ++ name ++ ")")
 iShow (Link name) = underline $ magenta name
-iShow (Tab tabString e) = "(" ++ show tabString ++ ")==>(" ++ sShow e ++ ")"
+iShow (TabStart tabString) = "(" ++ show tabString ++ ")==>("
+iShow TabEnd = ")"
 iShow (Character charset) = show charset
 --iShow (JustOutput eString) = green ("-->(" ++ show eString ++ ")")
 iShow (Or sequences) = intercalate " |\n         " (show <$> sequences)
@@ -97,49 +100,36 @@ iShow EOF = "EOF"
 type RuleName = String
 
 
-type RawRule = (RuleName, (Condition, Sequence))
+--type RawRule = (RuleName, Sequence)
 data Rule = Rule {
     name::String,
-    tagName::RuleName,
+    --tagName::RuleName,
     --theClass::Class,
-    rawSequence::Sequence,
-    fullSequence::Sequence,
-    condition::Condition,
-    isLRecursive::Bool
+    rawSequence::Sequence
     } deriving (Eq)
 
 
-rawRuleShow::RawRule->String
-rawRuleShow (name, (condition, sequence)) =
-    blue (name) ++ "[" ++ show condition ++ "] => " ++ sShow sequence ++ "\n"
+ruleShow::Rule->String
+ruleShow Rule{name=name,rawSequence=sequence} = blue (name) ++ " => " ++ formatSequence sequence ++ "\n"
 
-ruleShow::(String,Rule)->String
-ruleShow (className, Rule {tagName=name,condition=condition,fullSequence=sequence, isLRecursive=isLRecursive}) =
-    (if isLRecursive then magenta "lRecurse: " else "")
-    ++ (if (className == name)
-            then blue (name)
-            else blue ("(" ++ className ++ "," ++ name ++ ")"))
-        ++ (if condition /= CnTrue then "[" ++ show condition ++ "]" else "")
-        ++ " => " ++ sShow sequence ++ "\n"
-
-ruleMapShow::Map RuleName [Rule]->String
-ruleMapShow rm = intercalate "\n" (map ruleShow (concat (map expand (toList rm)))) ++ "\n"
-
-expand::(a, [b])->[(a, b)]
-expand (x, []) = []
-expand (x, (y:rest)) = (x, y):expand (x, rest)
+{--formatNameSequenceMap::Map RuleName [Rule]->String
+formatNameSequenceMap rm =
+    intercalate "\n" (map ruleShow (concat (toList rm))) ++ "\n"--}
 
 type ClassName=String
 
-data Name = ClassName | RuleName
+type Name = String
 
 type Separator = Sequence
 
 data Class = Class {
-    rawRules::[RawRule],
+    rules::[Rule],
+    extensions::[Sequence],
     operators::[OperatorSymbol],
     separator::Separator,
     className::ClassName,
+    left::Sequence,
+    right::Sequence,
     parentNames::[String]
     } deriving (Eq)
 
@@ -147,20 +137,20 @@ instance Show Class where
     show c = "====[" ++ className c
         ++ (if null (parentNames c) then ":" ++ intercalate "," (parentNames c) else "")
         ++ "]====\n  "
-        ++ intercalate "  " (map rawRuleShow (rawRules c))
-        ++ "  separator: " ++ sShow (separator c) ++ "\n"
+        ++ intercalate "  " (map ruleShow (rules c))
+        ++ "  separator: " ++ formatSequence (separator c) ++ "\n"
         ++ (if (length (operators c) > 0)
-            then "  operators: " ++ intercalate ", " (map sShow (operators c)) ++ "\n" else "")
+            then "  operators: " ++ intercalate ", " (map formatSequence (operators c)) ++ "\n" else "")
         ++ "====[/" ++ className c ++ "]===="
 
 data Grammar = Grammar { main::String,
-                        classes::[Class] }
+                        classes::Map ClassName Class }
 
 instance Show Grammar where
     show g =
         "-----------" ++ replicate (length $ main g) '-' ++ "\n"
         ++ "| main = " ++ main g ++ " |\n"
         ++ "-----------" ++ replicate (length $ main g) '-' ++ "\n\n"
-        ++ (intercalate "\n\n" (map show (classes g))) ++ "\n\n"
+        ++ (intercalate "\n\n" ((show . snd) <$> (toList (classes g)))) ++ "\n\n"
 
 data ParseType = Block | Stream deriving (Eq)

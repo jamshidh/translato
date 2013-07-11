@@ -20,11 +20,13 @@ module GrammarParser (
 ) where
 
 import Data.Char hiding (Space)
+import Data.Functor
 import Data.List
 import Data.Map as M hiding (filter, map, foldl)
 import Data.Maybe
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr
+import qualified Data.Set as Set
 
 import Colors hiding (reverse)
 import CharSet
@@ -42,13 +44,13 @@ import JDebug
 parseGrammar =
     do
         spaces
-        classes<-endBy parseClass spaces
+        classList<-endBy parseClass spaces
         spaces
         eof
         return Grammar {
-                            main = (assert (length classes > 0) "Grammar contains no classes")
-                                (className $ head classes),
-                            classes = classes
+                            main = (assert (length classList > 0) "Grammar contains no classes")
+                                (className $ head classList),
+                            classes = M.fromList ((\cl -> (className cl, cl)) <$> classList)
                         }
 
 parseClass = parseFullClass <|> parseSimpleClass
@@ -57,9 +59,24 @@ parseSimpleClass =
     do
         RuleItem rule<-parseRule
         spaces
-        return Class { className=fst rule, parentNames=[], rawRules=[rule], operators=[], separator=[WhiteSpace " "] }
+        return Class {
+            className=name rule,
+            rules=[rule],
+            extensions=[],
+            operators=[],
+            separator=[WhiteSpace " "],
+            left=[],
+            right=[],
+            parentNames=[]
+        }
 
-data RuleOrOperatorsOrSeparator = RuleItem RawRule | Comment | OperatorsItem [Sequence] | SeparatorItem Sequence
+data RuleOrOperatorsOrSeparator =
+    RuleItem Rule
+    | Comment
+    | OperatorsItem [Sequence]
+    | SeparatorItem Sequence
+    | LeftItem Sequence
+    | RightItem Sequence
 
 parseFullClass =
     do
@@ -71,6 +88,8 @@ parseFullClass =
         spaces
         items<-endBy (
             parseSeparator
+            <|> parseLeft
+            <|> parseRight
             <|> parseOperators
             <|> parseRule
             <|> parseComment) spaces
@@ -81,13 +100,24 @@ parseFullClass =
         many (char '=')
         return Class {
                 className=name,
-                parentNames=parents,
-                rawRules=[rule|RuleItem rule<-items],
+                --parentNames=parents,
+                rules=[rule|RuleItem rule<-items],
+                extensions=[],
                 operators=concat [operators|OperatorsItem operators<-items],
                 separator=case [separator|SeparatorItem separator<-items] of
                     [] -> [TextMatch " "]
                     [x] -> x
-                    _ -> error "Only one separator allowed for a class"}
+                    _ -> error "Only one separator allowed for a class",
+                left=case [left|LeftItem left<-items] of
+                    [] -> []
+                    [x] -> x
+                    _ -> error "Only one left allowed for a class",
+                right=case [right|RightItem right<-items] of
+                    [] -> []
+                    [x] -> x
+                    _ -> error "Only one right allowed for a class",
+                parentNames=parents
+        }
 
 parseComment =
     do
@@ -100,15 +130,13 @@ parseRule =
     do
         name<-ident
         spaces
-        condition <- option CnTrue parseBracketedCondition
-        spaces
         string "=>"
         sequence<-parseSequence
         spaces
         string ";"
         many (char '-')
         spaces
-        return (RuleItem (name, (condition, sequence)))
+        return (RuleItem Rule{name=name, rawSequence=sequence})
 
 parseOperators =
     do
@@ -124,14 +152,21 @@ parseSeparator =
         separator<- parseQuote
         return (SeparatorItem separator)
 
------------------------------
-
-parseBracketedCondition =
+parseLeft =
     do
-        char '['
-        condition <- parseCondition
-        char ']'
-        return condition
+        try (string "left:")
+        spaces
+        left<- parseQuote
+        return (LeftItem left)
+
+parseRight =
+    do
+        try (string "right:")
+        spaces
+        right<- parseQuote
+        return (RightItem right)
+
+-----------------------------
 
 ident =
     do
@@ -183,7 +218,7 @@ data SequenceItem = TextItem String | SequenceItem Sequence | ExpressionItem Exp
 matchSequenceItem =
     do
         item <- (
-            exp2 ExpressionItem matchAttribute
+            exp2 SequenceItem matchAttribute
             <|> exp2 ExpressionItem matchLink
             <|> exp2 SequenceItem matchParen
             <|> exp2 ExpressionItem matchCharsetChar
@@ -220,7 +255,7 @@ matchAttribute =
         char '@'
         name<-ident
         parseType<-option [Ident] matchParen
-        return (Attribute name parseType)
+        return ([AStart name] ++ parseType ++ [AEnd])
 
 matchParen =
     do

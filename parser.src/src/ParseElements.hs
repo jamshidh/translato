@@ -27,8 +27,9 @@ import Text.XML.Cursor
 import Context
 --import ManyWorldsParser
 import Parser
-import Grammar hiding (tagName)
+import Grammar hiding (tagName, Name)
 import ParseError
+import SequenceMap
 
 name2String::Name->String
 name2String name = unpack $ nameLocalName name
@@ -46,8 +47,8 @@ isElement c = case node c of
     NodeElement element -> True
     _ -> False
 
-parseElements::Context->Cursor->Document
-parseElements cx c = node2Document (input2Output cx c)
+parseElements::Grammar->Cursor->Document
+parseElements g c = node2Document (input2Output g c)
 
 node2Document::Node->Document
 node2Document (NodeElement element) = Document {
@@ -76,19 +77,19 @@ errorElement message =
     }
 
 
-input2Output::Context->Cursor->Node
-input2Output cx c | isElement c && tagName c == "parse" =
+input2Output::Grammar->Cursor->Node
+input2Output g c | isElement c && tagName c == "parse" =
     case getAttribute "using" c of
         Nothing -> errorElement "<rule> element missing 'using' attribute"
         Just ruleName ->
             case parseText def (fromStrict $ pack ret) of
                 Left err -> errorElement (show err)
                 Right doc -> NodeElement $ documentRoot doc
-            where ret = (createParserForClass ruleName) cx (concat (map unpack (child c >>= content)))
-input2Output cx c | isElement c = let element = getElement c in
+            where ret = (createParserForClass ruleName) g (concat (map unpack (child c >>= content)))
+input2Output sMap c | isElement c = let element = getElement c in
     NodeElement $ Element {
     elementName = fullTagName c,
     elementAttributes = elementAttributes element,
-    elementNodes = map (input2Output cx) (child c)
+    elementNodes = map (input2Output sMap) (child c)
     }
 input2Output g c = node c

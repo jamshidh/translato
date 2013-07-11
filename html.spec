@@ -39,9 +39,9 @@ script =><script_>
 
 script =><script src="@src([^"]*)">_</script>;
 
-element[@tagName != "script"] =><@tagName {attribute}* />;
+element =><@tagName {attribute}* />;
 
-element[@tagName != "script"] =><@tagName {attribute}*_>
+element =><@tagName {attribute}*_>
   {node}*
 </@tagName>;
 
@@ -96,7 +96,7 @@ separator: '_, '
 
 ====[lvalue]==================
 
-variable[@name != "function"] => @name;
+variable => @name;
 
 function => {lvalue}\({expression}*\);
 

@@ -48,10 +48,9 @@ assignVariables forest = forest >>= assignVariablesUsingVContext rootVContext
 
 assignVariablesUsingVContext::VContext->Tree EChar->Forest EChar
 
-assignVariablesUsingVContext vcx node@Node{rootLabel=EStart _ _ condition, subForest=subForest} =
+assignVariablesUsingVContext vcx node@Node{rootLabel=EStart _ _, subForest=subForest} =
     [node {subForest=subForest >>= assignVariablesUsingVContext (
                 vcx {
-                        conditionStack=condition:conditionStack vcx,
                         variableStack=empty:variableStack vcx
                     })}]
 

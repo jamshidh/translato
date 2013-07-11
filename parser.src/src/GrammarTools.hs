@@ -17,11 +17,13 @@ module GrammarTools (
     --simplify,
     --removeLeftRecursionFromGrammar,
     --expandOperators,
+    rule2Seq,
     addEOFToGrammar,
     stripWhitespaceFromGrammar
 ) where
 
 import Data.Char
+import Data.Functor
 import Data.Graph.Inductive.Query.Monad
 import Data.List
 import Data.Map as M hiding (filter, map, foldl, null)
@@ -38,19 +40,19 @@ import JDebug
 stripWhitespaceFromGrammar::Grammar->Grammar
 stripWhitespaceFromGrammar g = g
     {
-        classes = map
-            (\c@Class { className=name } -> if (name == main g) then c else stripWhitespaceFromClass c)
-            (classes g)
+        classes =
+            (\c ->
+                if (className c == main g)
+                    then c
+                    else stripWhitespaceFromClass c)
+                            <$> (classes g)
 
     }
 
-mapSeq::(Sequence->Sequence)->RawRule->RawRule
-mapSeq f (name, (cn, seq)) = (name, (cn, f seq))
-
 stripWhitespaceFromClass::Class->Class
-stripWhitespaceFromClass c = c { rawRules = map (mapSeq strip) (rawRules c) }
+stripWhitespaceFromClass c = c { rules = stripRule <$> (rules c) }
 
-stripRule = mapSnd strip
+stripRule rule = rule{rawSequence=strip (rawSequence rule)}
 
 strip::Sequence->Sequence
 strip ((WhiteSpace defaultText):rest) = removeLastWhitespace rest
@@ -62,6 +64,13 @@ removeLastWhitespace (e:rest) = e:(removeLastWhitespace rest)
 removeLastWhitespace [] = []
 
 ---------------------
+
+rule2Seq::Rule->Sequence
+rule2Seq rule = []
+
+
+
+
 
 {--removeLeftRecursionFromGrammar::Grammar->Grammar
 removeLeftRecursionFromGrammar g =
@@ -136,12 +145,12 @@ symbol2ExpressionList s =
 addEOFToGrammar::Grammar->Grammar
 addEOFToGrammar g = g {
         classes =
-            map (\c@(Class {className=name}) -> if (name == main g) then addEOFToClass c else c)
+            (\c -> if (className c == main g) then addEOFToClass c else c) <$>
                 (classes g)
     }
 
 addEOFToClass::Class->Class
-addEOFToClass c = c { rawRules=map (mapSeq (\e->e++[EOF])) (rawRules c)}
+addEOFToClass c = c { rules=(\rule->rule{rawSequence=rawSequence rule ++ [EOF]}) <$> (rules c)}
 
 {--fullySimplifyGrammar::Grammar->Grammar
 fullySimplifyGrammar g = fst $ fromJust $ find (\(g1, g2) -> g1 == g2) (zip simplifiedProgression (tail simplifiedProgression))

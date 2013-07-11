@@ -45,6 +45,9 @@ instance Show CharSet where
     show (CharSet isNot sets) = "[" ++ (if isNot then "^" else "") ++ showSets sets ++ "]"
 
 showSets::[CharType]->String
+showSets (SingleChar '\n':rest) = "\\n" ++ showSets rest
+showSets (SingleChar '\r':rest) = "\\r" ++ showSets rest
+showSets (SingleChar '\t':rest) = "\\t" ++ showSets rest
 showSets (SingleChar c:rest) = c:showSets rest
 showSets (Alpha:rest) = "[a-zA-Z]" ++ showSets rest
 showSets (Alphanum:rest) = "[a-zA-Z0-9]" ++ showSets rest

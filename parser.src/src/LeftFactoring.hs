@@ -28,13 +28,13 @@ verifyHead x = if null x then error "leftFactor called with empty sequence" else
 
 leftFactor::Sequence->Sequence
 leftFactor (Or []:rest) = leftFactor rest
-leftFactor (Or [(_, seq)]:rest) = leftFactor (seq ++ rest)
+leftFactor (Or [seq]:rest) = leftFactor (seq ++ rest)
 
 leftFactor (Or items:rest) = --jtrace ("Left factoring: " ++ intercalate "\n  " (map show sequences)) $
     [Or (makeSeq <$> theMap)] ++ rest
     where
-        theMap = toList (fromListWith (++) ((\(priority, seq) -> ((priority, verifyHead seq), [(priority, tail seq)])) <$> items))
-        makeSeq ((priority, first), rest2) = (priority, first:(leftFactor [Or rest2]))
+        theMap = toList (fromListWith (++) ((\seq -> (verifyHead seq, [tail seq])) <$> items))
+        makeSeq (first, rest2) = first:(leftFactor [Or rest2])
 
 leftFactor (x:rest) = x:leftFactor rest
 leftFactor [] = []

@@ -33,7 +33,7 @@ import XPath
 import JDebug
 
 data EChar = Ch Char
-    | EStart String [String] Condition
+    | EStart String [String]
     | EEnd String
     | VPush
     | VPop
@@ -52,7 +52,7 @@ data EChar = Ch Char
 instance Show EChar where
     show (Ch '\n') = "\\n"
     show (Ch c) = [c]
-    show (EStart name attributes _) = cyan ("<" ++ name ++ concat (map (" " ++) attributes) ++ ">")
+    show (EStart name attributes) = cyan ("<" ++ name ++ concat (map (" " ++) attributes) ++ ">")
         --(if condition /= CnTrue then "(" ++ show condition ++ ")" ++ ">>"
     show (EEnd name) = cyan ("</" ++ name ++ ">")
     show VPush = magenta ">>VPush>>"
@@ -139,7 +139,7 @@ debugOutput [] = []
 
 
 expandElements::EString->EString
-expandElements (EStart name attributes condition:rest) =
+expandElements (EStart name attributes:rest) =
     ([VPush] ++ e ("<" ++ name)
         ++ concat ((\name -> e(" " ++ name ++ "='") ++ [VOut ("@" ++ name)] ++ e "'") <$> attributes)
         ++ e (">")

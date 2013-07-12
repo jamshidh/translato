@@ -146,10 +146,12 @@ rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | LS.null s = rawParse
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.head s) = rawParse rest (LS.tail s)
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
 
-{--rawParse [Node=Character charset, subForest=rest}] s | LS.null s = expectErr s (show charset)
-rawParse (Character charset:rest) s | LS.head s `isIn` charset =
-    Node{rootLabel=Ch (LS.head s), subForest=rawParse rest s}
-rawParse (Character charset:rest) s = expectErr s (show charset)--}
+rawParse [Node{rootLabel=Character charset, subForest=rest}] s | LS.null s =
+    expectErr s (show charset)
+rawParse [Node{rootLabel=Character charset, subForest=rest}] s | LS.head s `isIn` charset =
+    [Node{rootLabel=Ch (LS.head s), subForest=rawParse rest s}]
+rawParse [Node{rootLabel=Character charset, subForest=rest}] s =
+    expectErr s (formatCharSet charset)
 
 {--rawParse Ident:rest) s | LS.null s = expectErr s "Ident"
 rawParse (Ident:rest) s | isAlpha (LS.head s) =

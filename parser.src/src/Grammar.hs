@@ -51,9 +51,8 @@ type Sequence = [Expression]
 data Expression = TextMatch String
     | Or [Sequence]
     | List Int Sequence | SepBy Int Sequence
-    | Ident | Number | WhiteSpace String | Character CharSet
+    | WhiteSpace String | Character CharSet
     | EOF
-    -- | AnyCharBut String
     | Link String | LinkStream String
     | Reparse Sequence Sequence
     -- | JustOutput EString
@@ -77,8 +76,6 @@ iShow AEnd = ")"
 iShow (SepBy min e) = "SepBy" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
 iShow (List min e) = "list" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
 --iShow (Reparse second first) = "reparse(" ++ sShow second ++ ", " ++ sShow first ++ ")"
-iShow Ident = "Ident"
-iShow Number = underline "number"
 iShow (InfixTag priority tagName) =
     "InfixTag("
         ++ show priority ++ "," ++ tagName

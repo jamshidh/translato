@@ -221,7 +221,7 @@ matchSequenceItem =
             exp2 SequenceItem matchAttribute
             <|> exp2 ExpressionItem matchLink
             <|> exp2 SequenceItem matchParen
-            <|> exp2 ExpressionItem matchCharsetChar
+            <|> exp2 ExpressionItem matchCharset
             <|> exp2 ExpressionItem matchSimpleCharsetChar
             <|> exp2 TextItem matchText)
         count <- option "" (string "*" <|> string "+")
@@ -254,7 +254,7 @@ matchAttribute =
     do
         char '@'
         name<-ident
-        parseType<-option [Ident] matchParen
+        parseType<-option [Link "ident"] matchParen
         return ([AStart name] ++ parseType ++ [AEnd])
 
 matchParen =
@@ -264,13 +264,31 @@ matchParen =
         char ')'
         return sequence
 
-matchCharsetChar =
+matchCharset =
     do
         char '['
         isInverse <- option False (char '^' >> return True)
-        charset <- many (noneOf "]")
+        charTypes <- many (matchEscapedChar <|> try matchCharsetRange <|> matchCharsetChar)
         char ']'
-        return (Character (CharSet isInverse (string2CharTypes charset)))
+        return (Character (CharSet isInverse charTypes))
+
+matchEscapedChar =
+    do
+        char '\\'
+        escapedChar <- noneOf "]"
+        return (unescape escapedChar)
+
+matchCharsetChar =
+    do
+        char <- noneOf "]"
+        return (SingleChar char)
+
+matchCharsetRange =
+    do
+        char1 <- noneOf "]"
+        char '-'
+        char2 <- noneOf "]"
+        return (CharRange char1 char2)
 
 matchSimpleCharsetChar =
     do
@@ -312,6 +330,14 @@ string2CharTypes ('\\':'t':rest) = SingleChar '\t':string2CharTypes rest
 string2CharTypes ('\\':c:rest) = error ("Missing escape char in string2CharTypes " ++ [c])
 string2CharTypes (c:rest) = SingleChar c:string2CharTypes rest
 string2CharTypes [] = []
+
+unescape::Char->CharType
+unescape 's' = Space
+unescape 'd' = Digit
+unescape 'n' = SingleChar '\n'
+unescape 'r' = SingleChar '\r'
+unescape 't' = SingleChar '\t'
+unescape c = error ("Missing escape char in string2CharTypes " ++ [c])
 
 
 {--matchWhiteSpaceAndBracket::Parser Sequence
@@ -384,15 +410,6 @@ matchReparse =
         spaces
         string ")"
         return ([Reparse secondExpression firstExpression])--}
-
-matchPreDefinedRule::Parser Sequence
-matchPreDefinedRule =
-    do
-        rule<-(
-            (string "ident" >> return Ident) <|>
-            (string "number" >> return Number)
-            )
-        return [rule]
 
 matchConversionText =
     do

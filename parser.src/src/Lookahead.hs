@@ -38,7 +38,6 @@ snd3 (_, b, _) = b
 
 firstMatcher::Tree Expression->[(Expression, Bool)]
 firstMatcher Node{rootLabel=TextMatch text} = [(TextMatch text, False)]
-firstMatcher Node{rootLabel=Ident} = [(Ident, False)]
 firstMatcher Node{rootLabel=AStart _, subForest=[next]} = firstMatcher next
 firstMatcher Node{rootLabel=WhiteSpace _, subForest=[next]} =
     (\item -> (fst item, True)) <$> result
@@ -51,7 +50,6 @@ check::LString->(Expression, Bool)->Bool
 check s x@(_, True) | isSpace (LS.head s) = check (LS.tail s) x
 check s (TextMatch text, _) = text `LS.isPrefixOf` s
 check s (Character charset, _) = LS.head s `isIn` charset
-check s (Ident, _) = isAlpha $ LS.head s
 
 checkList::LString->[(Expression, Bool)]->Bool
 checkList s items = or (check s <$> items)

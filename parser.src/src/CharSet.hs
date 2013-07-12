@@ -14,16 +14,8 @@
 
 module CharSet (
     CharSet (CharSet),
-    CharType (
-        Alpha,
-        Alphanum,
-        Digit,
-        LowercaseChar,
-        SingleChar,
-        Space,
-        UppercaseChar,
-        WordChar
-    ),
+    formatCharSet,
+    CharType (..),
     isIn
 ) where
 
@@ -32,6 +24,7 @@ import Data.Char hiding (Space)
 data CharType =
     Alpha
     | Alphanum
+    | CharRange Char Char
     | Digit
     | LowercaseChar
     | SingleChar Char
@@ -39,24 +32,25 @@ data CharType =
     | UppercaseChar
     | WordChar deriving (Eq, Ord, Show)
 
-data CharSet = CharSet Bool [CharType] deriving (Eq, Ord)
+data CharSet = CharSet Bool [CharType] deriving (Eq, Ord, Show)
 
-instance Show CharSet where
-    show (CharSet isNot sets) = "[" ++ (if isNot then "^" else "") ++ showSets sets ++ "]"
 
-showSets::[CharType]->String
-showSets (SingleChar '\n':rest) = "\\n" ++ showSets rest
-showSets (SingleChar '\r':rest) = "\\r" ++ showSets rest
-showSets (SingleChar '\t':rest) = "\\t" ++ showSets rest
-showSets (SingleChar c:rest) = c:showSets rest
-showSets (Alpha:rest) = "[a-zA-Z]" ++ showSets rest
-showSets (Alphanum:rest) = "[a-zA-Z0-9]" ++ showSets rest
-showSets (Digit:rest) = "\\d" ++ showSets rest
-showSets (LowercaseChar:rest) = "[a-z]" ++ showSets rest
-showSets (Space:rest) = "\\s" ++ showSets rest
-showSets (UppercaseChar:rest) = "[A-Z]" ++ showSets rest
-showSets (WordChar:rest) = "\\w" ++ showSets rest
-showSets [] = []
+formatCharSet (CharSet isNot sets) = "[" ++ (if isNot then "^" else "") ++ formatSets sets ++ "]"
+
+formatSets::[CharType]->String
+formatSets (Alpha:rest) = "[a-zA-Z]" ++ formatSets rest
+formatSets (Alphanum:rest) = "[a-zA-Z0-9]" ++ formatSets rest
+formatSets (CharRange char1 char2:rest) = char1:'-':char2:formatSets rest
+formatSets (Digit:rest) = "\\d" ++ formatSets rest
+formatSets (LowercaseChar:rest) = "[a-z]" ++ formatSets rest
+formatSets (SingleChar '\n':rest) = "\\n" ++ formatSets rest
+formatSets (SingleChar '\r':rest) = "\\r" ++ formatSets rest
+formatSets (SingleChar '\t':rest) = "\\t" ++ formatSets rest
+formatSets (SingleChar c:rest) = c:formatSets rest
+formatSets (Space:rest) = "\\s" ++ formatSets rest
+formatSets (UppercaseChar:rest) = "[A-Z]" ++ formatSets rest
+formatSets (WordChar:rest) = "\\w" ++ formatSets rest
+formatSets [] = []
 
 isIn::Char->CharSet->Bool
 isIn c (CharSet False (chartype:_)) | isInCharType c chartype = True
@@ -67,6 +61,7 @@ isIn c (CharSet True charTypes) = not $ isIn c (CharSet False charTypes)
 isInCharType::Char->CharType->Bool
 isInCharType c Alpha | isAlpha c = True
 isInCharType c Alphanum | isAlphaNum c = True
+isInCharType c (CharRange char1 char2) | (c >= char1) && (c <= char2) = True
 isInCharType c Digit | isDigit c = True
 isInCharType c LowercaseChar | isLower c = True
 isInCharType c Space | isSpace c = True

@@ -22,14 +22,15 @@ import Data.List
 import Data.Tree
 
 import EnhancedString
+import TreeTools
 
-cleanTree::Tree EChar->Tree EString
+{--cleanTree::Tree EChar->Tree EString
 cleanTree (Node {rootLabel=c, subForest=[next]})=Node { rootLabel=c:rootLabel nextResult, subForest=subForest nextResult }
     where nextResult = cleanTree next
-cleanTree (Node {rootLabel=c, subForest=subForest}) = Node {rootLabel=[c], subForest=cleanTree <$> subForest}
+cleanTree (Node {rootLabel=c, subForest=subForest}) = Node {rootLabel=[c], subForest=cleanTree <$> subForest}--}
 
 cleanDraw::Tree EChar->String
-cleanDraw = drawTree . (fmap ((intercalate ", ") . cleanEString)) . cleanTree
+cleanDraw = safeDrawTree . (fmap ((intercalate ", ") . cleanEString)) . cleanTree
 
 cleanDrawForest::Forest EChar->String
 cleanDrawForest forest = intercalate "\n" (map cleanDraw forest)

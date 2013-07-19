@@ -156,14 +156,18 @@ parseLeft =
     do
         try (string "left:")
         spaces
-        left<- parseQuote
+        left<- parseSequence
+        spaces
+        string ";"
         return (LeftItem left)
 
 parseRight =
     do
         try (string "right:")
         spaces
-        right<- parseQuote
+        right<- parseSequence
+        spaces
+        string ";"
         return (RightItem right)
 
 -----------------------------
@@ -308,7 +312,7 @@ matchLink =
 
 matchText =
     do
-        text<-many1 (noneOf ";*()[]-{}@\\"
+        text<-many1 (noneOf ";*()[]-+{}@\\"
             <|> (try (string "\\@") >> return '@')
             <|> (try (string "\\*") >> return '*')
             <|> (try (string "\\+") >> return '+')

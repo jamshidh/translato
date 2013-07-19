@@ -4,7 +4,9 @@
 
 module Parser (
     createParserForClass,
-    createParser
+    createParser,
+    parseTree,
+    seq2ParseTree
 ) where
 
 import Prelude hiding (lookup)
@@ -30,6 +32,7 @@ import LString (LString, line, col, string, createLString)
 import qualified LString as LS
 import OperatorNames
 import SequenceMap
+import TreeTools
 import VarAssignment
 import XPath
 
@@ -81,20 +84,24 @@ forestConcat items b = (\item -> item{subForest=forestConcat (subForest item) b}
 (+++) = forestConcat
 
 seq2ParseTree::SequenceMap->Sequence->Forest Expression
-seq2ParseTree sMap (Link name:rest) = jtrace ("seq2ParseTree: " ++ name) $
+seq2ParseTree sMap (Link name:rest) =
     case lookup name sMap of
         Nothing -> error ("The grammar links to a non-existant rule named '" ++ name ++ "'")
         Just seq ->
             forestConcat
                             (seq2ParseTree sMap seq)
                             (seq2ParseTree sMap rest)
-seq2ParseTree sMap (List count seq@[Character charset]:rest) =
-    seq2ParseTree sMap (List count seq:rest)
+{--seq2ParseTree sMap (List count seq@[Character charset]:rest) =
+    seq2ParseTree sMap (List count seq:rest)--}
 
 seq2ParseTree sMap (List 0 seq:rest) =
     seq2ParseTree sMap [Or [seq ++ [List 0 seq] ++ rest, rest]]
 seq2ParseTree sMap (List count seq:rest) =
     seq2ParseTree sMap (seq ++ [List (count -1) seq] ++ rest)
+seq2ParseTree sMap (Or seqs:rest) =
+--    forestConcat
+        (((++ rest) <$> seqs) >>= seq2ParseTree sMap)
+--        (seq2ParseTree sMap rest)
 seq2ParseTree sMap (e:rest) = [Node{rootLabel=e, subForest=seq2ParseTree sMap rest}]
 seq2ParseTree sMap [] = []
 
@@ -147,9 +154,9 @@ rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.head s) 
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
 
 rawParse [Node{rootLabel=Character charset, subForest=rest}] s | LS.null s =
-    expectErr s (show charset)
+    expectErr s (formatCharSet charset)
 rawParse [Node{rootLabel=Character charset, subForest=rest}] s | LS.head s `isIn` charset =
-    [Node{rootLabel=Ch (LS.head s), subForest=rawParse rest s}]
+    [Node{rootLabel=Ch (LS.head s), subForest=rawParse rest (LS.tail s)}]
 rawParse [Node{rootLabel=Character charset, subForest=rest}] s =
     expectErr s (formatCharSet charset)
 
@@ -171,7 +178,7 @@ rawParse (Ident:rest) s = expectErr s "Ident"--}
     [Node { rootLabel=char, subForest=rawParse cx (JustOutput remainingChars:rest) s}]
 rawParse cx (JustOutput []:rest) s = rawParse cx rest s--}
 
-rawParse [x] _ = error ("Missing case in rawParse: " ++ show x)
+rawParse [x] _ = error ("Missing case in rawParse: " ++ safeDrawTree (fmap show x))
 
 rawParse items s = rawParse [chooseOne items s] s
 
@@ -193,7 +200,7 @@ isBound (Node {subForest=[tree]})=isBound tree
 isBound (Node {subForest=[]})=False
 isBound tree@(Node {subForest=_})= False
 --    if safe then False
---        else error ("split before bound ambiguity resolved: " ++ drawTree (fmap show tree))
+--        else error ("split before bound ambiguity resolved: " ++ safeDrawTree (fmap show tree))
 
 isError::Bool->Tree EChar->Bool
 isError safe (Node {rootLabel=(Error _ _)})=True
@@ -239,7 +246,7 @@ lookaheadChoice items =
             [item] -> removeImmediateBound item
             items -> items
         _ -> error ("There are two bounds appearing in the tree at the same time:\n  ----"
-            ++ intercalate "\n  ----" (map show items) ++ drawForest (map (fmap show) items))
+            ++ safeDrawForest (map (fmap show) items))
 
 simplifyUsingLookahead::Tree EChar->Tree EChar
 simplifyUsingLookahead (node@Node {subForest=[oneNode]}) = node {subForest=[simplifyUsingLookahead oneNode]}
@@ -251,7 +258,7 @@ simplifyUsingLookahead (Node {rootLabel=rootLabel, subForest=nextNodes}) =
 partial2CorrectPath::[(EString, Tree EChar)]->EString
 partial2CorrectPath [(es, tree)] = rootLabel tree:correctPath (subForest tree)
 partial2CorrectPath [] = []
-partial2CorrectPath items = --jtrace ("\n\ndog: " ++ drawForest (map (fmap show) (map snd items))) $
+partial2CorrectPath items = --jtrace ("\n\ndog: " ++ safeDrawForest (map (fmap show) (map snd items))) $
     case filter (isBound.snd) items of
         [(output, tree)]->output ++ partial2CorrectPath [(e "", tree)]
         [] -> case filter (not.(isError False).snd) items of
@@ -270,18 +277,22 @@ removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=[next@(Node {rootLabel=S
 removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=next}) =
     Node {rootLabel=rootLabel, subForest=map removeDoubleSyncs next}
 
+parseTree::Grammar->String->Forest Expression
+parseTree g startRule=seq2ParseTree (sequenceMap g) [Link startRule]
+
 createParserForClass::String->Grammar->Parser
 createParserForClass startRule g s =
-    jtrace "\nResulting Forest:"
---    jtrace (drawForest (map (fmap show) (map simplifyUsingLookahead forest))) $
-    jtrace (cleanDrawForest forest) $
-    jtrace "\nIn between\n" $
-    jtrace (cleanDrawForest (assignVariables forest)) $
+--    jtrace "\nResulting Forest:"
+--    jtrace (safeDrawForest (map (fmap show) (map simplifyUsingLookahead forest))) $
+--    jtrace (cleanDrawForest forest) $
+--    jtrace "\nIn between\n" $
+--    jtrace (cleanDrawForest (assignVariables forest)) $
 --    jtrace (cleanDrawForest (simplifyUsingLookahead <$> forest)) $
 --    jtrace (cleanDrawForest (simplifyUsingLookahead <$> (assignVariables forest))) $
-    jtrace "End Resulting Forest\n"
+--    jtrace "End Resulting Forest\n"
         enhancedString2String (correctPath (map (simplifyUsingLookahead) (assignVariables forest)))
-            where forest=rawParse (seq2ParseTree (sequenceMap g) [Link startRule]) (createLString s)
+            where
+                forest=rawParse (parseTree g startRule) (createLString s)
 
 createParser::Grammar->Parser
 createParser g = createParserForClass (main g) g

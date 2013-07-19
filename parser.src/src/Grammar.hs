@@ -24,10 +24,13 @@ module Grammar (
     --RawRule,
     Rule (..),
     Grammar (..),
+    formatExpression,
     formatSequence,
     ParseType (..),
     Separator,
     ruleShow,
+    safeDrawEForest,
+    safeDrawETree
     --ruleMapShow
 ) where
 
@@ -36,10 +39,12 @@ import Prelude hiding (lookup)
 import Data.Functor
 import Data.List hiding (lookup)
 import Data.Map hiding (filter, map, null, union)
+import Data.Tree
 
 import CharSet
 import Colors
 import EnhancedString hiding (VEnd, InfixTag, EStart, EEnd)
+import TreeTools
 import XPath
 
 import JDebug
@@ -62,37 +67,40 @@ data Expression = TextMatch String
     | EStart String [String]
     | EEnd String
     | TabStart String
-    | TabEnd deriving (Eq, Ord)
-
-instance Show Expression where show = iShow
+    | TabEnd deriving (Eq, Ord, Show)
 
 formatSequence::Sequence->String
-formatSequence seq = intercalate " " (map show seq)
+formatSequence seq = intercalate " " (map formatExpression seq)
 
-iShow::Expression->String
-iShow (TextMatch text) = show text
-iShow (AStart name) = "@" ++ name ++ "("
-iShow AEnd = ")"
-iShow (SepBy min e) = "SepBy" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
-iShow (List min e) = "list" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
+formatExpression::Expression->String
+formatExpression (TextMatch text) = show text
+formatExpression (AStart name) = "@" ++ name ++ "("
+formatExpression AEnd = ")"
+formatExpression (SepBy min e) = "SepBy" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
+formatExpression (List min e) = "list" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
 --iShow (Reparse second first) = "reparse(" ++ sShow second ++ ", " ++ sShow first ++ ")"
-iShow (InfixTag priority tagName) =
+formatExpression (InfixTag priority tagName) =
     "InfixTag("
         ++ show priority ++ "," ++ tagName
         ++ ")"
-iShow (EStart tagName attributes) = cyan ("<" ++ tagName ++ concat (map (" " ++) attributes) ++ ">")
-iShow (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
-iShow (WhiteSpace defaultValue) = "_"
+formatExpression (EStart tagName attributes) = cyan ("<" ++ tagName ++ concat (map (" " ++) attributes) ++ ">")
+formatExpression (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
+formatExpression (WhiteSpace defaultValue) = "_"
 --iShow (AnyCharBut chars) = "anyCharBut(" ++ show chars ++ ")"
-iShow (LinkStream name) = underline $ magenta ("LS(" ++ name ++ ")")
-iShow (Link name) = underline $ magenta name
-iShow (TabStart tabString) = "(" ++ show tabString ++ ")==>("
-iShow TabEnd = ")"
-iShow (Character charset) = show charset
+formatExpression (LinkStream name) = underline $ magenta ("LS(" ++ name ++ ")")
+formatExpression (Link name) = underline $ magenta name
+formatExpression (TabStart tabString) = "(" ++ show tabString ++ ")==>("
+formatExpression TabEnd = ")"
+formatExpression (Character charset) = formatCharSet charset
 --iShow (JustOutput eString) = green ("-->(" ++ show eString ++ ")")
-iShow (Or sequences) = intercalate " |\n         " (show <$> sequences)
-iShow EOF = "EOF"
+formatExpression (Or sequences) = "{" ++ intercalate " |\n         " (formatSequence <$> sequences) ++ "}"
+formatExpression EOF = "EOF"
 
+safeDrawETree::Tree Expression->String
+safeDrawETree = safeDrawTree . (fmap formatExpression)
+
+safeDrawEForest::Forest Expression->String
+safeDrawEForest = safeDrawForest. (fmap formatExpression <$>)
 
 type RuleName = String
 
@@ -103,7 +111,7 @@ data Rule = Rule {
     --tagName::RuleName,
     --theClass::Class,
     rawSequence::Sequence
-    } deriving (Eq)
+    } deriving (Eq, Show)
 
 
 ruleShow::Rule->String
@@ -128,14 +136,15 @@ data Class = Class {
     left::Sequence,
     right::Sequence,
     parentNames::[String]
-    } deriving (Eq)
+    } deriving (Eq, Show)
 
-instance Show Class where
-    show c = "====[" ++ className c
+formatClass c = "====[" ++ className c
         ++ (if null (parentNames c) then ":" ++ intercalate "," (parentNames c) else "")
         ++ "]====\n  "
         ++ intercalate "  " (map ruleShow (rules c))
         ++ "  separator: " ++ formatSequence (separator c) ++ "\n"
+        ++ "  left: " ++ formatSequence (left c) ++ "\n"
+        ++ "  right: " ++ formatSequence (right c) ++ "\n"
         ++ (if (length (operators c) > 0)
             then "  operators: " ++ intercalate ", " (map formatSequence (operators c)) ++ "\n" else "")
         ++ "====[/" ++ className c ++ "]===="
@@ -148,6 +157,6 @@ instance Show Grammar where
         "-----------" ++ replicate (length $ main g) '-' ++ "\n"
         ++ "| main = " ++ main g ++ " |\n"
         ++ "-----------" ++ replicate (length $ main g) '-' ++ "\n\n"
-        ++ (intercalate "\n\n" ((show . snd) <$> (toList (classes g)))) ++ "\n\n"
+        ++ (intercalate "\n\n" ((formatClass . snd) <$> (toList (classes g)))) ++ "\n\n"
 
 data ParseType = Block | Stream deriving (Eq)

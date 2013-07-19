@@ -25,6 +25,7 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 --import qualified Data.Text as TL
 --import qualified Data.Text.IO as TL
+import Data.Tree
 import System.Environment
 import System.IO
 import Text.ParserCombinators.Parsec as P hiding (try)
@@ -41,6 +42,7 @@ import Colors
 import Context
 import Generator
 import Grammar hiding (main)
+import qualified Grammar as G (main)
 import GrammarParser
 import GrammarTools
 import LText as L hiding (head, drop)
@@ -53,6 +55,7 @@ import Parser
 import ParseElements
 --import ParseError
 import SequenceMap
+import TreeTools
 
 import JDebug
 
@@ -85,6 +88,14 @@ outputSequenceMap::Grammar->IO ()
 outputSequenceMap g = do
     putStrLn $ formatSequenceMap (sequenceMap g)
 
+outputParseTree::Grammar->IO ()
+outputParseTree g = do
+    putStrLn $ drawForest (map (fmap formatExpression) (forestTake 16 (parseTree g (G.main g))))
+
+test::Grammar->IO ()
+test g = do
+    putStrLn (safeDrawEForest $ seq2ParseTree M.empty [Or [[TextMatch "a"], []], TextMatch "c"])
+
 outputParse::Grammar->IO ()
 outputParse g = do
     interact (createParser g)
@@ -103,22 +114,22 @@ outputString g = do
         Right s -> putStrLn s
         Left err -> error (show err)
 
-data Task = OutputGrammar | OutputSequenceMap | Parse | ParseElements | Generate
-
 try::(Show err)=>Either err a->a
 try (Left err) = error ("Error:" ++ show err)
 try (Right a) = a
 
-data Opts = Opts { grammarFilename::String, task::Task }
+data Opts = Opts { grammarFilename::String, task::Grammar->IO() }
 
-defaults = Opts { grammarFilename="grammar.spec", task=Parse }
+defaults = Opts { grammarFilename="grammar.spec", task=outputParse }
 
 options = M.fromList
     [
-        ("optputGrammar", OutputGrammar),
-        ("outputSequenceMap", OutputSequenceMap ),
-        ("generate", Generate),
-        ("parseElements", ParseElements)
+        ("outputGrammar", outputGrammar),
+        ("outputSequenceMap", outputSequenceMap),
+        ("outputParseTree", outputParseTree),
+        ("test", test),
+        ("generate", outputString),
+        ("parseElements", outputParseElements)
     ]
 
 usage::String
@@ -152,9 +163,5 @@ main = do
 
     let grammar = try (P.parse parseGrammar "grammar" (TL.unpack grammarFile))
 
-    case task opts of
-      OutputGrammar -> outputGrammar grammar
-      OutputSequenceMap -> outputSequenceMap grammar
-      Parse -> outputParse grammar
-      ParseElements -> outputParseElements grammar
-      Generate -> outputString grammar
+    task opts grammar
+

@@ -26,6 +26,7 @@ module Grammar (
     Grammar (..),
     formatExpression,
     formatSequence,
+    formatGrammar,
     ParseType (..),
     Separator,
     ruleShow,
@@ -58,6 +59,7 @@ data Expression = TextMatch String
     | List Int Sequence | SepBy Int Sequence
     | WhiteSpace String | Character CharSet
     | EOF
+    | FallBack
     | Link String | LinkStream String
     | Reparse Sequence Sequence
     -- | JustOutput EString
@@ -73,28 +75,23 @@ formatSequence::Sequence->String
 formatSequence seq = intercalate " " (map formatExpression seq)
 
 formatExpression::Expression->String
-formatExpression (TextMatch text) = show text
 formatExpression (AStart name) = "@" ++ name ++ "("
 formatExpression AEnd = ")"
-formatExpression (SepBy min e) = "SepBy" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
-formatExpression (List min e) = "list" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
---iShow (Reparse second first) = "reparse(" ++ sShow second ++ ", " ++ sShow first ++ ")"
-formatExpression (InfixTag priority tagName) =
-    "InfixTag("
-        ++ show priority ++ "," ++ tagName
-        ++ ")"
+formatExpression (Character charset) = formatCharSet charset
 formatExpression (EStart tagName attributes) = cyan ("<" ++ tagName ++ concat (map (" " ++) attributes) ++ ">")
 formatExpression (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
-formatExpression (WhiteSpace defaultValue) = "_"
---iShow (AnyCharBut chars) = "anyCharBut(" ++ show chars ++ ")"
+formatExpression EOF = "EOF"
+formatExpression FallBack = "FallBack"
+formatExpression (InfixTag priority tagName) = cyan ("<-" ++ tagName ++ ":" ++ show priority ++ "->")
+formatExpression (List min e) = "list" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
 formatExpression (LinkStream name) = underline $ magenta ("LS(" ++ name ++ ")")
 formatExpression (Link name) = underline $ magenta name
+formatExpression (Or sequences) = "{" ++ intercalate " |\n         " (formatSequence <$> sequences) ++ "}"
+formatExpression (SepBy min e) = "SepBy" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
 formatExpression (TabStart tabString) = "(" ++ show tabString ++ ")==>("
 formatExpression TabEnd = ")"
-formatExpression (Character charset) = formatCharSet charset
---iShow (JustOutput eString) = green ("-->(" ++ show eString ++ ")")
-formatExpression (Or sequences) = "{" ++ intercalate " |\n         " (formatSequence <$> sequences) ++ "}"
-formatExpression EOF = "EOF"
+formatExpression (TextMatch text) = show text
+formatExpression (WhiteSpace defaultValue) = "_"
 
 safeDrawETree::Tree Expression->String
 safeDrawETree = safeDrawTree . (fmap formatExpression)
@@ -129,7 +126,8 @@ type Separator = Sequence
 
 data Class = Class {
     rules::[Rule],
-    extensions::[Sequence],
+    suffixRules::[Rule],
+    --extensions::[Sequence],
     operators::[OperatorSymbol],
     separator::Separator,
     className::ClassName,
@@ -139,9 +137,10 @@ data Class = Class {
     } deriving (Eq, Show)
 
 formatClass c = "====[" ++ className c
-        ++ (if null (parentNames c) then ":" ++ intercalate "," (parentNames c) else "")
+        ++ (if null (parentNames c) then "" else ":" ++ intercalate "," (parentNames c))
         ++ "]====\n  "
         ++ intercalate "  " (map ruleShow (rules c))
+        ++ concat (("\n  suffix: " ++) <$>  (map ruleShow (suffixRules c)))
         ++ "  separator: " ++ formatSequence (separator c) ++ "\n"
         ++ "  left: " ++ formatSequence (left c) ++ "\n"
         ++ "  right: " ++ formatSequence (right c) ++ "\n"
@@ -150,10 +149,9 @@ formatClass c = "====[" ++ className c
         ++ "====[/" ++ className c ++ "]===="
 
 data Grammar = Grammar { main::String,
-                        classes::Map ClassName Class }
+                        classes::Map ClassName Class } deriving (Show)
 
-instance Show Grammar where
-    show g =
+formatGrammar g =
         "-----------" ++ replicate (length $ main g) '-' ++ "\n"
         ++ "| main = " ++ main g ++ " |\n"
         ++ "-----------" ++ replicate (length $ main g) '-' ++ "\n\n"

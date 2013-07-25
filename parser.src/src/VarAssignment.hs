@@ -22,18 +22,17 @@ import Data.Tree
 
 import EnhancedString
 import LString hiding (empty, head, tail)
-import XPath
+--import XPath
 
 import JDebug
 
 data VContext = VContext {
-    conditionStack::[Condition],
     currentVarName::Maybe String,
     currentVarVal::Maybe String,
     currentVarInput::Maybe LString,
     variableStack::[Map String String] }
+
 rootVContext = VContext {
-    conditionStack=[],
     currentVarName=Nothing,
     currentVarVal=Nothing,
     currentVarInput=Nothing,
@@ -57,7 +56,7 @@ assignVariablesUsingVContext vcx node@Node{rootLabel=EStart _ _, subForest=subFo
 assignVariablesUsingVContext vcx node@Node{rootLabel=EEnd _, subForest=subForest} =
     [node{subForest=subForest >>= assignVariablesUsingVContext (
                 vcx {
-                        conditionStack=tail (conditionStack vcx),
+--                        conditionStack=debugTail (conditionStack vcx),
                         variableStack=tail (variableStack vcx)
                     })}]
 
@@ -72,22 +71,18 @@ assignVariablesUsingVContext vcx (Node {rootLabel=VStart name input, subForest=s
 assignVariablesUsingVContext
     vcx@VContext{
         variableStack=vars:vrest,
-        conditionStack=condition:crest,
         currentVarName=Just name,
         currentVarVal=Just val,
         currentVarInput=Just input
         }
     Node{rootLabel=VEnd, subForest=subForest} =
-    if eval nextVars condition /= Just CnFalse
-        then
-            [Node {rootLabel=VAssign name val,
+        [Node {rootLabel=VAssign name val,
                 subForest=subForest >>= assignVariablesUsingVContext (
                             vcx {
                                     variableStack=nextVars:vrest,
                                     currentVarName=Nothing,
                                     currentVarVal=Nothing
                                 })}]
-        else [Node {rootLabel=Error ("Condition failed: " ++ show condition) input, subForest=[]}]
             where nextVars = insert name val vars
 
 assignVariablesUsingVContext _ (Node {rootLabel=VEnd, subForest=subForest}) =

@@ -25,6 +25,7 @@ import Data.List hiding (union)
 import Data.Map as M
 
 import Grammar
+import LeftFactoring
 
 import JDebug
 
@@ -36,22 +37,29 @@ formatSequenceMap sMap = concat ((++ "\n\n") <$> formatSubstitution <$> (toList 
 formatSubstitution::(String, Sequence)->String
 formatSubstitution (name, seq) = name ++ " => " ++ formatSequence seq
 
+addOrIfNecessary::[Sequence]->Sequence
+addOrIfNecessary [seq] = seq
+addOrIfNecessary [] = []
+addOrIfNecessary seqs = [Or seqs]
+
 sequenceMap::Grammar->SequenceMap
 sequenceMap g =
     union
         (fromList (fmap classSequence <$> M.toList (classes fixedG)))
-        (fromList ((\rule -> (name rule, fullSequence rule)) <$> allRules))
+        (fmap addOrIfNecessary (fromListWith (++) ((\rule -> (name rule, [fullSequence rule])) <$> allRules)))
             where
                 allRules = elems (classes fixedG) >>= rules
                 fixedG = removeSepBy g
 
 classSequence::Class->Sequence
-classSequence cl =
-    case classRules of
-        [rule] -> fullSequence rule
-        _ -> [Or (fullSequence <$> classRules)]
+classSequence cl = prefix ++ (if length suffix == 0 then [] else [List 0 suffix])
     where
-        classRules = rules cl
+        prefix = case rules cl of
+                    [rule] -> fullSequence rule
+                    rules -> leftFactor [Or (fullSequence <$> rules)]
+        suffix = case suffixRules cl of
+                    [rule] -> fullSuffixSequence rule
+                    rules -> leftFactor [Or (fullSequence <$> rules)]
 
 fullSequence::Rule->Sequence
 fullSequence rule =
@@ -64,6 +72,11 @@ fullSequence rule =
             seq2AttNames (_:rest) = seq2AttNames rest
             seq2AttNames [] = []
 
+fullSuffixSequence::Rule->Sequence
+fullSuffixSequence rule =
+    [InfixTag 0 (name rule)]
+    ++ (rawSequence rule)
+
 removeSepBy::Grammar->Grammar
 removeSepBy g =
     g {
@@ -75,6 +88,8 @@ removeSepByFromClass g cl =
     cl {
         rules = (\rule -> rule{rawSequence = removeSepByFromSeq g (rawSequence rule)})
                             <$> rules cl,
+        suffixRules = (\rule -> rule{rawSequence = removeSepByFromSeq g (rawSequence rule)})
+                            <$> suffixRules cl,
         separator = [], --removeSepByFromSeq g (separator cl),
         left = [], --removeSepByFromSeq g (left cl),
         right = [] --removeSepByFromSeq g (right cl)
@@ -118,7 +133,7 @@ seq2Left _ seq = error ("Missing case in seq2Left: " ++ show seq)
 seq2Right::Grammar->Sequence->Sequence
 seq2Right g [Link name] = case M.lookup name (classes g) of
     Nothing -> error "qqqq"
-    Just cl -> right cl
-seq2Right g [Character charset] = []
+    Just cl -> FallBack:right cl
+seq2Right g [Character charset] = [FallBack]
 seq2Right g [TextMatch _] = []
 seq2Right _ seq = error ("Missing case in seq2Separator: " ++ formatSequence seq)

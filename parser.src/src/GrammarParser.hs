@@ -62,7 +62,7 @@ parseSimpleClass =
         return Class {
             className=name rule,
             rules=[rule],
-            extensions=[],
+            suffixRules=[],
             operators=[],
             separator=[WhiteSpace " "],
             left=[],
@@ -100,9 +100,8 @@ parseFullClass =
         many (char '=')
         return Class {
                 className=name,
-                --parentNames=parents,
                 rules=[rule|RuleItem rule<-items],
-                extensions=[],
+                suffixRules=[],
                 operators=concat [operators|OperatorsItem operators<-items],
                 separator=case [separator|SeparatorItem separator<-items] of
                     [] -> [TextMatch " "]

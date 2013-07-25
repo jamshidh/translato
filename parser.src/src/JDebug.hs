@@ -14,6 +14,7 @@
 
 module JDebug (
     debugHead,
+    debugTail,
     assert,
     jtrace
 ) where
@@ -25,6 +26,10 @@ import Debug.Trace
 debugHead::Show a=>[a]->a
 debugHead [] = error "It is empty, you fool"
 debugHead x= (trace $ show x) $ head x
+
+debugTail::Show a=>[a]->[a]
+debugTail [] = error "It is empty, you fool"
+debugTail x= (trace $ show x) $ tail x
 
 assert::Bool->String->a->a
 assert condition message = if condition then id else error message

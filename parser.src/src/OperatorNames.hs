@@ -15,12 +15,15 @@
 module OperatorNames (
     --OperatorSymbol,
     --expandOperators,
+    opSeq2Name,
     op2Name
 ) where
 
 import Data.List
 import Data.Map hiding (map, foldl, filter)
 import Data.Text hiding (concat, map, filter, length)
+
+import Grammar
 
 import Debug.Trace
 
@@ -57,6 +60,12 @@ expandOperators g = g {
 {--op2Name::OperatorSymbol->String
 op2Name (TextMatch s:rest) = rawOp2Name s ++ (op2Name rest)
 op2Name (x:rest) = op2Name rest--}
+
+opSeq2Name::Sequence->String
+opSeq2Name (TextMatch text:rest) = op2Name text ++ opSeq2Name rest
+opSeq2Name (WhiteSpace _:rest) = opSeq2Name rest
+opSeq2Name [] = []
+
 
 op2Name::String->String
 op2Name "+" = "plus"

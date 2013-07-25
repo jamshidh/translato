@@ -13,13 +13,13 @@ attribute =>@name="@value([^"]*)";
 separator: ' '
 ====[/attribute]==============
 
-====[paramater]===============
+====[parameter]===============
 
-paramater =>@value;
+parameter =>@value;
 
 separator: '_, '
 
-====[/paramater]==============
+====[/parameter]==============
 
 
 
@@ -45,9 +45,10 @@ element =>{node}*;
 
 text => {word}+;
 
-left: <@tagName {attribute}*_>;
+left: <@tagName {attribute}*_>
+;
 
-right: </@tagName>;
+right: _</@tagName>;
 
 separator: '\n'
 
@@ -74,7 +75,7 @@ for => for \({expression}_\; {expression}_\; {expression}\) {body};
 
 for => for \({varDeclaration}_\; {expression}_\; {expression}\) {body};
 
-funcDeclaration => function @name\({paramater}*\) {body};
+funcDeclaration => function @name\({parameter}*\) {body};
 
 separator: '\n'
 

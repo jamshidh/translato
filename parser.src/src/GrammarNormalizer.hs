@@ -23,7 +23,7 @@ normalizeClass::Class->Class
 
 rule2PostSequence::Rule->[Sequence]
 rule2PostSequence rule = if isLRecursive rule then
-        [((G.InfixTag 9 (tagName rule)):((tail (rawSequence rule))))]
+        [((G.InfixTag 9 (tagName rule)):((debugTail (rawSequence rule))))]
             else []
 
 parents::Grammar->Class->[Class]

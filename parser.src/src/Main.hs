@@ -82,7 +82,7 @@ showElement (NodeContent text) = show text--}
 
 outputGrammar::Grammar->IO ()
 outputGrammar g = do
-    putStrLn $ show g
+    putStrLn $ formatGrammar g
 
 outputSequenceMap::Grammar->IO ()
 outputSequenceMap g = do
@@ -163,5 +163,5 @@ main = do
 
     let grammar = try (P.parse parseGrammar "grammar" (TL.unpack grammarFile))
 
-    task opts grammar
+    task opts ((rewriteLeftRecursionInGrammar . addEOFToGrammar . stripWhitespaceFromGrammar) grammar)
 

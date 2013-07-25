@@ -15,7 +15,7 @@
 module GrammarTools (
     --fullySimplifyGrammar,
     --simplify,
-    --removeLeftRecursionFromGrammar,
+    rewriteLeftRecursionInGrammar,
     --expandOperators,
     rule2Seq,
     addEOFToGrammar,
@@ -70,16 +70,33 @@ rule2Seq rule = []
 
 
 
+rawSeqMap f rule@Rule{rawSequence=seq} = rule{rawSequence=f seq}
 
-
-{--removeLeftRecursionFromGrammar::Grammar->Grammar
-removeLeftRecursionFromGrammar g =
+rewriteLeftRecursionInGrammar::Grammar->Grammar
+rewriteLeftRecursionInGrammar g =
     g {
-        elementRules = concat $ (map removeLeftRecursion (elementRules g)),
-        assignments = fromList $ concat $ (map removeLeftRecursion (toList $ assignments g))
+        classes = fmap rewriteLeftRecursionInClass (classes g)
     }
 
-removeLeftRecursion::(RuleName, Expression)->[(RuleName, Expression)]
+rewriteLeftRecursionInClass::Class->Class
+rewriteLeftRecursionInClass cl =
+    cl {
+        rules = filter (not . (isLRecursive (className cl))) (rules cl),
+        suffixRules = (rawSeqMap tail <$> (filter (isLRecursive (className cl)) (rules cl)))
+                            ++ (operatorSuffixRules cl)
+    }
+
+operatorSuffixRules::Class->[Rule]
+operatorSuffixRules cl =
+    (\seq -> Rule{name=className cl, rawSequence=seq++[InfixTag 0 (opSeq2Name seq), Link (className cl)]}) <$> (operators cl)
+
+isLRecursive::String->Rule->Bool
+isLRecursive className Rule{name=ruleName, rawSequence=Link linkName:rest}
+    | (linkName == ruleName) || (linkName == className)
+    = True
+isLRecursive _ _ = False
+
+{--removeLeftRecursion::(RuleName, Expression)->[(RuleName, Expression)]
 removeLeftRecursion (name, e) = case result of
         Nothing -> [(name, e)]
         Just [nonRecursivePart, ruleAfter] ->
@@ -87,7 +104,9 @@ removeLeftRecursion (name, e) = case result of
                 (name, Sequence [nonRecursivePart, Link ("#" ++ name)]),
                 ("#" ++ name, Or [Blank, Sequence [ruleAfter, Link ("#" ++ name)]])
             ]
-        where result = match (Or [Variable, Sequence [Link name, Variable]]) e --}
+        where result = match (Or [Variable, Sequence [Link name, Variable]]) e--}
+
+
 
 {--or::Expression->Expression->Expression
 or (Or list1) (Or list2) = Or (list1 ++ list2)

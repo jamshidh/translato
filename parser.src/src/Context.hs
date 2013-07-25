@@ -1,4 +1,4 @@
------------------------------------------------------------------------------
+-------------------------------------------------------------------------------
 --
 -- Module      :  Context
 -- Copyright   :
@@ -86,11 +86,6 @@ operator2PostSequence cl symbols =
     map symbolSeq (zip [1..] symbols)
         where symbolSeq (priority, symbol) =
                 [G.InfixTag priority ((op2Name.textMatches) symbol), LinkStream (className cl)]
-
-{--classParseType::Grammar->Class->ParseType
-classParseType g c | (not . null) (class2AllOpSymbols g c) = Block
-classParseType g c | any isLRecursive (rulesForClass g c) = Block
-classParseType g c = Stream--}
 
 textMatches::Sequence->String
 textMatches (TextMatch matchString:rest) = matchString ++ (textMatches rest)

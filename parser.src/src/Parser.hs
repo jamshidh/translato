@@ -87,10 +87,7 @@ seq2ParseTree::SequenceMap->Sequence->Forest Expression
 seq2ParseTree sMap (Link name:rest) =
     case lookup name sMap of
         Nothing -> error ("The grammar links to a non-existant rule named '" ++ name ++ "'")
-        Just seq ->
-            forestConcat
-                            (seq2ParseTree sMap seq)
-                            (seq2ParseTree sMap rest)
+        Just seq -> seq2ParseTree sMap (seq ++ rest)
 {--seq2ParseTree sMap (List count seq@[Character charset]:rest) =
     seq2ParseTree sMap (List count seq:rest)--}
 
@@ -134,6 +131,8 @@ rawParse [Node{rootLabel=G.EStart tagName attributes, subForest=rest}] s =
 rawParse [Node{rootLabel=G.EEnd tagName, subForest=rest}] s =
     [Node { rootLabel=E.EEnd tagName, subForest=rawParse rest s}]
 
+rawParse [Node{rootLabel=FallBack, subForest=rest}] s = rawParse rest s
+
 {--rawParse cx (List 0 [Character charset]:rest) s | LS.null s =
     rawParse cx rest s
 rawParse cx (List 0 [Character charset]:rest) s | LS.head s `isIn` charset =
@@ -150,7 +149,7 @@ rawParse [Node{rootLabel=G.InfixTag priority name, subForest=rest}] s = --rawPar
 
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | LS.null s = rawParse rest s
 --rawParse cx seq@(WhiteSpace _:rest) s | isSpace (LS.head s) = continue cx [] seq s
-rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.head s) = rawParse rest (LS.tail s)
+rawParse forest@[Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.head s) = rawParse forest (LS.tail s)
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
 
 rawParse [Node{rootLabel=Character charset, subForest=rest}] s | LS.null s =

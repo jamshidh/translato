@@ -19,6 +19,7 @@ module Grammar (
     CharType (..),
     OperatorSymbol,
     Class (..),
+    allRules,
     RuleName,
     Name,
     --RawRule,
@@ -40,6 +41,7 @@ import Prelude hiding (lookup)
 import Data.Functor
 import Data.List hiding (lookup)
 import Data.Map hiding (filter, map, null, union)
+import Data.Maybe
 import Data.Tree
 
 import CharSet
@@ -147,6 +149,13 @@ formatClass c = "====[" ++ className c
         ++ (if (length (operators c) > 0)
             then "  operators: " ++ intercalate ", " (map formatSequence (operators c)) ++ "\n" else "")
         ++ "====[/" ++ className c ++ "]===="
+
+parents::Grammar->Class->[Class]
+parents g cl = fromJust <$> (`lookup` (classes g)) <$> parentNames cl
+
+allRules::Grammar->Class->[Rule]
+allRules g cl = nub (rules cl ++ ((parents g cl) >>= allRules g))
+
 
 data Grammar = Grammar { main::String,
                         classes::Map ClassName Class } deriving (Show)

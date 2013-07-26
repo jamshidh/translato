@@ -21,6 +21,7 @@ import Data.List
 import Data.Map hiding (map, null)
 
 import Grammar
+import GrammarTools
 
 import JDebug
 
@@ -41,11 +42,11 @@ leftFactor (Or []:rest) = leftFactor rest
 leftFactor (Or [seq]:rest) = leftFactor (seq ++ rest)
 
 leftFactor (Or items:rest) = --jtrace ("Left factoring: " ++ intercalate "\n  " (map show items)) $
-    [Or (makeSeq <$> theMap)] ++ rest
+    (addOrIfNecessary (makeSeq <$> theMap)) ++ rest
     where
         theMap = toList (fromListWith (++) ((\seq -> (normalizedEHead seq, [safeTail seq])) <$> items))
-        makeSeq (Just first, rest2) = first:(leftFactor [Or rest2])
-        makeSeq (Nothing, rest2) = [Or rest2]
+        makeSeq (Just first, rest2) = first:(leftFactor (addOrIfNecessary rest2))
+        makeSeq (Nothing, rest2) = addOrIfNecessary rest2
 
 leftFactor (x:rest) = x:leftFactor rest
 leftFactor [] = []

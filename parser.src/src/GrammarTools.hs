@@ -19,7 +19,8 @@ module GrammarTools (
     --expandOperators,
     rule2Seq,
     addEOFToGrammar,
-    stripWhitespaceFromGrammar
+    stripWhitespaceFromGrammar,
+    addOrIfNecessary
 ) where
 
 import Data.Char
@@ -170,6 +171,11 @@ addEOFToGrammar g = g {
 
 addEOFToClass::Class->Class
 addEOFToClass c = c { rules=(\rule->rule{rawSequence=rawSequence rule ++ [EOF]}) <$> (rules c)}
+
+addOrIfNecessary::[Sequence]->Sequence
+addOrIfNecessary [seq] = seq
+addOrIfNecessary [] = []
+addOrIfNecessary seqs = [Or seqs]
 
 {--fullySimplifyGrammar::Grammar->Grammar
 fullySimplifyGrammar g = fst $ fromJust $ find (\(g1, g2) -> g1 == g2) (zip simplifiedProgression (tail simplifiedProgression))

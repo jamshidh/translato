@@ -69,6 +69,13 @@ getTreeInfo t@Node{rootLabel=FallBack, subForest=[next]} =
     (getTreeInfo next) { tree=t, isFallBack=True }
 getTreeInfo t@Node{rootLabel=AStart _, subForest=[next]} = (getTreeInfo next){ tree=t }
 getTreeInfo t@Node{rootLabel=AEnd, subForest=[next]} = (getTreeInfo next){ tree=t }
+getTreeInfo t@Node{rootLabel=AEnd, subForest=rest} =
+    TreeInfo{
+        tree=t,
+        firstMatchers = getTreeInfo <$> rest >>= firstMatchers,
+        allowsWhiteSpace=False,
+        isFallBack=False
+    }
 getTreeInfo t@Node{rootLabel=WhiteSpace _, subForest=[next]} =
     (getTreeInfo next){ tree=t, allowsWhiteSpace=True }
 getTreeInfo t@Node{rootLabel=WhiteSpace _, subForest=rest} =
@@ -110,12 +117,14 @@ isPrefixTextMatch [] (c2:rest2) = True
 
 eCheck::LString->Expression->Bool
 eCheck s (TextMatch text) = text `isPrefixTextMatch` LS.string s
+eCheck s (Character charset) | LS.null s = False
 eCheck s (Character charset) = LS.head s `isIn` charset
 eCheck s EOF = LS.null s
 eCheck _ e =
     error ("Missing case in function 'eCheck': " ++ formatExpression e ++ ", ")
 
 check::LString->TreeInfo->Bool
+check s treeInfo@TreeInfo{allowsWhiteSpace=True} | LS.null s = check s treeInfo{allowsWhiteSpace=False}
 check s treeInfo@TreeInfo{allowsWhiteSpace=True} | isSpace (LS.head s) = check (LS.tail s) treeInfo
 check s treeInfo@TreeInfo{firstMatchers=e, allowsWhiteSpace=True} = check s treeInfo{allowsWhiteSpace=False}
 check s TreeInfo{firstMatchers=exps} = or (eCheck s <$> exps)
@@ -144,7 +153,7 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
                 [item] -> tree item
                 items ->  error (
                             "multiple things matched in chooseOne:"
-                                ++ safeDrawEForest trees
+                                ++ (safeDrawEForest $ tree <$> items)
                                 ++ "\ns = " ++ LS.string s)
         [(_, item)] -> tree item
         items -> error ("multiple TextMatches matched in chooseOne:"

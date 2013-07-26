@@ -22,9 +22,10 @@ module SequenceMap (
 
 import Data.Functor
 import Data.List hiding (union)
-import Data.Map as M
+import Data.Map as M hiding (filter)
 
 import Grammar
+import GrammarTools
 import LeftFactoring
 
 import JDebug
@@ -37,29 +38,26 @@ formatSequenceMap sMap = concat ((++ "\n\n") <$> formatSubstitution <$> (toList 
 formatSubstitution::(String, Sequence)->String
 formatSubstitution (name, seq) = name ++ " => " ++ formatSequence seq
 
-addOrIfNecessary::[Sequence]->Sequence
-addOrIfNecessary [seq] = seq
-addOrIfNecessary [] = []
-addOrIfNecessary seqs = [Or seqs]
-
 sequenceMap::Grammar->SequenceMap
 sequenceMap g =
     union
-        (fromList (fmap classSequence <$> M.toList (classes fixedG)))
-        (fmap addOrIfNecessary (fromListWith (++) ((\rule -> (name rule, [fullSequence rule])) <$> allRules)))
+        (fromList (fmap (classSequence g) <$> M.toList (classes fixedG)))
+        (fmap (leftFactor . addOrIfNecessary) (fromListWith (++) ((\rule -> (name rule, [fullSequence rule])) <$> allRules)))
             where
                 allRules = elems (classes fixedG) >>= rules
                 fixedG = removeSepBy g
 
-classSequence::Class->Sequence
-classSequence cl = prefix ++ (if length suffix == 0 then [] else [List 0 suffix])
+classSequence::Grammar->Class->Sequence
+classSequence g cl = prefix ++ (if length suffix == 0 then [] else [List 0 suffix])
     where
-        prefix = case rules cl of
-                    [rule] -> fullSequence rule
-                    rules -> leftFactor [Or (fullSequence <$> rules)]
-        suffix = case suffixRules cl of
-                    [rule] -> fullSuffixSequence rule
-                    rules -> leftFactor [Or (fullSequence <$> rules)]
+        prefix = leftFactor $ addOrIfNecessary
+                    (nonSelfRule ++ selfRule)
+        selfRule::[Sequence]
+        selfRule = fullSequence <$> (filter ((== className cl) . name) (rules cl))
+        nonSelfRule::[Sequence]
+        nonSelfRule = replicate 1 <$> Link <$>
+                            ((filter (/= className cl) (name <$> rules cl)) ++ (parentNames cl))
+        suffix = leftFactor $ addOrIfNecessary $ fullSuffixSequence <$> suffixRules cl
 
 fullSequence::Rule->Sequence
 fullSequence rule =

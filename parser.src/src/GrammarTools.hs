@@ -20,7 +20,9 @@ module GrammarTools (
     rule2Seq,
     addEOFToGrammar,
     stripWhitespaceFromGrammar,
-    addOrIfNecessary
+    addOrIfNecessary,
+    loadGrammar,
+    fixG
 ) where
 
 import Data.Char
@@ -31,9 +33,17 @@ import Data.Map as M hiding (filter, map, foldl, null)
 import Data.Maybe
 import GHC.Exts
 
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TL
+import System.Environment
+import System.IO
+import Text.ParserCombinators.Parsec as P hiding (try)
+
+
 --import Debug.Trace
 
 import Grammar
+import GrammarParser
 import OperatorNames
 
 import JDebug
@@ -177,6 +187,31 @@ addOrIfNecessary [seq] = seq
 addOrIfNecessary [] = []
 addOrIfNecessary seqs = [Or seqs]
 
+-----------------------
+
+loadGrammar::String->IO Grammar
+loadGrammar filename =
+    do
+        specHandle<-openFile filename ReadMode
+        grammarFile<-TL.hGetContents specHandle
+        case P.parse parseGrammar "grammar" (TL.unpack grammarFile) of
+            Left err -> error ("Error parsing grammar: " ++ show err)
+            Right grammar -> return grammar
+
+fixG = rewriteLeftRecursionInGrammar . addEOFToGrammar . stripWhitespaceFromGrammar
+
+--        task opts ((rewriteLeftRecursionInGrammar . addEOFToGrammar . stripWhitespaceFromGrammar) grammar)
+
+
+
+
+
+
+
+
+
+
+
 {--fullySimplifyGrammar::Grammar->Grammar
 fullySimplifyGrammar g = fst $ fromJust $ find (\(g1, g2) -> g1 == g2) (zip simplifiedProgression (tail simplifiedProgression))
     where
@@ -211,5 +246,4 @@ simplifyExpression Ident = [Ident]
 simplifyExpression Number = [Number]
 simplifyExpression EOF = [EOF]
 simplifyExpression e = error ("Missing case in simplifyExpression: " ++ show e)--}
-
 

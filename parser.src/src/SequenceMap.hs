@@ -26,7 +26,6 @@ import Data.Map as M hiding (filter)
 
 import Grammar
 import GrammarTools
-import LeftFactoring
 
 import JDebug
 
@@ -42,7 +41,7 @@ sequenceMap::Grammar->SequenceMap
 sequenceMap g =
     union
         (fromList (fmap (classSequence g) <$> M.toList (classes fixedG)))
-        (fmap (leftFactor . addOrIfNecessary) (fromListWith (++) ((\rule -> (name rule, [fullSequence rule])) <$> allRules)))
+        (fmap addOrIfNecessary (fromListWith (++) ((\rule -> (name rule, [fullSequence rule])) <$> allRules)))
             where
                 allRules = elems (classes fixedG) >>= rules
                 fixedG = removeSepBy g
@@ -50,14 +49,14 @@ sequenceMap g =
 classSequence::Grammar->Class->Sequence
 classSequence g cl = prefix ++ (if length suffix == 0 then [] else [List 0 suffix])
     where
-        prefix = leftFactor $ addOrIfNecessary
+        prefix = addOrIfNecessary
                     (nonSelfRule ++ selfRule)
         selfRule::[Sequence]
         selfRule = fullSequence <$> (filter ((== className cl) . name) (rules cl))
         nonSelfRule::[Sequence]
         nonSelfRule = replicate 1 <$> Link <$>
                             ((filter (/= className cl) (name <$> rules cl)) ++ (parentNames cl))
-        suffix = leftFactor $ addOrIfNecessary $ fullSuffixSequence <$> suffixRules cl
+        suffix = addOrIfNecessary $ rawSequence <$> suffixRules cl
 
 fullSequence::Rule->Sequence
 fullSequence rule =
@@ -69,11 +68,6 @@ fullSequence rule =
             seq2AttNames (AStart name:rest) = name:seq2AttNames rest
             seq2AttNames (_:rest) = seq2AttNames rest
             seq2AttNames [] = []
-
-fullSuffixSequence::Rule->Sequence
-fullSuffixSequence rule =
-    [InfixTag 0 (name rule)]
-    ++ (rawSequence rule)
 
 removeSepBy::Grammar->Grammar
 removeSepBy g =

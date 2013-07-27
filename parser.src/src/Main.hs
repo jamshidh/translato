@@ -59,27 +59,6 @@ import TreeTools
 
 import JDebug
 
-{--makeWindow::IO ()
-makeWindow = do
-    initGUI
-    window <- windowNew
-    button <- textViewNew
-    set window [ containerBorderWidth := 10,
-        containerChild := button, windowDefaultWidth := 400, windowDefaultHeight := 300 ]
-    --set button [ buttonLabel := "Hello World" ]
-    --onClicked button (putStrLn "Hello World")
-    onDestroy window mainQuit
-    widgetShowAll window
-    mainGUI--}
-
-{--prepareContext g =
-    grammar2Context modifiedG
-        where modifiedG = stripWhitespaceFromGrammar $ addEOFToGrammar g--}
-
-{--showElement::XML.Node->String
-showElement (NodeElement element) = TL.unpack (renderText def (element2Document (element)))
-showElement (NodeContent text) = show text--}
-
 outputGrammar::Grammar->IO ()
 outputGrammar g = do
     putStrLn $ formatGrammar g
@@ -146,22 +125,9 @@ args2Opts (filename:rest) o = args2Opts rest (o { grammarFilename=filename })
 args2Opts [] o = o
 
 
-
-
-
-
-
-
-
 main = do
-    --makeWindow
     args <- getArgs
     let opts = args2Opts args defaults
-
-    specHandle<-openFile (grammarFilename opts) ReadMode
-    grammarFile<-TL.hGetContents specHandle
-
-    let grammar = try (P.parse parseGrammar "grammar" (TL.unpack grammarFile))
-
-    task opts ((rewriteLeftRecursionInGrammar . addEOFToGrammar . stripWhitespaceFromGrammar) grammar)
+    grammar<-loadGrammar (grammarFilename opts)
+    task opts (fixG grammar)
 

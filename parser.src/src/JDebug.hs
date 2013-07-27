@@ -35,3 +35,11 @@ assert::Bool->String->a->a
 assert condition message = if condition then id else error message
 
 jtrace = trace . yellow
+
+-------------------
+--Debug Grammar
+-------------------
+
+debugGrammar = undefined
+
+debugSeqMap = undefined

@@ -21,6 +21,7 @@ import Prelude hiding (lookup)
 import Data.Functor
 import Data.List hiding (lookup)
 import Data.Map hiding (map, null, foldl')
+import Data.Maybe
 
 import Grammar
 import GrammarTools
@@ -78,21 +79,24 @@ getTokens sMap (EStart _ _:rest) = getTokens sMap rest
 getTokens sMap (AStart _:rest) = getTokens sMap rest
 getTokens _ seq = error ("Missing case in getTokens: " ++ formatSequence seq)
 
-derivative::SequenceMap->Sequence->String->Maybe Sequence
-derivative _ (Link name1:rest) name2 | name1 == name2 = Just rest
-derivative sMap (Link name1:rest) name2 | isToken sMap name1 = Nothing
-derivative sMap (Link name1:rest) name2 =
+derivative::SequenceMap->String->Sequence->Maybe Sequence
+derivative _ name2 (Link name1:rest) | name1 == name2 = Just rest
+derivative sMap name2 (Link name1:rest) | isToken sMap name1 = Nothing
+derivative sMap name2 (Link name1:rest) =
     case lookup name1 sMap of
         Nothing -> error ("Unknown link name in derivative: " ++ name1)
-        Just seq -> derivative sMap (seq ++ rest) name2
-derivative sMap (EStart tagName _:rest) name =
-    case derivative sMap rest name of
+        Just seq -> derivative sMap name2 (seq ++ rest)
+derivative sMap name (EStart tagName _:rest) =
+    case derivative sMap name rest of
         Nothing -> Nothing
         Just seq -> Just (EStart "qqqq" []:seq)
-derivative _ seq name = error ("Missing case in derivative: D[" ++ formatSequence seq ++ ", " ++ show name ++ "]")
+derivative sMap name (Or seqs:rest) = Just (addOrIfNecessary [justSeq|Just justSeq<-derivative sMap name <$> seqs])
+derivative _ name seq = error ("Missing case in derivative: D[" ++ formatSequence seq ++ ", " ++ show name ++ "]")
 
 remainder::SequenceMap->String->Sequence->Maybe Sequence
 remainder _ name2 (Link name1:_) | name1 == name2 = Nothing
+remainder sMap name2 (Link name1:rest)
+    | getTokens sMap [Link name1] `intersect` getTokens sMap [Link name2] == [] = Just (Link name1:rest)
 remainder sMap name2 seq@(Link name1:_) | isToken sMap name1 = Just seq
 remainder sMap name2 (Link name1:rest) =
     case lookup name1 sMap of
@@ -102,30 +106,39 @@ remainder sMap name (EStart tagName attributes:rest) =
     case remainder sMap name rest of
         Nothing -> Nothing
         Just seq -> Just (EStart tagName attributes:seq)
+remainder sMap name (Or seqs:rest) = Just (addOrIfNecessary [justSeq|Just justSeq<-(remainder sMap name) <$> seqs])
 remainder _ name seq = error ("Missing case in remainder: seq=" ++ formatSequence seq ++ ", name=" ++ show name)
 
 leftFactor2::SequenceMap->Sequence->Sequence
-leftFactor2 sMap (Or seqs:rest) = Or (derivatives ++ [item|Just item<-remainders]):rest
+leftFactor2 sMap (Or seqs:rest) = addOrIfNecessary (derivatives ++ [item|Just item<-remainders]) ++ rest
     where
         tokens = (\seq -> (getTokens sMap seq, seq)) <$> seqs
-        --tok2Seq = fmap addOrIfNecessary <$> toList <$> fromListWith (++) <$> (\(toks, seq)-> (\tok -> (tok, [seq])) <$> toks) <$> tokens
-        derivatives = []
-        remainders = (\(seqToks, seq) -> (foldl' (>>=) (Just seq) ((remainder sMap) <$> seqToks))) <$> tokens
+        tok2Seq = fmap addOrIfNecessary <$> (toList $ fromListWith (++) <$> concat $ (\(toks, seq)-> (\tok -> (tok, [seq])) <$> toks) <$> tokens)
+        rewriteDerivative (name, seq) =
+            {--if length seq == 1
+                then seq
+                else --}
+                    [Link name] ++ (fromJust $ derivative sMap name seq)
+        derivatives = rewriteDerivative <$> tok2Seq
+        remainders = [] --(\(seqToks, seq) -> (foldl' (>>=) (Just seq) ((remainder sMap) <$> seqToks))) <$> tokens
 leftFactor2 _ seq = seq
 
 gI = fmap fixG (loadGrammar "../../qqqq.spec")
 
-smI = fmap (sequenceMap . fixG) (loadGrammar "../../qqqq.spec")
+smI = fmap (sequenceMap . fixG) gI
 
+sq = [Or [[Link "num"],[Link "command"]]]
 
+sqs = [[Link "num"],[Link "command"]]
 
+tks sm = (\seq -> (getTokens sm seq, seq)) <$> sqs
 
+remainders sm =
+    (\(seqToks, seq) -> (foldl' (>>=) (Just seq) ((remainder sm) <$> seqToks))) <$> tks sm
 
+tok2Seq sm = fmap addOrIfNecessary <$> (toList $ fromListWith (++) <$> concat $ (\(toks, seq)-> (\tok -> (tok, [seq])) <$> toks) <$> tks sm)
 
-
-
-
-
+derivatives sm = (\(name, seq) -> ([Link name] ++ (fromJust $ derivative sm name seq))) <$> tok2Seq sm
 
 
 

@@ -37,95 +37,54 @@ import JDebug
 
 data TreeInfo = TreeInfo { tree::Tree Expression, firstMatchers::[Expression], allowsWhiteSpace::Bool, isFallBack::Bool } deriving (Eq, Show)
 
-getTreeInfo::Tree Expression->TreeInfo
-getTreeInfo t@
+getTreeInfos::Tree Expression->[TreeInfo]
+getTreeInfos t@
     Node{rootLabel=TextMatch text1,
         subForest=[Node{rootLabel=WhiteSpace _,
             subForest=[Node{rootLabel=TextMatch text2}]}]} =
-    TreeInfo {
+    [TreeInfo {
         tree=t,
         firstMatchers=[TextMatch (text1++" "++text2)],
         allowsWhiteSpace=False, isFallBack=False
-    }
-getTreeInfo t@Node{rootLabel=TextMatch text} =
-    TreeInfo {
+    }]
+getTreeInfos t@Node{rootLabel=TextMatch text} =
+    [TreeInfo {
         tree=t,
         firstMatchers=[TextMatch text],
         allowsWhiteSpace=False, isFallBack=False
-    }
-getTreeInfo t@Node{rootLabel=Character charset} =
-    TreeInfo {
+    }]
+getTreeInfos t@Node{rootLabel=Character charset} =
+    [TreeInfo {
         tree=t,
         firstMatchers=[Character charset],
         allowsWhiteSpace=False, isFallBack=False
-    }
-getTreeInfo t@Node{rootLabel=EOF} =
-    TreeInfo {
+    }]
+getTreeInfos t@Node{rootLabel=EOF} =
+    [TreeInfo {
         tree=t,
         firstMatchers=[EOF],
         allowsWhiteSpace=False, isFallBack=False
-    }
-getTreeInfo t@Node{rootLabel=FallBack, subForest=[next]} =
-    (getTreeInfo next) { tree=t, isFallBack=True }
-getTreeInfo t@Node{rootLabel=FallBack, subForest=rest} =
-    TreeInfo{
-        tree=t,
-        firstMatchers = treeInfoOfRest >>= firstMatchers,
-        allowsWhiteSpace=summaryOfAllowsWhiteSpace,
-        isFallBack=True
-    }
-    where
-        treeInfoOfRest = getTreeInfo <$> rest
-        summaryOfAllowsWhiteSpace = valueOfSame $ allowsWhiteSpace <$> treeInfoOfRest
-        valueOfSame::Eq a=>[a]->a
-        valueOfSame items = case nub items of
-            [x] -> x
-getTreeInfo t@Node{rootLabel=AStart _, subForest=[next]} = (getTreeInfo next){ tree=t }
-getTreeInfo t@Node{rootLabel=AEnd, subForest=[next]} = (getTreeInfo next){ tree=t }
-getTreeInfo t@Node{rootLabel=AEnd, subForest=rest} =
-    TreeInfo{
-        tree=t,
-        firstMatchers = getTreeInfo <$> rest >>= firstMatchers,
-        allowsWhiteSpace=False,
-        isFallBack=False
-    }
-getTreeInfo t@Node{rootLabel=WhiteSpace _, subForest=[next]} =
-    (getTreeInfo next){ tree=t, allowsWhiteSpace=True }
-getTreeInfo t@Node{rootLabel=WhiteSpace _, subForest=rest} =
-    TreeInfo{
-        tree=t,
-        firstMatchers = getTreeInfo <$> rest >>= firstMatchers,
-        allowsWhiteSpace=True,
-        isFallBack=False
-    }
-getTreeInfo t@Node{rootLabel=InfixTag _ _, subForest=[next]} = (getTreeInfo next){ tree=t }
-getTreeInfo t@Node{rootLabel=EStart _ _, subForest=[next]} = (getTreeInfo next){ tree=t }
-getTreeInfo t@Node{rootLabel=EmptyEStart, subForest=[next]} = (getTreeInfo next){ tree=t }
-getTreeInfo t@Node{rootLabel=EInfo _ _, subForest=[next]} = (getTreeInfo next){ tree=t }
-getTreeInfo t@Node{rootLabel=EStart _ _, subForest=rest} =
-    TreeInfo{
-        tree=t,
-        firstMatchers = getTreeInfo <$> rest >>= firstMatchers,
-        allowsWhiteSpace=False,
-        isFallBack=False
-    }
-getTreeInfo t@Node{rootLabel=EInfo _ _, subForest=rest} =
-    TreeInfo{
-        tree=t,
-        firstMatchers = getTreeInfo <$> rest >>= firstMatchers,
-        allowsWhiteSpace=False,
-        isFallBack=False
-    }
-getTreeInfo t@Node{rootLabel=EEnd _, subForest=[next]} = (getTreeInfo next){ tree=t }
-getTreeInfo t@Node{rootLabel=EEnd _, subForest=rest} =
-    TreeInfo{
-        tree=t,
-        firstMatchers = getTreeInfo <$> rest >>= firstMatchers,
-        allowsWhiteSpace=False,
-        isFallBack=False
-    }
-getTreeInfo tree =
-    error ("Missing case in getTreeInfo: " ++ safeDrawETree tree)
+    }]
+getTreeInfos t@Node{rootLabel=FallBack, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t, isFallBack=True }) <$> (rest >>= getTreeInfos)
+getTreeInfos t@Node{rootLabel=AStart _, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
+getTreeInfos t@Node{rootLabel=AEnd, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
+getTreeInfos t@Node{rootLabel=WhiteSpace _, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t, allowsWhiteSpace=True }) <$> (rest >>= getTreeInfos)
+getTreeInfos t@Node{rootLabel=InfixTag _ _, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
+getTreeInfos t@Node{rootLabel=EStart _ _, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
+getTreeInfos t@Node{rootLabel=EmptyEStart, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
+getTreeInfos t@Node{rootLabel=EInfo _ _, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
+getTreeInfos t@Node{rootLabel=EEnd _, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
+getTreeInfos tree =
+    error ("Missing case in getTreeInfos: " ++ safeDrawETree tree)
 
 isPrefixTextMatch::String->String->Bool
 isPrefixTextMatch (' ':rest1) (' ':rest2) = isPrefixTextMatch (' ':rest1) rest2
@@ -161,7 +120,7 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
     --jtrace ("chooseOne: " ++ safeDrawEForest trees) $
     --jtrace ("string: " ++ show s) $
     --jtrace (show $ firstMatchers <$> snd <$> addTextMatchSize s <$> treeInfos) $
-    --jtrace (show $ allowsWhiteSpace <$> snd <$> addTextMatchSize s <$> treeInfos) $
+    --jtrace (show $ isFallBack <$> snd <$> addTextMatchSize s <$> treeInfos) $
     --jtrace (show $ fst <$> addTextMatchSize s <$> treeInfos) $
     case (maximumsBy fst ((filter ((/= 0) . fst)) (addTextMatchSize s <$> treeInfos))) of
         [] -> case (check s) `filter` ((not . isFallBack) `filter` treeInfos) of
@@ -187,7 +146,7 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
         where
 --                theMaxTextMatchSize = trees
                 treeInfos::[TreeInfo]
-                treeInfos = getTreeInfo <$> trees
+                treeInfos = trees >>= getTreeInfos
 
 maximumsBy::(Eq a)=>(Ord b)=>(a->b)->[a]->[a]
 maximumsBy _ [] = []

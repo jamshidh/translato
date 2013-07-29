@@ -162,6 +162,7 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
     --jtrace ("string: " ++ show s) $
     --jtrace (show $ firstMatchers <$> snd <$> addTextMatchSize s <$> treeInfos) $
     --jtrace (show $ allowsWhiteSpace <$> snd <$> addTextMatchSize s <$> treeInfos) $
+    --jtrace (show $ fst <$> addTextMatchSize s <$> treeInfos) $
     case (maximumsBy fst ((filter ((/= 0) . fst)) (addTextMatchSize s <$> treeInfos))) of
         [] -> case (check s) `filter` ((not . isFallBack) `filter` treeInfos) of
                 [] -> case filter ((== FallBack) . rootLabel) trees of
@@ -194,6 +195,8 @@ maximumsBy f list = filter ((== theMaximum) . f) list
         where theMaximum = maximum (f <$> list)
 
 addTextMatchSize::LS.LString->TreeInfo->(Int, TreeInfo)
+addTextMatchSize s treeInfo@TreeInfo{allowsWhiteSpace=True} | LS.null s = addTextMatchSize s treeInfo{allowsWhiteSpace=False}
+addTextMatchSize s treeInfo@TreeInfo{allowsWhiteSpace=True} | isSpace (LS.head s) = addTextMatchSize (LS.tail s) treeInfo
 addTextMatchSize s treeInfo = (maximum (textMatchMatchSize s <$> (firstMatchers treeInfo)), treeInfo)
 
 removeTextMatchSize::(Int, a)->a

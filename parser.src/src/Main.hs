@@ -39,8 +39,8 @@ outputGrammar g = do
 
 outputSequenceMap::Grammar->IO ()
 outputSequenceMap g = do
---    putStrLn $ formatSequenceMap (sequenceMap g)
-    putStrLn $ formatSequenceMap (leftFactorSequenceMap $ sequenceMap g)
+    putStrLn $ formatSequenceMap (sequenceMap g)
+--    putStrLn $ formatSequenceMap (leftFactorSequenceMap $ sequenceMap g)
 
 outputParseTree::Grammar->IO ()
 outputParseTree g = do

@@ -18,44 +18,18 @@ module Main (
 ) where
 
 import Data.Functor
-import Data.List
 import qualified Data.Map as M
-import Data.Sequence hiding (drop)
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.IO as TL
---import qualified Data.Text as TL
---import qualified Data.Text.IO as TL
-import Data.Tree
 import System.Environment
-import System.IO
-import Text.ParserCombinators.Parsec as P hiding (try)
-import Text.XML as XML
-import Text.XML.Cursor
-
-import Filesystem.Path hiding (concat)
-import Filesystem.Path.CurrentOS hiding (concat)
-
---import Graphics.UI.Gtk
---import Graphics.UI.Gtk.Multiline.TextView
 
 import Colors
-import Context
-import Generator
+--import Generator
 import Grammar hiding (main)
 import qualified Grammar as G (main)
-import GrammarParser
 import GrammarTools
-import LText as L hiding (head, drop)
---import ManyWorldsParser as MWor
---import qualified Parser2 as P2
---import qualified Parser3 as P3
---import qualified Parser4 as P4
---import OperatorNames
+import LeftFactoring
 import Parser
-import ParseElements
---import ParseError
+--import ParseElements
 import SequenceMap
-import TreeTools
 
 import JDebug
 
@@ -65,15 +39,16 @@ outputGrammar g = do
 
 outputSequenceMap::Grammar->IO ()
 outputSequenceMap g = do
-    putStrLn $ formatSequenceMap (sequenceMap g)
+--    putStrLn $ formatSequenceMap (sequenceMap g)
+    putStrLn $ formatSequenceMap (leftFactorSequenceMap $ sequenceMap g)
 
 outputParseTree::Grammar->IO ()
 outputParseTree g = do
-    putStrLn $ drawForest (map (fmap formatExpression) (forestTake 16 (parseTree g (G.main g))))
+    putStrLn $ safeDrawEForest (parseTree g (G.main g))
 
 test::Grammar->IO ()
 test g = do
-    putStrLn (safeDrawEForest $ seq2ParseTree M.empty [Or [[TextMatch "a"], []], TextMatch "c"])
+    putStrLn ""
 
 outputParse::Grammar->IO ()
 outputParse g = do
@@ -81,17 +56,19 @@ outputParse g = do
 
 outputParseElements::Grammar->IO ()
 outputParseElements cx = do
-    contents<-TL.getContents
+    putStrLn "To be added"
+    {--contents<-TL.getContents
     let doc=try(parseText def contents)
-    putStrLn (TL.unpack (renderText def (parseElements cx (fromDocument doc))))
+    putStrLn (TL.unpack (renderText def (parseElements cx (fromDocument doc))))--}
 
 outputString::Grammar->IO ()
 outputString g = do
-    contents<-TL.getContents
+    putStrLn "To be added"
+    {--contents<-TL.getContents
     let doc=try(parseText def contents)
     case generate g (fromDocument doc) of
         Right s -> putStrLn s
-        Left err -> error (show err)
+        Left err -> error (show err)--}
 
 try::(Show err)=>Either err a->a
 try (Left err) = error ("Error:" ++ show err)

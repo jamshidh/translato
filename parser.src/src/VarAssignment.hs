@@ -49,16 +49,17 @@ assignVariablesUsingVContext::VContext->Tree EChar->Forest EChar
 
 assignVariablesUsingVContext vcx node@Node{rootLabel=EStart _ _, subForest=subForest} =
     [node {subForest=subForest >>= assignVariablesUsingVContext (
-                vcx {
-                        variableStack=empty:variableStack vcx
-                    })}]
+                vcx {variableStack=empty:variableStack vcx})}]
+
+assignVariablesUsingVContext vcx node@Node{rootLabel=EmptyEStart, subForest=subForest} =
+    [node {subForest=subForest >>= assignVariablesUsingVContext (
+                vcx {variableStack=empty:variableStack vcx})}]
+
+assignVariablesUsingVContext vcx@VContext{variableStack=vars:vrest} node@Node{rootLabel=EEnd _, subForest=subForest} =
+    [node{subForest=subForest >>= assignVariablesUsingVContext (vcx {variableStack=vrest})}]
 
 assignVariablesUsingVContext vcx node@Node{rootLabel=EEnd _, subForest=subForest} =
-    [node{subForest=subForest >>= assignVariablesUsingVContext (
-                vcx {
---                        conditionStack=debugTail (conditionStack vcx),
-                        variableStack=tail (variableStack vcx)
-                    })}]
+    error "assignVariablesUsingVContext called with EEnd, but variable stack is empty"
 
 assignVariablesUsingVContext vcx (Node {rootLabel=VStart name input, subForest=subForest}) =
     subForest >>= assignVariablesUsingVContext (

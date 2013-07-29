@@ -35,7 +35,7 @@ import TreeTools
 
 import JDebug
 
-data TreeInfo = TreeInfo { tree::Tree Expression, firstMatchers::[Expression], allowsWhiteSpace::Bool, isFallBack::Bool } deriving (Eq)
+data TreeInfo = TreeInfo { tree::Tree Expression, firstMatchers::[Expression], allowsWhiteSpace::Bool, isFallBack::Bool } deriving (Eq, Show)
 
 getTreeInfo::Tree Expression->TreeInfo
 getTreeInfo t@
@@ -67,6 +67,19 @@ getTreeInfo t@Node{rootLabel=EOF} =
     }
 getTreeInfo t@Node{rootLabel=FallBack, subForest=[next]} =
     (getTreeInfo next) { tree=t, isFallBack=True }
+getTreeInfo t@Node{rootLabel=FallBack, subForest=rest} =
+    TreeInfo{
+        tree=t,
+        firstMatchers = treeInfoOfRest >>= firstMatchers,
+        allowsWhiteSpace=summaryOfAllowsWhiteSpace,
+        isFallBack=True
+    }
+    where
+        treeInfoOfRest = getTreeInfo <$> rest
+        summaryOfAllowsWhiteSpace = valueOfSame $ allowsWhiteSpace <$> treeInfoOfRest
+        valueOfSame::Eq a=>[a]->a
+        valueOfSame items = case nub items of
+            [x] -> x
 getTreeInfo t@Node{rootLabel=AStart _, subForest=[next]} = (getTreeInfo next){ tree=t }
 getTreeInfo t@Node{rootLabel=AEnd, subForest=[next]} = (getTreeInfo next){ tree=t }
 getTreeInfo t@Node{rootLabel=AEnd, subForest=rest} =
@@ -87,7 +100,16 @@ getTreeInfo t@Node{rootLabel=WhiteSpace _, subForest=rest} =
     }
 getTreeInfo t@Node{rootLabel=InfixTag _ _, subForest=[next]} = (getTreeInfo next){ tree=t }
 getTreeInfo t@Node{rootLabel=EStart _ _, subForest=[next]} = (getTreeInfo next){ tree=t }
+getTreeInfo t@Node{rootLabel=EmptyEStart, subForest=[next]} = (getTreeInfo next){ tree=t }
+getTreeInfo t@Node{rootLabel=EInfo _ _, subForest=[next]} = (getTreeInfo next){ tree=t }
 getTreeInfo t@Node{rootLabel=EStart _ _, subForest=rest} =
+    TreeInfo{
+        tree=t,
+        firstMatchers = getTreeInfo <$> rest >>= firstMatchers,
+        allowsWhiteSpace=False,
+        isFallBack=False
+    }
+getTreeInfo t@Node{rootLabel=EInfo _ _, subForest=rest} =
     TreeInfo{
         tree=t,
         firstMatchers = getTreeInfo <$> rest >>= firstMatchers,
@@ -138,6 +160,8 @@ chooseOne [tree] s = tree
 chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length trees)) $
     --jtrace ("chooseOne: " ++ safeDrawEForest trees) $
     --jtrace ("string: " ++ show s) $
+    --jtrace (show $ firstMatchers <$> snd <$> addTextMatchSize s <$> treeInfos) $
+    --jtrace (show $ allowsWhiteSpace <$> snd <$> addTextMatchSize s <$> treeInfos) $
     case (maximumsBy fst ((filter ((/= 0) . fst)) (addTextMatchSize s <$> treeInfos))) of
         [] -> case (check s) `filter` ((not . isFallBack) `filter` treeInfos) of
                 [] -> case filter ((== FallBack) . rootLabel) trees of

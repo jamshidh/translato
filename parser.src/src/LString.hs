@@ -69,13 +69,13 @@ head::LString->Char
 head s = DL.head (string s)
 
 tail::LString->LString
-tail s =
-    s {
-        string=DL.tail (string s),
-        line=line s+lineDelta,
-        col=if (lineDelta == 0) then col s+1 else 0
+tail LString{string=(first:rest), line=line, col=col} =
+    LString {
+        string=rest,
+        line=line+lineDelta,
+        col=if (lineDelta == 0) then col+1 else 0
         }
-    where lineDelta = if (DL.head (string s) == '\n') then 1 else 0
+    where lineDelta = if (first == '\n') then 1 else 0
 
 {--instance Show LText where
     show (LText { text=text, start=start, finish=finish }) = show (T.take (finish-start) (T.drop start text))

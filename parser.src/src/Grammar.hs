@@ -46,7 +46,7 @@ import Data.Tree
 
 import CharSet
 import Colors
-import EnhancedString hiding (VEnd, InfixTag, EStart, EEnd)
+import EnhancedString hiding (VEnd, InfixTag, EStart, EmptyEStart, EInfo, EEnd)
 import TreeTools
 import XPath
 
@@ -69,6 +69,8 @@ data Expression = TextMatch String
     | AStart String
     | AEnd
     | EStart String [String]
+    | EmptyEStart
+    | EInfo String [String]
     | EEnd String
     | TabStart String
     | TabEnd deriving (Eq, Ord, Show)
@@ -81,6 +83,8 @@ formatExpression (AStart name) = "@" ++ name ++ "("
 formatExpression AEnd = ")"
 formatExpression (Character charset) = formatCharSet charset
 formatExpression (EStart tagName attributes) = cyan ("<" ++ tagName ++ concat (map (" " ++) attributes) ++ ">")
+formatExpression EmptyEStart = cyan ("<??>")
+formatExpression (EInfo tagName attributes) = cyan ("{name=" ++ tagName ++ ", atts=" ++ concat (map (" " ++) attributes) ++ "}")
 formatExpression (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
 formatExpression EOF = "EOF"
 formatExpression FallBack = "FallBack"
@@ -128,7 +132,7 @@ type Separator = Sequence
 
 data Class = Class {
     rules::[Rule],
-    suffixRules::[Rule],
+    suffixSeqs::[Sequence],
     --extensions::[Sequence],
     operators::[OperatorSymbol],
     separator::Separator,
@@ -142,7 +146,7 @@ formatClass c = "====[" ++ className c
         ++ (if null (parentNames c) then "" else ":" ++ intercalate "," (parentNames c))
         ++ "]====\n  "
         ++ intercalate "  " (map ruleShow (rules c))
-        ++ concat (("\n  suffix: " ++) <$>  (map ruleShow (suffixRules c)))
+        ++ concat (("\n  suffix: " ++) <$>  (map formatSequence (suffixSeqs c)))
         ++ "  separator: " ++ formatSequence (separator c) ++ "\n"
         ++ "  left: " ++ formatSequence (left c) ++ "\n"
         ++ "  right: " ++ formatSequence (right c) ++ "\n"

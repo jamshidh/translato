@@ -29,7 +29,7 @@ debugHead x= (trace $ show x) $ head x
 
 debugTail::Show a=>[a]->[a]
 debugTail [] = error "It is empty, you fool"
-debugTail x= (trace $ show x) $ tail x
+debugTail (first:rest) = (trace $ show (first:rest)) $ rest
 
 assert::Bool->String->a->a
 assert condition message = if condition then id else error message

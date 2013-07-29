@@ -14,7 +14,6 @@ import Data.Char hiding (Space)
 import Data.Functor
 import Data.Graph.Inductive.Query.Monad
 import Data.Maybe
---import Data.Text as DT hiding (map, length, foldl, foldl1, empty, head, tail, filter, intercalate, isPrefixOf, take, drop, find)
 import Data.Tree
 import Text.XML
 import Data.List as L hiding (union, lookup, insert)
@@ -62,20 +61,6 @@ getSingleCondition cns = case nub cns of
     [cn] -> cn
     _ -> error "Elements with the same name must have the same condition"
 
-{--continue::Context->EString->Sequence->LString->Forest EChar
---continue cx item (Bind:rest) s = continue cx (item ++ [Bound]) rest s
---continue cx item (JustOutput value:rest) s = continue cx (item ++ value) rest s
---continue cx item (WhiteSpace _:JustOutput value:rest) s = continue cx (item ++ value) (WhiteSpace " ":rest) s
---continue cx item (WhiteSpace _:Bind:rest) s = continue cx (item ++ [Bound]) (WhiteSpace " ":rest) s
---continue cx item (JustOutput value:Bind:rest) s = continue cx (item ++ [Bound]) (JustOutput value:rest) s
---continue cx (c:rest) seq s | string s == [] = [Node {rootLabel=c, subForest=continue cx rest seq s}]
---continue cx [] seq s | string s == [] = [Node {rootLabel=Sync, subForest=rawParse cx seq (LS.tail s)}]
-
-continue cx (c:rest) seq s = --jtrace ("Seq=" ++ show seq) $
-    [Node {rootLabel=c, subForest=continue cx rest seq s}]
-continue cx [] seq s = --jtrace ("Seq2=" ++ show seq) $
-    [Node {rootLabel=Sync (LS.head s), subForest=rawParse cx seq (LS.tail s)}]--}
-
 forestConcat::Forest a->Forest a->Forest a
 forestConcat [] b = b
 forestConcat items b = (\item -> item{subForest=forestConcat (subForest item) b}) <$> items
@@ -92,7 +77,7 @@ seq2ParseTree sMap (Link name:rest) =
     seq2ParseTree sMap (List count seq:rest)--}
 
 seq2ParseTree sMap (List 0 seq:rest) =
-    seq2ParseTree sMap [Or [seq ++ [List 0 seq] ++ rest, rest]]
+    seq2ParseTree sMap [Or [seq ++ [List 0 seq] ++ rest, FallBack:rest]]
 seq2ParseTree sMap (List count seq:rest) =
     seq2ParseTree sMap (seq ++ [List (count -1) seq] ++ rest)
 seq2ParseTree sMap (Or seqs:rest) =
@@ -127,6 +112,12 @@ rawParse [Node{rootLabel=TabEnd, subForest=rest}] s = rawParse rest s
 
 rawParse [Node{rootLabel=G.EStart tagName attributes, subForest=rest}] s =
     [Node { rootLabel=E.EStart tagName attributes, subForest=rawParse rest s}]
+
+rawParse [Node{rootLabel=G.EmptyEStart, subForest=rest}] s =
+    [Node { rootLabel=E.EmptyEStart, subForest=rawParse rest s}]
+
+rawParse [Node{rootLabel=G.EInfo tagName attributes, subForest=rest}] s =
+    [Node { rootLabel=E.EInfo tagName attributes, subForest=rawParse rest s}]
 
 rawParse [Node{rootLabel=G.EEnd tagName, subForest=rest}] s =
     [Node { rootLabel=E.EEnd tagName, subForest=rawParse rest s}]
@@ -277,7 +268,7 @@ removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=next}) =
     Node {rootLabel=rootLabel, subForest=map removeDoubleSyncs next}
 
 parseTree::Grammar->String->Forest Expression
-parseTree g startRule=seq2ParseTree (sequenceMap g) [Link startRule]
+parseTree g startRule=seq2ParseTree (leftFactorSequenceMap $ sequenceMap g) [Link startRule]
 
 createParserForClass::String->Grammar->Parser
 createParserForClass startRule g s =

@@ -41,7 +41,7 @@ sequenceMap::Grammar->SequenceMap
 sequenceMap g =
     union
         (fromList (fmap (classSequence g) <$> M.toList (classes fixedG)))
-        (fmap addOrIfNecessary (fromListWith (++) ((\rule -> (name rule, [fullSequence rule])) <$> allRules)))
+        (fmap orIfy (fromListWith (++) ((\rule -> (name rule, [fullSequence rule])) <$> allRules)))
             where
                 allRules = elems (classes fixedG) >>= rules
                 fixedG = removeSepBy g
@@ -49,14 +49,14 @@ sequenceMap g =
 classSequence::Grammar->Class->Sequence
 classSequence g cl = prefix ++ (if length suffix == 0 then [] else [List 0 suffix])
     where
-        prefix = addOrIfNecessary
+        prefix = orIfy
                     (nonSelfRule ++ selfRule)
         selfRule::[Sequence]
         selfRule = fullSequence <$> (filter ((== className cl) . name) (rules cl))
         nonSelfRule::[Sequence]
         nonSelfRule = replicate 1 <$> Link <$>
-                            ((filter (/= className cl) (name <$> rules cl)) ++ (parentNames cl))
-        suffix = addOrIfNecessary $ rawSequence <$> suffixRules cl
+                            ((filter (/= className cl) (nub $ name <$> rules cl)) ++ (parentNames cl))
+        suffix = orIfy (suffixSeqs cl)
 
 fullSequence::Rule->Sequence
 fullSequence rule =
@@ -80,8 +80,7 @@ removeSepByFromClass g cl =
     cl {
         rules = (\rule -> rule{rawSequence = removeSepByFromSeq g (rawSequence rule)})
                             <$> rules cl,
-        suffixRules = (\rule -> rule{rawSequence = removeSepByFromSeq g (rawSequence rule)})
-                            <$> suffixRules cl,
+        suffixSeqs = removeSepByFromSeq g <$> suffixSeqs cl,
         separator = [], --removeSepByFromSeq g (separator cl),
         left = [], --removeSepByFromSeq g (left cl),
         right = [] --removeSepByFromSeq g (right cl)
@@ -101,14 +100,14 @@ removeSepByFromSeq _ [] = []
 repeatWithSeparator::Grammar->Int->Sequence->Sequence->Sequence
 repeatWithSeparator g 0 seq separator =
     [Or [seq ++ [List 0 (separator ++ seq)],
-            []]]
+            [FallBack]]]
 repeatWithSeparator g count seq separator =
     seq ++ [List (count -1) (removeSepByFromSeq g (separator++seq))]
 --    ++ repeatWithSeparator (count-1) seq separator
 
 seq2Separator::Grammar->Sequence->Sequence
 seq2Separator g [Link name] = case M.lookup name (classes g) of
-    Nothing -> error "qqqq"
+    Nothing -> error ("Missing link name in seq2Separator: " ++ name)
     Just cl -> separator cl
 seq2Separator g [Character charset] = []
 seq2Separator g [TextMatch _] = []
@@ -116,7 +115,7 @@ seq2Separator _ seq = error ("Missing case in seq2Separator: " ++ formatSequence
 
 seq2Left::Grammar->Sequence->Sequence
 seq2Left g [Link name] = case M.lookup name (classes g) of
-    Nothing -> error "qqqq"
+    Nothing -> error ("Missing link name in seq2Left: " ++ name)
     Just cl -> left cl
 seq2Left g [Character charset] = []
 seq2Left g [TextMatch _] = []
@@ -124,8 +123,8 @@ seq2Left _ seq = error ("Missing case in seq2Left: " ++ show seq)
 
 seq2Right::Grammar->Sequence->Sequence
 seq2Right g [Link name] = case M.lookup name (classes g) of
-    Nothing -> error "qqqq"
-    Just cl -> FallBack:right cl
-seq2Right g [Character charset] = [FallBack]
+    Nothing -> error ("Missing link name in seq2Right: " ++ name)
+    Just cl -> right cl
+seq2Right g [Character charset] = []
 seq2Right g [TextMatch _] = []
 seq2Right _ seq = error ("Missing case in seq2Separator: " ++ formatSequence seq)

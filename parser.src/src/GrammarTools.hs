@@ -15,12 +15,12 @@
 module GrammarTools (
     --fullySimplifyGrammar,
     --simplify,
-    rewriteLeftRecursionInGrammar,
+    --rewriteLeftRecursionInGrammar,
     --expandOperators,
     rule2Seq,
     addEOFToGrammar,
     stripWhitespaceFromGrammar,
-    addOrIfNecessary,
+    orIfy,
     loadGrammar,
     fixG
 ) where
@@ -61,7 +61,7 @@ stripWhitespaceFromGrammar g = g
     }
 
 stripWhitespaceFromClass::Class->Class
-stripWhitespaceFromClass c = c { rules = stripRule <$> (rules c) }
+stripWhitespaceFromClass c = c { rules = stripRule <$> rules c }
 
 stripRule rule = rule{rawSequence=strip (rawSequence rule)}
 
@@ -93,13 +93,16 @@ rewriteLeftRecursionInClass::Class->Class
 rewriteLeftRecursionInClass cl =
     cl {
         rules = filter (not . (isLRecursive (className cl))) (rules cl),
-        suffixRules = (rawSeqMap tail <$> (filter (isLRecursive (className cl)) (rules cl)))
-                            ++ (operatorSuffixRules cl)
+        suffixSeqs = (recursiveRule2SuffixSeq <$> (filter (isLRecursive (className cl)) (rules cl)))
+                            ++ (operator2SuffixSeq cl <$> operators cl)
     }
 
-operatorSuffixRules::Class->[Rule]
-operatorSuffixRules cl =
-    (\seq -> Rule{name=className cl, rawSequence=seq++[InfixTag 0 (opSeq2Name seq), Link (className cl)]}) <$> (operators cl)
+operator2SuffixSeq::Class->Sequence->Sequence
+operator2SuffixSeq cl seq = seq++[InfixTag 0 (opSeq2Name seq), Or (replicate 1 <$> Link <$> nonRecursiveRuleNames cl)]
+    where nonRecursiveRuleNames cl = name <$> (filter (not . isLRecursive (className cl)) (rules cl))
+
+recursiveRule2SuffixSeq::Rule->Sequence
+recursiveRule2SuffixSeq rule = (InfixTag 0 (name rule):) $ tail $ rawSequence rule
 
 isLRecursive::String->Rule->Bool
 isLRecursive className Rule{name=ruleName, rawSequence=Link linkName:rest}
@@ -182,10 +185,13 @@ addEOFToGrammar g = g {
 addEOFToClass::Class->Class
 addEOFToClass c = c { rules=(\rule->rule{rawSequence=rawSequence rule ++ [EOF]}) <$> (rules c)}
 
-addOrIfNecessary::[Sequence]->Sequence
-addOrIfNecessary [seq] = seq
-addOrIfNecessary [] = []
-addOrIfNecessary seqs = [Or seqs]
+orIfy::[Sequence]->Sequence
+orIfy [seq] = seq
+orIfy [] = []
+orIfy seqs = [Or (seqs >>= removeOr)]
+    where
+        removeOr (Or seqs:rest) = (++ rest) <$> seqs
+        removeOr seq = [seq]
 
 -----------------------
 

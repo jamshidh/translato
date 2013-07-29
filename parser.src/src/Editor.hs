@@ -16,6 +16,8 @@ module Editor (
 
 ) where
 
+import Graphics.UI.Gtk
+import Graphics.UI.Gtk.Multiline.TextView
 
 makeWindow::IO ()
 makeWindow = do

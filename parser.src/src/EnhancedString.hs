@@ -24,7 +24,7 @@ module EnhancedString (
 
 import Data.Char
 import Data.Functor
-import Data.List
+import Data.List as DL
 
 import Colors
 import LString hiding (head, tail, take)
@@ -34,6 +34,8 @@ import JDebug
 
 data EChar = Ch Char
     | EStart String [String]
+    | EmptyEStart
+    | EInfo String [String]
     | EEnd String
     | VPush
     | VPop
@@ -53,7 +55,8 @@ instance Show EChar where
     show (Ch '\n') = "\\n"
     show (Ch c) = [c]
     show (EStart name attributes) = cyan ("<" ++ name ++ concat (map (" " ++) attributes) ++ ">")
-        --(if condition /= CnTrue then "(" ++ show condition ++ ")" ++ ">>"
+    show (EmptyEStart) = cyan ("<??>")
+    show (EInfo name attributes) = cyan ("{name=" ++ name ++ ", atts=" ++ concat (map (" " ++) attributes) ++ "}")
     show (EEnd name) = cyan ("</" ++ name ++ ">")
     show VPush = magenta ">>VPush>>"
     show VPop = magenta "<<VPop<<"
@@ -116,7 +119,7 @@ enhancedString2String es =
 
 expandTabs::[String]->EString->EString
 expandTabs tab ((TabRight tabString):rest) = e tabString ++ expandTabs (tabString:tab) rest
-expandTabs tab (TabLeft:rest) = expandTabs (tail tab) rest
+expandTabs (_:tabs) (TabLeft:rest) = expandTabs tabs rest
 expandTabs tab (Ch '\n':rest) = Ch '\n':(e (concat tab) ++ expandTabs tab rest)
 expandTabs tab (x:rest) = x:(expandTabs tab rest)
 expandTabs tab [] = []
@@ -133,7 +136,7 @@ truncateString newLength s = take newLength s ++ "...."
 
 debugOutput::EString->String
 debugOutput (TabLeft:rest) = "<==" ++ debugOutput rest
-debugOutput (TabRight tabString:rest) = "==>(" ++ tabString ++ ")" ++ debugOutput (tail rest)
+debugOutput (TabRight tabString:rest) = "==>(" ++ tabString ++ ")" ++ debugOutput rest
 debugOutput (Ch c:rest) = c:debugOutput rest
 debugOutput [] = []
 
@@ -143,6 +146,16 @@ expandElements (EStart name attributes:rest) =
     ([VPush] ++ e ("<" ++ name)
         ++ concat ((\name -> e(" " ++ name ++ "='") ++ [VOut ("@" ++ name)] ++ e "'") <$> attributes)
         ++ e (">")
+        ++ [Ch '\n', TabRight "  "])
+    ++ expandElements rest
+expandElements (EmptyEStart:rest) =
+    ([VPush] ++ e ("<??>")
+        ++ [Ch '\n', TabRight "  "])
+    ++ expandElements rest
+expandElements (EInfo name attributes:rest) =
+    ([VPush] ++ e "{name=" ++ e name
+        ++ e ", atts=" ++ concat ((\name -> e(" " ++ name ++ "='") ++ [VOut ("@" ++ name)] ++ e "'") <$> attributes)
+        ++ e ("}")
         ++ [Ch '\n', TabRight "  "])
     ++ expandElements rest
 expandElements (EEnd name:rest) =

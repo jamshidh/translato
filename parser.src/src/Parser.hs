@@ -46,94 +46,53 @@ type Parser = String->String
 err::LString->String->Forest EChar
 err s message = [Node { rootLabel=Error message s, subForest=[]}]
 
-expectErr::LString->String->Forest EChar
-expectErr s expectation = [Node { rootLabel=ExpectationError [expectation] s, subForest=[]}]
+expectErr::LString->String->[EChar]
+expectErr s expectation = [ExpectationError [expectation] s]
 
 -------------------------------
-
-haveSameStart::(Eq a, Show a)=>[[a]]->Bool
-haveSameStart [] = False
-haveSameStart [[]] = False
-haveSameStart sequences = (length $ nub (map head sequences)) == 1
-
-getSingleCondition::[Condition]->Condition
-getSingleCondition cns = case nub cns of
-    [cn] -> cn
-    _ -> error "Elements with the same name must have the same condition"
-
-forestConcat::Forest a->Forest a->Forest a
-forestConcat [] b = b
-forestConcat items b = (\item -> item{subForest=forestConcat (subForest item) b}) <$> items
-
-(+++)::Forest a->Forest a->Forest a
-(+++) = forestConcat
 
 seq2ParseTree::SequenceMap->Sequence->Forest Expression
 seq2ParseTree sMap (Link name:rest) =
     case lookup name sMap of
         Nothing -> error ("The grammar links to a non-existant rule named '" ++ name ++ "'")
         Just seq -> seq2ParseTree sMap (seq ++ rest)
-{--seq2ParseTree sMap (List count seq@[Character charset]:rest) =
-    seq2ParseTree sMap (List count seq:rest)--}
-
 seq2ParseTree sMap (List 0 seq:rest) =
     seq2ParseTree sMap [Or [seq ++ [List 0 seq] ++ rest, FallBack:rest]]
 seq2ParseTree sMap (List count seq:rest) =
     seq2ParseTree sMap (seq ++ [List (count -1) seq] ++ rest)
 seq2ParseTree sMap (Or seqs:rest) =
---    forestConcat
         (((++ rest) <$> seqs) >>= seq2ParseTree sMap)
---        (seq2ParseTree sMap rest)
 seq2ParseTree sMap (e:rest) = [Node{rootLabel=e, subForest=seq2ParseTree sMap rest}]
 seq2ParseTree sMap [] = []
 
+---------------------------------
 
-
-rawParse::Forest Expression->LString->Forest EChar
-rawParse [Node{rootLabel=EOF, subForest=rest}] s | string s == [] = [Node {rootLabel=Ch '\n', subForest=rawParse rest s}]
+rawParse::Forest Expression->LString->[EChar]
+rawParse [Node{rootLabel=EOF, subForest=rest}] s | string s == [] = Ch '\n':rawParse rest s
 rawParse [Node{rootLabel=EOF, subForest=rest}] s = expectErr s "EOF"
---rawParse cx seq s | string s == [] =  [err s ("File ends too soon, expecting " ++ show seq)]--}
-rawParse [] s = [Node { rootLabel=(Ch '\n'), subForest=[] }]
+rawParse [] s = [Ch '\n']
 
 rawParse [Node{rootLabel=TextMatch matchString, subForest=rest}] s | LS.isPrefixOf matchString s =
         rawParse rest (LS.drop (length matchString) s)
 rawParse [Node{rootLabel=TextMatch matchString, subForest=_}] s = expectErr s matchString
 
 rawParse [Node{rootLabel=Out (first:eStringRest), subForest=rest}] s =
-    [Node {rootLabel=first, subForest=rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s}]
+    first:rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s
 rawParse [Node{rootLabel=Out [], subForest=rest}] s = rawParse rest s
 
 rawParse [Node{rootLabel=FallBack, subForest=rest}] s = rawParse rest s
 
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | LS.null s = rawParse rest s
---rawParse cx seq@(WhiteSpace _:rest) s | isSpace (LS.head s) = continue cx [] seq s
-rawParse forest@[Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.head s) = rawParse forest (LS.tail s)
+rawParse forest@[Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.head s) =
+    rawParse forest (LS.tail s)
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
 
 rawParse [Node{rootLabel=Character charset, subForest=rest}] s | LS.null s =
     expectErr s (formatCharSet charset)
 rawParse forest@[Node{rootLabel=Character charset, subForest=rest}] s | LS.head s `isIn` charset =
-    [Node{rootLabel=Ch (LS.head s), subForest=rawParse rest (LS.tail s)}]
+    Ch (LS.head s):rawParse rest (LS.tail s)
 rawParse [Node{rootLabel=Character charset, subForest=rest}] s =
     expectErr s (formatCharSet charset)
-
-{--rawParse Ident:rest) s | LS.null s = expectErr s "Ident"
-rawParse (Ident:rest) s | isAlpha (LS.head s) =
-    rawParse (List 1 [Character (CharSet False [WordChar])]:rest) s
-rawParse (Ident:rest) s = expectErr s "Ident"--}
-
-{--rawParse cx (JustOutput (EEnd:remainingChars):rest) s =
-    [Node { rootLabel=EEnd, subForest=rawParse (popCondition cx) (JustOutput remainingChars:rest) s}]--}
-
-{--rawParse cx (JustOutput (AEnd:remainingChars):rest) s =
-    case eval (head $ attributes newCx) (head $ conditions cx) of
-        Just CnFalse -> err s "Condition failed"
-        _ -> [Node { rootLabel=AEnd, subForest=rawParse newCx (JustOutput remainingChars:rest) s}]
-    where newCx = moveCurrentAttributeToAttributes cx--}
-
-{--rawParse cx (JustOutput (char:remainingChars):rest) s =
-    [Node { rootLabel=char, subForest=rawParse cx (JustOutput remainingChars:rest) s}]
-rawParse cx (JustOutput []:rest) s = rawParse cx rest s--}
 
 rawParse [x] _ = error ("Missing case in rawParse: " ++ safeDrawTree (fmap show x))
 
@@ -141,72 +100,18 @@ rawParse items s = rawParse [chooseOne items s] s
 
 ------------------------
 
-eParser2Parser::EParser->Parser
-eParser2Parser p = enhancedString2String . p . createLString
---eParser2Parser p = show . p . createLString
-
-isntError::EChar->Bool
-isntError (Error _ _) = False
-isntError (ExpectationError _ _) = False
-isntError x = True
-
-isError::Bool->Tree EChar->Bool
-isError safe (Node {rootLabel=(Error _ _)})=True
-isError safe (Node {rootLabel=(ExpectationError _ _)})=True
-isError safe (Node {rootLabel=Sync _})=False
-isError safe (Node {subForest=[tree]})=isError safe tree
-isError safe (Node {subForest=[]})=False
-isError safe tree@(Node {subForest=_})=
-    if safe then False
-        else error ("split before ambiguity resolved: " ++ cleanDraw tree)
-
-hasSync::Tree EChar->Bool
-hasSync (Node {rootLabel=Sync _})=True
-hasSync (Node {subForest=[next]})=hasSync next
-hasSync (Node {subForest=[]})=False
-
-getError::Tree EChar->EChar
-getError (Node {rootLabel=err@(Error _ _)})=err
-getError (Node {rootLabel=err@(ExpectationError _ _)})=err
-getError (Node {rootLabel=Sync _})=error "There should have been an error"
-getError (Node {subForest=[tree]})=getError tree
-
-movePastNextSync::(EString, Tree EChar)->(EString, Tree EChar)
-movePastNextSync (output, node@Node {rootLabel=Sync c, subForest=[next]}) = (output ++ [Sync c], next)
-movePastNextSync (output, Node {rootLabel=rootLabel, subForest=[next]}) = movePastNextSync (output ++ [rootLabel], next)
-movePastNextSync (output, Node {rootLabel=rootLabel, subForest=[]}) =
-    (output ++ [rootLabel], Node {rootLabel=Sync '!', subForest=[]})
-movePastNextSync (output, node@Node {rootLabel=rootLabel, subForest=subForest}) =
-    error ("ambiguity within ambiguity:\n\n" ++ cleanDraw node)
-
-correctPath::Forest EChar->EString
-correctPath [Node{rootLabel=item, subForest=[nextItem]}] = item:correctPath [nextItem]
-correctPath [Node{rootLabel=item, subForest=[]}] = [item]
-correctPath [] = []
---correctPath forest = partial2CorrectPath (map (\x -> (e "", x)) forest)
-
-removeDoubleSyncs::Tree EChar->Tree EChar
-removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=[next@(Node {rootLabel=Sync _})]}) = removeDoubleSyncs next
-removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=next}) =
-    Node {rootLabel=rootLabel, subForest=map removeDoubleSyncs next}
-
 parseTree::Grammar->String->Forest Expression
 parseTree g startRule=seq2ParseTree (leftFactorSequenceMap $ sequenceMap g) [Link startRule]
 
 createParserForClass::String->Grammar->Parser
 createParserForClass startRule g s =
---    jtrace "\nResulting Forest:"
---    jtrace (safeDrawForest (map (fmap show) (map simplifyUsingLookahead forest))) $
---    jtrace (cleanDrawForest forest) $
---    jtrace "\nIn between\n" $
---    jtrace (cleanDrawForest (assignVariables forest)) $
---    jtrace (cleanDrawForest (simplifyUsingLookahead <$> forest)) $
---    jtrace (cleanDrawForest (simplifyUsingLookahead <$> (assignVariables forest))) $
---    jtrace "End Resulting Forest\n"
         enhancedString2String
-            $ correctPath
-            $ --assignVariables
-                    (rawParse (parseTree g startRule) (createLString s))
+--        show
+            $ fillInAttributes
+            $ fillInVariableAssignments
+            $ fillInFutureItems
+--            $ assignVariables
+            $ (rawParse (parseTree g startRule) (createLString s))
 
 createParser::Grammar->Parser
 createParser g = createParserForClass (main g) g

@@ -34,6 +34,7 @@ import JDebug
 
 data EChar = Ch Char
     | EStart String [String]
+    | FilledInEStart String [(String, String)]
     | EEnd String
     | FutureItem
     | ItemInfo EString
@@ -54,6 +55,7 @@ instance Show EChar where
     show (Ch '\n') = "\\n"
     show (Ch c) = [c]
     show (EStart name attributes) = cyan ("<" ++ name ++ concat (map (" " ++) attributes) ++ ">")
+    show (FilledInEStart name atts) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ val ++ "'") <$> atts) ++ ">")
     show (FutureItem) = cyan ("<??>")
     show (ItemInfo eString) = cyan ("{itemInfo=" ++ show eString ++ "}")
     show (EEnd name) = cyan ("</" ++ name ++ ">")
@@ -88,6 +90,7 @@ chs2String (VOut name:rest) = green ("[" ++ name ++ "]") ++ chs2String rest
 chs2String (VStart name:rest) = "{" ++ name ++ "=" ++ chs2String rest
 chs2String (VEnd:rest) = "}" ++ chs2String rest
 chs2String (EStart name atts:rest) = "<" ++ name ++ concat ((" "++) <$> atts) ++ ">" ++ chs2String rest
+chs2String (FilledInEStart name atts:rest) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ val ++ "'") <$> atts) ++ ">") ++ chs2String rest
 chs2String (EEnd name:rest) = "</" ++ name ++ ">" ++ chs2String rest
 chs2String (VAssign name val:rest) = green ("assign{" ++ name ++ "=" ++ val ++ "}") ++ chs2String rest
 chs2String (FutureItem:rest) = blue "<??>" ++ chs2String rest
@@ -134,6 +137,7 @@ enhancedString2String es =
 expandTabs::[String]->EString->EString
 expandTabs tab ((TabRight tabString):rest) = e tabString ++ expandTabs (tabString:tab) rest
 expandTabs (_:tabs) (TabLeft:rest) = expandTabs tabs rest
+expandTabs tabs (TabLeft:_) = error ("TabLeft missed in expandTabs: " ++ show tabs)
 expandTabs tab (Ch '\n':rest) = Ch '\n':(e (concat tab) ++ expandTabs tab rest)
 expandTabs tab (x:rest) = x:(expandTabs tab rest)
 expandTabs tab [] = []
@@ -152,26 +156,43 @@ debugOutput::EString->String
 debugOutput (TabLeft:rest) = "<==" ++ debugOutput rest
 debugOutput (TabRight tabString:rest) = "==>(" ++ tabString ++ ")" ++ debugOutput rest
 debugOutput (Ch c:rest) = c:debugOutput rest
+debugOutput (c:rest) = show c ++ debugOutput rest
 debugOutput [] = []
 
 
 expandElements::EString->EString
 expandElements (EStart name attributes:rest) =
-    ([VPush] ++ e ("<" ++ name)
+    (
+--        [VPush] ++
+        e ("<" ++ name)
         ++ concat ((\name -> e(" " ++ name ++ "='") ++ [VOut ("@" ++ name)] ++ e "'") <$> attributes)
         ++ e (">")
         ++ [Ch '\n', TabRight "  "])
     ++ expandElements rest
+expandElements (FilledInEStart name attributes:rest) =
+    (
+--        [VPush] ++
+        e ("<" ++ name)
+        ++ concat ((\(name, value) -> e(" " ++ name ++ "='") ++ e value ++ e "'") <$> attributes)
+        ++ e (">")
+        ++ [Ch '\n', TabRight "  "])
+    ++ expandElements rest
 expandElements (FutureItem:rest) =
-    ([VPush] ++ e ("<??>")
+    (
+--        [VPush] ++
+        e ("<??>")
         ++ [Ch '\n', TabRight "  "])
     ++ expandElements rest
 expandElements (ItemInfo eString:rest) =
-    ([VPush] ++ e "{itemInfo=" ++ eString ++ e ("}")
+    (
+--        [VPush] ++
+        e "{itemInfo=" ++ eString ++ e ("}")
         ++ [Ch '\n', TabRight "  "])
     ++ expandElements rest
 expandElements (EEnd name:rest) =
-    ([TabLeft, Ch '\n'] ++ e("</" ++ name ++ ">") ++ [VPop]) ++ expandElements rest
+    ([TabLeft, Ch '\n'] ++ e("</" ++ name ++ ">")
+--            ++ [VPop]
+            ) ++ expandElements rest
 expandElements (c:rest) = c:expandElements rest
 expandElements [] = []
 

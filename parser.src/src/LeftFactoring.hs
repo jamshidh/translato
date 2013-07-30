@@ -53,7 +53,7 @@ leftFactor' (Or items:rest) = --jtrace ("Left factoring: " ++ intercalate "\n  "
 --        makeSeq (Just [EmptyEStart, exp], [EInfo name atts:oneSeq]) = EStart name atts:exp:oneSeq
         makeSeq (Just [Out [FutureItem], exp], seqs) | length firstItems == 1 =
             case firstItems of
-                [Out eString] -> Out eString:exp:(leftFactor' [Or (tail <$> seqs)])
+                [Out [ItemInfo eString]] -> Out eString:exp:(leftFactor' [Or (tail <$> seqs)])
                 where
                     firstItems = nub [exp2|exp2@(Out _):_<-seqs]
         makeSeq (Just first, rest2) = first ++ (leftFactor' $ orIfy rest2)
@@ -94,10 +94,11 @@ splitFirstTok (List count seq:rest) = (Just [List count seq], rest)
 splitFirstTok (Or seqs:rest) = (Just [Or seqs], rest)
 splitFirstTok (FallBack:rest) = (Just [FallBack], rest)
 splitFirstTok (WhiteSpace _:rest) = (Just [WhiteSpace " "], rest)
+splitFirstTok (Out eString1:Out eString2:rest) = splitFirstTok (Out (eString1 ++ eString2):rest)
+splitFirstTok (Out [ItemInfo eString]:rest) = (nextTok, Out [ItemInfo eString]:nextSeq)
+    where (nextTok, nextSeq) = splitFirstTok rest
 splitFirstTok (Out eString:rest) = (nextTok >>= Just . (Out [FutureItem]:), Out [ItemInfo eString]:nextSeq)
     where (nextTok, nextSeq) = splitFirstTok rest
---splitFirstTok (Out [ItemInfo eString]:rest) = (nextTok, Out [ItemInfo eString]:nextSeq)
---    where (nextTok, nextSeq) = splitFirstTok rest
 splitFirstTok [] = (Nothing, [])
 splitFirstTok seq = error ("Missing case in splitFirstTok: " ++ formatSequence seq)
 

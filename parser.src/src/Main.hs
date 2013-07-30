@@ -37,10 +37,13 @@ outputGrammar::Grammar->IO ()
 outputGrammar g = do
     putStrLn $ formatGrammar g
 
+outputSimplifiedSequenceMap::Grammar->IO ()
+outputSimplifiedSequenceMap g = do
+    putStrLn $ formatSequenceMap (leftFactorSequenceMap $ sequenceMap g)
+
 outputSequenceMap::Grammar->IO ()
 outputSequenceMap g = do
---    putStrLn $ formatSequenceMap (sequenceMap g)
-    putStrLn $ formatSequenceMap (leftFactorSequenceMap $ sequenceMap g)
+    putStrLn $ formatSequenceMap (sequenceMap g)
 
 outputParseTree::Grammar->IO ()
 outputParseTree g = do
@@ -81,6 +84,7 @@ options = M.fromList
     [
         ("outputGrammar", outputGrammar),
         ("outputSequenceMap", outputSequenceMap),
+        ("outputSimplifiedSequenceMap", outputSimplifiedSequenceMap),
         ("outputParseTree", outputParseTree),
         ("test", test),
         ("generate", outputString),

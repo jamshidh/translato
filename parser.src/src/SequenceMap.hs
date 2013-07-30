@@ -65,7 +65,7 @@ fullSequence rule =
     ++ [Out [EEnd (name rule)]]
         where
             seq2AttNames::Sequence->[String]
-            seq2AttNames (Out [VStart name]:rest) = name:seq2AttNames rest
+            seq2AttNames (Out [VStart name Nothing]:rest) = name:seq2AttNames rest
             seq2AttNames (_:rest) = seq2AttNames rest
             seq2AttNames [] = []
 

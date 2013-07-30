@@ -13,10 +13,8 @@
 -----------------------------------------------------------------------------
 
 module LString (
-    LString (LString),
-    string,
-    line,
-    col,
+    LString (..),
+    formatLString,
     createLString,
     empty,
     isPrefixOf,
@@ -25,13 +23,6 @@ module LString (
     LString.take,
     LString.head,
     LString.tail
-{--    finish,
-    initialize,
-    text2LText,
-    lText2String,
-    LText.head,
-    LText.length,
-    LText.takeWhile--}
 ) where
 
 import qualified Data.List as DL
@@ -62,8 +53,8 @@ drop i s =
 null::LString->Bool
 null s = DL.null (string s)
 
-take::Int->LString->String
-take i s = DL.take i (string s)
+take::Int->LString->LString
+take i s = s{string=DL.take i (string s)}
 
 head::LString->Char
 head s = DL.head (string s)
@@ -76,6 +67,9 @@ tail LString{string=(first:rest), line=line, col=col} =
         col=if (lineDelta == 0) then col+1 else 0
         }
     where lineDelta = if (first == '\n') then 1 else 0
+
+formatLString s =
+    "[(" ++ show (col s) ++ "," ++ show (line s) ++ ")" ++ show (string s) ++ "]"
 
 {--instance Show LText where
     show (LText { text=text, start=start, finish=finish }) = show (T.take (finish-start) (T.drop start text))

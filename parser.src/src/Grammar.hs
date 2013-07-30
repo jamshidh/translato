@@ -23,7 +23,6 @@ module Grammar (
     allRules,
     RuleName,
     Name,
-    --RawRule,
     Rule (..),
     Grammar (..),
     formatExpression,
@@ -31,10 +30,9 @@ module Grammar (
     formatGrammar,
     ParseType (..),
     Separator,
-    ruleShow,
+    --ruleShow,
     safeDrawEForest,
     safeDrawETree
-    --ruleMapShow
 ) where
 
 import Prelude hiding (lookup)
@@ -98,21 +96,14 @@ safeDrawEForest = safeDrawForest. (fmap formatExpression <$>)
 type RuleName = String
 
 
---type RawRule = (RuleName, Sequence)
 data Rule = Rule {
     name::String,
-    --tagName::RuleName,
-    --theClass::Class,
     rawSequence::Sequence
     } deriving (Eq, Show)
 
 
 ruleShow::Rule->String
 ruleShow Rule{name=name,rawSequence=sequence} = blue (name) ++ " => " ++ formatSequence sequence ++ "\n"
-
-{--formatNameSequenceMap::Map RuleName [Rule]->String
-formatNameSequenceMap rm =
-    intercalate "\n" (map ruleShow (concat (toList rm))) ++ "\n"--}
 
 type ClassName=String
 

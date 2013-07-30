@@ -262,7 +262,7 @@ matchAttribute =
         char '@'
         name<-ident
         parseType<-option [Link "ident"] matchParen
-        return ([Out [VStart name]] ++ parseType ++ [Out [VEnd]])
+        return ([Out [VStart name Nothing]] ++ parseType ++ [Out [VEnd]])
 
 matchParen =
     do

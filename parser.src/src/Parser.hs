@@ -76,6 +76,8 @@ rawParse [Node{rootLabel=TextMatch matchString, subForest=rest}] s | LS.isPrefix
         rawParse rest (LS.drop (length matchString) s)
 rawParse [Node{rootLabel=TextMatch matchString, subForest=_}] s = expectErr s matchString
 
+rawParse [Node{rootLabel=Out (VStart name _:eStringRest), subForest=rest}] s =
+    VStart name (Just s):rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s
 rawParse [Node{rootLabel=Out (first:eStringRest), subForest=rest}] s =
     first:rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s
 rawParse [Node{rootLabel=Out [], subForest=rest}] s = rawParse rest s
@@ -108,6 +110,7 @@ createParserForClass startRule g s =
         enhancedString2String
 --        show
             $ fillInAttributes
+            $ checkForVarConsistency []
             $ fillInVariableAssignments
             $ fillInFutureItems
 --            $ assignVariables

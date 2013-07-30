@@ -16,15 +16,20 @@ module EStringTools (
     cleanDraw,
     cleanDrawForest,
     fillInFutureItems,
+    checkForVarConsistency,
     fillInVariableAssignments,
     fillInAttributes
 ) where
 
+import Prelude hiding (lookup)
+
 import Data.Functor
-import Data.List
+import Data.List hiding (lookup, insert)
+import Data.Map hiding (map, filter)
 import Data.Tree
 
 import EnhancedString
+import qualified LString as LS
 import TreeTools
 
 import JDebug
@@ -62,8 +67,26 @@ fillInFutureItems (FutureItem:rest) = futureItem ++ fillInFutureItems restWithou
 fillInFutureItems (c:rest) = c:fillInFutureItems rest
 fillInFutureItems [] = []
 
+checkForVarConsistency::[Map String (String, LS.LString)]->EString->EString
+checkForVarConsistency vStack (e@(EStart _ _):rest) = e:checkForVarConsistency (empty:vStack) rest
+checkForVarConsistency (_:vStackRest) (e@(EEnd _):rest) = e:checkForVarConsistency vStackRest rest
+checkForVarConsistency (vars:vStackRest) (e@(VAssign name val s):rest) =
+    case lookup name vars of
+        Nothing -> e:checkForVarConsistency (insert name (val, s) vars:vStackRest) rest
+        Just (val2, s2) ->
+            if val == val2
+                then checkForVarConsistency (vars:vStackRest) rest
+                else error ("'" ++ name ++ "'s don't match: "
+                        ++ LS.formatLString (LS.take (length val) s)
+                        ++ " and "
+                        ++ LS.formatLString (LS.take (length val2) s2))
+checkForVarConsistency vStack (c:rest) = c:checkForVarConsistency vStack rest
+checkForVarConsistency _ [] = []
+
 fillInVariableAssignments::EString->EString
-fillInVariableAssignments (VStart name:rest) = VAssign name value:fillInVariableAssignments restWithoutVariableValue
+fillInVariableAssignments (VStart name Nothing:rest) = error "fillInVariableAssignments called without LString"
+fillInVariableAssignments (VStart name (Just s):rest) =
+    VAssign name value s:fillInVariableAssignments restWithoutVariableValue
     where
         (value, restWithoutVariableValue) = splitVariableValue rest
         splitVariableValue (c@VEnd:rest) = ("", rest)
@@ -82,7 +105,7 @@ fillInAttributes (EStart name atts:rest) =
         (attributesWithValues, restWithoutValues) = splitAtts 0 rest atts
         splitAtts::Int->EString->[String]->([(String, String)], EString)
         splitAtts _ rest [] = ([], rest)
-        splitAtts 0 (VAssign name value:rest) neededAtts | name `elem` neededAtts = ((name, value):atts, rest2)
+        splitAtts 0 (VAssign name value _:rest) neededAtts | name `elem` neededAtts = ((name, value):atts, rest2)
             where (atts, rest2) = splitAtts 0 rest (filter (/= name) neededAtts)
 --        splitAtts 0 (VAssign name value:rest) neededAtts = error "attribute value not needed"
         splitAtts 0 (c@(EEnd _):rest) neededAtts = ([], c:rest)

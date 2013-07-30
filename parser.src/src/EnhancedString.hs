@@ -27,7 +27,7 @@ import Data.Functor
 import Data.List as DL
 
 import Colors
-import LString hiding (head, tail, take)
+import qualified LString as LS
 import XPath
 
 import JDebug
@@ -41,15 +41,15 @@ data EChar = Ch Char
     | VPush
     | VPop
     | VOut String
-    | VStart String
+    | VStart String (Maybe LS.LString) --The LString is only added for error reporting, to know the location of the string
     | VEnd
-    | VAssign String String
+    | VAssign String String LS.LString --The LString is only added for error reporting, to know the location of the string
     | TabRight String
     | TabLeft
     | InfixTag Int String
     | Sync Char
-    | ExpectationError [String] LString
-    | Error String LString deriving (Eq, Ord)
+    | ExpectationError [String] LS.LString
+    | Error String LS.LString deriving (Eq, Ord)
 
 instance Show EChar where
     show (Ch '\n') = "\\n"
@@ -62,9 +62,9 @@ instance Show EChar where
     show VPush = magenta ">>VPush>>"
     show VPop = magenta "<<VPop<<"
     show (VOut name) = green ("[" ++ name ++ "]")
-    show (VStart name) = green ("{" ++ name ++ "=")
+    show (VStart name _) = green ("{" ++ name ++ "=")
     show (VEnd) = green "}"
-    show (VAssign name val) = green ("assign{" ++ name ++ "=" ++ val ++ "}")
+    show (VAssign name val s) = green ("assign{" ++ name ++ "=" ++ LS.formatLString (LS.take (length val) s) ++ "}")
     show (TabLeft) = magenta "<=="
     show (TabRight tabString) = magenta ("==>(" ++ tabString ++ ")")
     show (Sync c) = blue (underline ([c]))
@@ -81,18 +81,18 @@ e [] = []
 chs2String::EString->String
 chs2String (Ch x:rest) = x:chs2String rest
 chs2String (Error err s:rest) =
-    red ("\nError(line:" ++ show (line s) ++ ",col:" ++ show (col s) ++ "): " ++ err ++ "\n") ++ chs2String rest
-chs2String (ExpectationError err s:rest) = red ("\nError(line:" ++ show (line s) ++ ",col:" ++ show (col s) ++ "): "
-    ++ "Expecting " ++ intercalate " or " (map show err) ++ ", but got " ++ show (truncateString 10 (string s)) ++ "\n") ++ chs2String rest
+    red ("\nError(line:" ++ show (LS.line s) ++ ",col:" ++ show (LS.col s) ++ "): " ++ err ++ "\n") ++ chs2String rest
+chs2String (ExpectationError err s:rest) = red ("\nError(line:" ++ show (LS.line s) ++ ",col:" ++ show (LS.col s) ++ "): "
+    ++ "Expecting " ++ intercalate " or " (map show err) ++ ", but got " ++ show (truncateString 10 (LS.string s)) ++ "\n") ++ chs2String rest
 chs2String (VPush:rest) = magenta ">>VPush" ++ chs2String rest
 chs2String (VPop:rest) = magenta "<<VPop<<" ++ chs2String rest
 chs2String (VOut name:rest) = green ("[" ++ name ++ "]") ++ chs2String rest
-chs2String (VStart name:rest) = "{" ++ name ++ "=" ++ chs2String rest
+chs2String (VStart name _:rest) = "{" ++ name ++ "=" ++ chs2String rest
 chs2String (VEnd:rest) = "}" ++ chs2String rest
 chs2String (EStart name atts:rest) = "<" ++ name ++ concat ((" "++) <$> atts) ++ ">" ++ chs2String rest
 chs2String (FilledInEStart name atts:rest) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ val ++ "'") <$> atts) ++ ">") ++ chs2String rest
 chs2String (EEnd name:rest) = "</" ++ name ++ ">" ++ chs2String rest
-chs2String (VAssign name val:rest) = green ("assign{" ++ name ++ "=" ++ val ++ "}") ++ chs2String rest
+chs2String (VAssign name val s:rest) = green ("assign{" ++ name ++ "=" ++ LS.formatLString (LS.take (length val) s) ++ "}") ++ chs2String rest
 chs2String (FutureItem:rest) = blue "<??>" ++ chs2String rest
 chs2String (ItemInfo eString:rest) = blue ("{itemInfo=" ++ show eString ++ "}") ++ chs2String rest
 chs2String (TabRight _:_) = error "There shouldn't be a tabright in chs2String"
@@ -125,13 +125,19 @@ concatErrors (ExpectationError expectation s:rest) =
 getExpectation::EChar->[String]
 getExpectation (ExpectationError expectation _) = expectation
 
-theString::EChar->LString
+theString::EChar->LS.LString
 theString (Error _ s) = s
 theString (ExpectationError _ s) = s
 
 enhancedString2String::EString->String
 enhancedString2String es =
-    (chs2String . expandWhitespace . expandTabs [] . expandElements) es
+    chs2String
+--    show
+        $ expandWhitespace
+        $ expandTabs []
+        $ expandElements
+        $ addLineBreaks [False]
+            es
 --enhancedString2String = debugOutput
 
 expandTabs::[String]->EString->EString
@@ -159,40 +165,37 @@ debugOutput (Ch c:rest) = c:debugOutput rest
 debugOutput (c:rest) = show c ++ debugOutput rest
 debugOutput [] = []
 
+addLineBreaks::[Bool]->EString->EString
+addLineBreaks (needsBreak:breakRest) (e1@(FilledInEStart _ _):e2@(FilledInEStart _ _):rest) = --jtrace ("1" ++ show (needsBreak:breakRest)) $
+    (if needsBreak then [Ch '\n'] else [])
+        ++ e1:TabRight " ":addLineBreaks (True:needsBreak:breakRest) (e2:rest)
+addLineBreaks (needsBreak:breakRest) (e@(FilledInEStart _ _):rest) =  --jtrace ("2" ++ show (needsBreak:breakRest)) $
+    (if needsBreak then [Ch '\n'] else [])
+        ++ e:addLineBreaks (False:needsBreak:breakRest) rest
+addLineBreaks (needsBreak:breakRest) (e@(EEnd _):rest) = --jtrace "EEnd" $
+    (if needsBreak then [TabLeft, Ch '\n'] else [])
+        ++ e:addLineBreaks breakRest rest
+addLineBreaks [] (e@(EEnd _):rest) = error "shouldn't call addLIneBreaks for EEnd with empty breakStack"
+addLineBreaks breakStack (c:rest) = --jtrace ("Other: " ++ show c) $
+    c:addLineBreaks breakStack rest
+addLineBreaks _ [] = []
+
+
 
 expandElements::EString->EString
-expandElements (EStart name attributes:rest) =
-    (
---        [VPush] ++
-        e ("<" ++ name)
-        ++ concat ((\name -> e(" " ++ name ++ "='") ++ [VOut ("@" ++ name)] ++ e "'") <$> attributes)
-        ++ e (">")
-        ++ [Ch '\n', TabRight "  "])
-    ++ expandElements rest
-expandElements (FilledInEStart name attributes:rest) =
-    (
---        [VPush] ++
-        e ("<" ++ name)
-        ++ concat ((\(name, value) -> e(" " ++ name ++ "='") ++ e value ++ e "'") <$> attributes)
-        ++ e (">")
-        ++ [Ch '\n', TabRight "  "])
-    ++ expandElements rest
-expandElements (FutureItem:rest) =
-    (
---        [VPush] ++
-        e ("<??>")
-        ++ [Ch '\n', TabRight "  "])
-    ++ expandElements rest
-expandElements (ItemInfo eString:rest) =
-    (
---        [VPush] ++
-        e "{itemInfo=" ++ eString ++ e ("}")
-        ++ [Ch '\n', TabRight "  "])
-    ++ expandElements rest
-expandElements (EEnd name:rest) =
-    ([TabLeft, Ch '\n'] ++ e("</" ++ name ++ ">")
---            ++ [VPop]
-            ) ++ expandElements rest
+expandElements (EStart name atts:rest) = e ("<" ++ name) ++ (expandAtts atts) ++ e(">") ++ expandElements rest
+expandElements (FilledInEStart name1 atts:EEnd name2:rest) | name1 == name2 =
+        e ("<" ++ name1 ++ expandAttsWithVals atts ++ "/>") ++ expandElements rest
+expandElements (FilledInEStart name atts:rest) = e ("<" ++ name ++ expandAttsWithVals atts ++ ">") ++ expandElements rest
+expandElements (FutureItem:rest) = e ("<??>") ++ expandElements rest
+expandElements (ItemInfo eString:rest) = e "{itemInfo=" ++ eString ++ e ("}") ++ expandElements rest
+expandElements (EEnd name:rest) = e("</" ++ name ++ ">") ++ expandElements rest
 expandElements (c:rest) = c:expandElements rest
 expandElements [] = []
+
+expandAtts::[String]->EString
+expandAtts atts = atts >>= (\name -> e (" " ++ name ++ "='") ++ [VOut ("@" ++ name)] ++ e "'")
+
+expandAttsWithVals::[(String, String)]->String
+expandAttsWithVals atts = concat ((\(name, value) -> " " ++ name ++ "='" ++ value ++ "'") <$> atts)
 

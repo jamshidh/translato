@@ -18,11 +18,11 @@ module VarAssignment (
 
 import Data.Functor
 import Data.Map
+import Data.Maybe
 import Data.Tree
 
 import EnhancedString
 import LString hiding (empty, head, tail)
---import XPath
 
 import JDebug
 
@@ -61,15 +61,15 @@ assignVariablesUsingVContext vcx@VContext{variableStack=vars:vrest} node@Node{ro
 assignVariablesUsingVContext vcx node@Node{rootLabel=EEnd _, subForest=subForest} =
     error "assignVariablesUsingVContext called with EEnd, but variable stack is empty"
 
-assignVariablesUsingVContext vcx (Node {rootLabel=VStart name, subForest=subForest}) =
+assignVariablesUsingVContext vcx (Node {rootLabel=VStart name input, subForest=subForest}) =
     subForest >>= assignVariablesUsingVContext (
         vcx {
                 currentVarName=Just name,
                 currentVarVal=Just "",
-                currentVarInput=Nothing --Just input
+                currentVarInput=fromJust $ Just input
             })
 
-assignVariablesUsingVContext
+{--assignVariablesUsingVContext
     vcx@VContext{
         variableStack=vars:vrest,
         currentVarName=Just name,
@@ -77,14 +77,14 @@ assignVariablesUsingVContext
         currentVarInput=Just input
         }
     Node{rootLabel=VEnd, subForest=subForest} =
-        [Node {rootLabel=VAssign name val,
+        [Node {rootLabel=VAssign name val s,
                 subForest=subForest >>= assignVariablesUsingVContext (
                             vcx {
                                     variableStack=nextVars:vrest,
                                     currentVarName=Nothing,
                                     currentVarVal=Nothing
                                 })}]
-            where nextVars = insert name val vars
+            where nextVars = insert name val vars--}
 
 assignVariablesUsingVContext _ (Node {rootLabel=VEnd, subForest=subForest}) =
     error "VEnd was hit, but variable name or value is 'Nothing'"

@@ -34,19 +34,18 @@ import JDebug
 
 data EChar = Ch Char
     | EStart String [String]
-    | EmptyEStart
-    | EInfo String [String]
     | EEnd String
+    | FutureItem
+    | ItemInfo EString
     | VPush
     | VPop
     | VOut String
-    | VStart String LString
+    | VStart String
     | VEnd
     | VAssign String String
     | TabRight String
     | TabLeft
     | InfixTag Int String
-    | Bound
     | Sync Char
     | ExpectationError [String] LString
     | Error String LString deriving (Eq, Ord)
@@ -55,20 +54,19 @@ instance Show EChar where
     show (Ch '\n') = "\\n"
     show (Ch c) = [c]
     show (EStart name attributes) = cyan ("<" ++ name ++ concat (map (" " ++) attributes) ++ ">")
-    show (EmptyEStart) = cyan ("<??>")
-    show (EInfo name attributes) = cyan ("{name=" ++ name ++ ", atts=" ++ concat (map (" " ++) attributes) ++ "}")
+    show (FutureItem) = cyan ("<??>")
+    show (ItemInfo eString) = cyan ("{itemInfo=" ++ show eString ++ "}")
     show (EEnd name) = cyan ("</" ++ name ++ ">")
     show VPush = magenta ">>VPush>>"
     show VPop = magenta "<<VPop<<"
     show (VOut name) = green ("[" ++ name ++ "]")
-    show (VStart name _) = green ("{" ++ name ++ "=")
+    show (VStart name) = green ("{" ++ name ++ "=")
     show (VEnd) = green "}"
     show (VAssign name val) = green ("assign{" ++ name ++ "=" ++ val ++ "}")
     show (TabLeft) = magenta "<=="
     show (TabRight tabString) = magenta ("==>(" ++ tabString ++ ")")
-    show Bound = magenta "<Bound>"
     show (Sync c) = blue (underline ([c]))
-    show (InfixTag priority name) = "InfixOpSymbol(" ++ show priority ++ "," ++ name ++ ")"
+    show (InfixTag priority name) = cyan ("<-" ++ name ++ ":" ++ show priority ++ "->")
     show (ExpectationError expected s) = red ("{ExpectationError: " ++ show expected ++ "}")
     show (Error message s) = red ("{Error: " ++ message ++ "}")
 
@@ -87,16 +85,32 @@ chs2String (ExpectationError err s:rest) = red ("\nError(line:" ++ show (line s)
 chs2String (VPush:rest) = magenta ">>VPush" ++ chs2String rest
 chs2String (VPop:rest) = magenta "<<VPop<<" ++ chs2String rest
 chs2String (VOut name:rest) = green ("[" ++ name ++ "]") ++ chs2String rest
-chs2String (VStart name _:rest) = "{" ++ name ++ "=" ++ chs2String rest
+chs2String (VStart name:rest) = "{" ++ name ++ "=" ++ chs2String rest
 chs2String (VEnd:rest) = "}" ++ chs2String rest
+chs2String (EStart name atts:rest) = "<" ++ name ++ concat ((" "++) <$> atts) ++ ">" ++ chs2String rest
+chs2String (EEnd name:rest) = "</" ++ name ++ ">" ++ chs2String rest
 chs2String (VAssign name val:rest) = green ("assign{" ++ name ++ "=" ++ val ++ "}") ++ chs2String rest
+chs2String (FutureItem:rest) = blue "<??>" ++ chs2String rest
+chs2String (ItemInfo eString:rest) = blue ("{itemInfo=" ++ show eString ++ "}") ++ chs2String rest
 chs2String (TabRight _:_) = error "There shouldn't be a tabright in chs2String"
 chs2String (TabLeft:_) = error "There shouldn't be a tableft in chs2String"
 chs2String (InfixTag priority name:rest) = "Op(" ++ show priority ++ "," ++ name ++ ")" ++ chs2String rest
-chs2String (Bound:rest) = chs2String rest
 chs2String (Sync _:rest) = chs2String rest
 chs2String [] = []
-chs2String x = error ("missing case in chs2String: " ++ show x)
+--chs2String x = error ("missing case in chs2String: " ++ show x)
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 concatErrors::[EChar]->EChar
 concatErrors [] = error "Can't call concatErrors with empty list"
@@ -148,14 +162,12 @@ expandElements (EStart name attributes:rest) =
         ++ e (">")
         ++ [Ch '\n', TabRight "  "])
     ++ expandElements rest
-expandElements (EmptyEStart:rest) =
+expandElements (FutureItem:rest) =
     ([VPush] ++ e ("<??>")
         ++ [Ch '\n', TabRight "  "])
     ++ expandElements rest
-expandElements (EInfo name attributes:rest) =
-    ([VPush] ++ e "{name=" ++ e name
-        ++ e ", atts=" ++ concat ((\name -> e(" " ++ name ++ "='") ++ [VOut ("@" ++ name)] ++ e "'") <$> attributes)
-        ++ e ("}")
+expandElements (ItemInfo eString:rest) =
+    ([VPush] ++ e "{itemInfo=" ++ eString ++ e ("}")
         ++ [Ch '\n', TabRight "  "])
     ++ expandElements rest
 expandElements (EEnd name:rest) =

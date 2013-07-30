@@ -19,6 +19,7 @@ module Grammar (
     CharType (..),
     OperatorSymbol,
     Class (..),
+    parents,
     allRules,
     RuleName,
     Name,
@@ -56,46 +57,35 @@ type OperatorSymbol = Sequence
 
 type Sequence = [Expression]
 
-data Expression = TextMatch String
-    | Or [Sequence]
-    | List Int Sequence | SepBy Int Sequence
-    | WhiteSpace String | Character CharSet
+data Expression =
+    TextMatch String
+    | WhiteSpace String
+    | Character CharSet
     | EOF
+    | Or [Sequence]
+    | List Int Sequence
+    | SepBy Int Sequence
+    | Option Sequence
+    | Link String
     | FallBack
-    | Link String | LinkStream String
-    | Reparse Sequence Sequence
-    -- | JustOutput EString
-    | InfixTag Int String
-    | AStart String
-    | AEnd
-    | EStart String [String]
-    | EmptyEStart
-    | EInfo String [String]
-    | EEnd String
-    | TabStart String
-    | TabEnd deriving (Eq, Ord, Show)
+    | Out EString
+--    | Reparse Sequence Sequence
+
+    deriving (Eq, Ord, Show)
 
 formatSequence::Sequence->String
 formatSequence seq = intercalate " " (map formatExpression seq)
 
 formatExpression::Expression->String
-formatExpression (AStart name) = "@" ++ name ++ "("
-formatExpression AEnd = ")"
 formatExpression (Character charset) = formatCharSet charset
-formatExpression (EStart tagName attributes) = cyan ("<" ++ tagName ++ concat (map (" " ++) attributes) ++ ">")
-formatExpression EmptyEStart = cyan ("<??>")
-formatExpression (EInfo tagName attributes) = cyan ("{name=" ++ tagName ++ ", atts=" ++ concat (map (" " ++) attributes) ++ "}")
-formatExpression (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
 formatExpression EOF = "EOF"
 formatExpression FallBack = "FallBack"
-formatExpression (InfixTag priority tagName) = cyan ("<-" ++ tagName ++ ":" ++ show priority ++ "->")
 formatExpression (List min e) = "list" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
-formatExpression (LinkStream name) = underline $ magenta ("LS(" ++ name ++ ")")
 formatExpression (Link name) = underline $ magenta name
 formatExpression (Or sequences) = "{" ++ intercalate " |\n         " (formatSequence <$> sequences) ++ "}"
+formatExpression (Out estring) = blue "Out(" ++ show estring ++ blue ")"
 formatExpression (SepBy min e) = "SepBy" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence e ++ ")"
-formatExpression (TabStart tabString) = "(" ++ show tabString ++ ")==>("
-formatExpression TabEnd = ")"
+formatExpression (Option e) = "Option" ++ "(" ++ formatSequence e ++ ")"
 formatExpression (TextMatch text) = show text
 formatExpression (WhiteSpace defaultValue) = "_"
 

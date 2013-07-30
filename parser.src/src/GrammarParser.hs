@@ -30,6 +30,7 @@ import qualified Data.Set as Set
 
 import Colors hiding (reverse)
 import CharSet
+import EnhancedString
 import XPath
 import Grammar
 
@@ -227,7 +228,7 @@ matchSequenceItem =
             <|> exp2 ExpressionItem matchCharset
             <|> exp2 ExpressionItem matchSimpleCharsetChar
             <|> exp2 TextItem matchText)
-        count <- option "" (string "*" <|> string "+")
+        count <- option "" (string "*" <|> string "+" <|> string "?")
         return (case (count, item) of
             ("", ExpressionItem exp) -> [exp]
             ("", SequenceItem seq) -> seq
@@ -237,7 +238,10 @@ matchSequenceItem =
             ("*", TextItem text) -> string2Sequence (init text) ++ [SepBy 0 [TextMatch [last text]]]
             ("+", ExpressionItem exp) -> [SepBy 1 [exp]]
             ("+", SequenceItem seq) -> [SepBy 1 seq]
-            ("+", TextItem text) -> string2Sequence (init text) ++ [SepBy 1 [TextMatch [last text]]])
+            ("+", TextItem text) -> string2Sequence (init text) ++ [SepBy 1 [TextMatch [last text]]]
+            ("?", ExpressionItem exp) -> [Option [exp]]
+            ("?", SequenceItem seq) -> [Option seq]
+            ("?", TextItem text) -> string2Sequence (init text) ++ [Option [TextMatch [last text]]])
 
 
 
@@ -258,7 +262,7 @@ matchAttribute =
         char '@'
         name<-ident
         parseType<-option [Link "ident"] matchParen
-        return ([AStart name] ++ parseType ++ [AEnd])
+        return ([Out [VStart name]] ++ parseType ++ [Out [VEnd]])
 
 matchParen =
     do

@@ -39,16 +39,15 @@ outputGrammar g = do
 
 outputSequenceMap::Grammar->IO ()
 outputSequenceMap g = do
-    putStrLn $ formatSequenceMap (sequenceMap g)
---    putStrLn $ formatSequenceMap (leftFactorSequenceMap $ sequenceMap g)
+--    putStrLn $ formatSequenceMap (sequenceMap g)
+    putStrLn $ formatSequenceMap (leftFactorSequenceMap $ sequenceMap g)
 
 outputParseTree::Grammar->IO ()
 outputParseTree g = do
     putStrLn $ safeDrawEForest (parseTree g (G.main g))
 
 test::Grammar->IO ()
-test g = do
-    putStrLn ""
+test = leftTest
 
 outputParse::Grammar->IO ()
 outputParse g = do

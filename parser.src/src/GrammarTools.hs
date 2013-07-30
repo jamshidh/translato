@@ -42,6 +42,7 @@ import Text.ParserCombinators.Parsec as P hiding (try)
 
 --import Debug.Trace
 
+import EnhancedString
 import Grammar
 import GrammarParser
 import OperatorNames
@@ -86,23 +87,23 @@ rawSeqMap f rule@Rule{rawSequence=seq} = rule{rawSequence=f seq}
 rewriteLeftRecursionInGrammar::Grammar->Grammar
 rewriteLeftRecursionInGrammar g =
     g {
-        classes = fmap rewriteLeftRecursionInClass (classes g)
+        classes = fmap (rewriteLeftRecursionInClass g) (classes g)
     }
 
-rewriteLeftRecursionInClass::Class->Class
-rewriteLeftRecursionInClass cl =
+rewriteLeftRecursionInClass::Grammar->Class->Class
+rewriteLeftRecursionInClass g cl =
     cl {
         rules = filter (not . (isLRecursive (className cl))) (rules cl),
         suffixSeqs = (recursiveRule2SuffixSeq <$> (filter (isLRecursive (className cl)) (rules cl)))
-                            ++ (operator2SuffixSeq cl <$> operators cl)
+                            ++ (operator2SuffixSeq g cl <$> operators cl)
     }
 
-operator2SuffixSeq::Class->Sequence->Sequence
-operator2SuffixSeq cl seq = seq++[InfixTag 0 (opSeq2Name seq), Or (replicate 1 <$> Link <$> nonRecursiveRuleNames cl)]
-    where nonRecursiveRuleNames cl = name <$> (filter (not . isLRecursive (className cl)) (rules cl))
-
+operator2SuffixSeq::Grammar->Class->Sequence->Sequence
+operator2SuffixSeq g cl seq = seq++[Out [InfixTag 0 (opSeq2Name seq)], Or (replicate 1 <$> Link <$> nonRecursiveRuleNames cl)]
+    where nonRecursiveRuleNames cl = (name <$> filter (not . isLRecursive (className cl)) (rules cl))
+                                        ++ (className <$> parents g cl)
 recursiveRule2SuffixSeq::Rule->Sequence
-recursiveRule2SuffixSeq rule = (InfixTag 0 (name rule):) $ tail $ rawSequence rule
+recursiveRule2SuffixSeq rule = (Out [InfixTag 0 (name rule)]:) $ tail $ rawSequence rule
 
 isLRecursive::String->Rule->Bool
 isLRecursive className Rule{name=ruleName, rawSequence=Link linkName:rest}

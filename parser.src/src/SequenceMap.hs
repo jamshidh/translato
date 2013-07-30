@@ -24,6 +24,7 @@ import Data.Functor
 import Data.List hiding (union)
 import Data.Map as M hiding (filter)
 
+import EnhancedString
 import Grammar
 import GrammarTools
 
@@ -44,13 +45,12 @@ sequenceMap g =
         (fmap orIfy (fromListWith (++) ((\rule -> (name rule, [fullSequence rule])) <$> allRules)))
             where
                 allRules = elems (classes fixedG) >>= rules
-                fixedG = removeSepBy g
+                fixedG = removeOption $ removeSepBy g
 
 classSequence::Grammar->Class->Sequence
 classSequence g cl = prefix ++ (if length suffix == 0 then [] else [List 0 suffix])
     where
-        prefix = orIfy
-                    (nonSelfRule ++ selfRule)
+        prefix = orIfy (nonSelfRule ++ selfRule)
         selfRule::[Sequence]
         selfRule = fullSequence <$> (filter ((== className cl) . name) (rules cl))
         nonSelfRule::[Sequence]
@@ -60,14 +60,16 @@ classSequence g cl = prefix ++ (if length suffix == 0 then [] else [List 0 suffi
 
 fullSequence::Rule->Sequence
 fullSequence rule =
-    [EStart (name rule) (nub (seq2AttNames (rawSequence rule)))]
+    [Out [EStart (name rule) (nub (seq2AttNames (rawSequence rule)))]]
     ++ (rawSequence rule)
-    ++ [EEnd (name rule)]
+    ++ [Out [EEnd (name rule)]]
         where
             seq2AttNames::Sequence->[String]
-            seq2AttNames (AStart name:rest) = name:seq2AttNames rest
+            seq2AttNames (Out [VStart name]:rest) = name:seq2AttNames rest
             seq2AttNames (_:rest) = seq2AttNames rest
             seq2AttNames [] = []
+
+----------------------------
 
 removeSepBy::Grammar->Grammar
 removeSepBy g =
@@ -125,6 +127,33 @@ seq2Right::Grammar->Sequence->Sequence
 seq2Right g [Link name] = case M.lookup name (classes g) of
     Nothing -> error ("Missing link name in seq2Right: " ++ name)
     Just cl -> right cl
-seq2Right g [Character charset] = []
+seq2Right g [Character _] = []
 seq2Right g [TextMatch _] = []
 seq2Right _ seq = error ("Missing case in seq2Separator: " ++ formatSequence seq)
+
+-------------------------------
+
+removeOption::Grammar->Grammar
+removeOption g =
+    g {
+        classes= fmap (removeOptionFromClass g) (classes g)
+    }
+
+removeOptionFromClass::Grammar->Class->Class
+removeOptionFromClass g cl =
+    cl {
+        rules = (\rule -> rule{rawSequence = removeOptionFromSeq g (rawSequence rule)})
+                            <$> rules cl,
+        suffixSeqs = removeSepByFromSeq g <$> suffixSeqs cl,
+        separator = [], --removeSepByFromSeq g (separator cl),
+        left = [], --removeSepByFromSeq g (left cl),
+        right = [] --removeSepByFromSeq g (right cl)
+    }
+
+removeOptionFromSeq::Grammar->Sequence->Sequence
+removeOptionFromSeq g (Option seq:rest) = Or [seq, []]:removeOptionFromSeq g rest
+removeOptionFromSeq g (List count seq:rest) = List count (removeOptionFromSeq g seq):removeOptionFromSeq g rest
+removeOptionFromSeq g (Or seqs:rest) = Or (removeOptionFromSeq g <$> seqs):removeOptionFromSeq g rest
+removeOptionFromSeq g (x:rest) = x:removeOptionFromSeq g rest
+removeOptionFromSeq _ [] = []
+

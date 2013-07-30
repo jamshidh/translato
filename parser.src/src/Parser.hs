@@ -99,44 +99,11 @@ rawParse [Node{rootLabel=TextMatch matchString, subForest=rest}] s | LS.isPrefix
         rawParse rest (LS.drop (length matchString) s)
 rawParse [Node{rootLabel=TextMatch matchString, subForest=_}] s = expectErr s matchString
 
-rawParse [Node{rootLabel=AStart name, subForest=rest}] s =
-    [Node {rootLabel=VStart ("@" ++ name) s, subForest=rawParse rest s}]
-rawParse [Node{rootLabel=AEnd, subForest=rest}] s =
-    [Node {rootLabel=E.VEnd, subForest=rawParse rest s}]
-
-rawParse [Node{rootLabel=TabStart _, subForest=rest}] s = rawParse rest s
-rawParse [Node{rootLabel=TabEnd, subForest=rest}] s = rawParse rest s
-
-{--rawParse cx (Bind:rest) s = --rawParse cx (JustOutput [Bound]:rest) s
-    [Node { rootLabel=Bound, subForest=rawParse cx rest s}]--}
-
-rawParse [Node{rootLabel=G.EStart tagName attributes, subForest=rest}] s =
-    [Node { rootLabel=E.EStart tagName attributes, subForest=rawParse rest s}]
-
-rawParse [Node{rootLabel=G.EmptyEStart, subForest=rest}] s =
-    [Node { rootLabel=E.EmptyEStart, subForest=rawParse rest s}]
-
-rawParse [Node{rootLabel=G.EInfo tagName attributes, subForest=rest}] s =
-    [Node { rootLabel=E.EInfo tagName attributes, subForest=rawParse rest s}]
-
-rawParse [Node{rootLabel=G.EEnd tagName, subForest=rest}] s =
-    [Node { rootLabel=E.EEnd tagName, subForest=rawParse rest s}]
+rawParse [Node{rootLabel=Out (first:eStringRest), subForest=rest}] s =
+    [Node {rootLabel=first, subForest=rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s}]
+rawParse [Node{rootLabel=Out [], subForest=rest}] s = rawParse rest s
 
 rawParse [Node{rootLabel=FallBack, subForest=rest}] s = rawParse rest s
-
-{--rawParse cx (List 0 [Character charset]:rest) s | LS.null s =
-    rawParse cx rest s
-rawParse cx (List 0 [Character charset]:rest) s | LS.head s `isIn` charset =
-    Node{rootLabel=Ch (LS.head s), subForest=(List 0 [Character charset]:rest) s
-rawParse cx (List 0 [Character charset]:rest) s =
-    rawParse cx rest s--}
-
-
-rawParse [Node{rootLabel=G.InfixTag priority name, subForest=rest}] s = --rawParse cx [Or seqsWithOutputs] s
---    where seqsWithOutputs =
---            map (\(priority, name, symbol) -> symbol ++ [JustOutput [InfixOpSymbol priority name]] ++ rest) symbols
-    [Node { rootLabel=E.InfixTag priority name, subForest=rawParse rest s}]
-
 
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | LS.null s = rawParse rest s
 --rawParse cx seq@(WhiteSpace _:rest) s | isSpace (LS.head s) = continue cx [] seq s
@@ -145,7 +112,7 @@ rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
 
 rawParse [Node{rootLabel=Character charset, subForest=rest}] s | LS.null s =
     expectErr s (formatCharSet charset)
-rawParse [Node{rootLabel=Character charset, subForest=rest}] s | LS.head s `isIn` charset =
+rawParse forest@[Node{rootLabel=Character charset, subForest=rest}] s | LS.head s `isIn` charset =
     [Node{rootLabel=Ch (LS.head s), subForest=rawParse rest (LS.tail s)}]
 rawParse [Node{rootLabel=Character charset, subForest=rest}] s =
     expectErr s (formatCharSet charset)
@@ -183,15 +150,6 @@ isntError (Error _ _) = False
 isntError (ExpectationError _ _) = False
 isntError x = True
 
-isBound::Tree EChar->Bool
-isBound (Node {rootLabel=Bound})=True
-isBound (Node {rootLabel=Sync _})=False
-isBound (Node {subForest=[tree]})=isBound tree
-isBound (Node {subForest=[]})=False
-isBound tree@(Node {subForest=_})= False
---    if safe then False
---        else error ("split before bound ambiguity resolved: " ++ safeDrawTree (fmap show tree))
-
 isError::Bool->Tree EChar->Bool
 isError safe (Node {rootLabel=(Error _ _)})=True
 isError safe (Node {rootLabel=(ExpectationError _ _)})=True
@@ -221,13 +179,13 @@ movePastNextSync (output, Node {rootLabel=rootLabel, subForest=[]}) =
 movePastNextSync (output, node@Node {rootLabel=rootLabel, subForest=subForest}) =
     error ("ambiguity within ambiguity:\n\n" ++ cleanDraw node)
 
-removeImmediateBound::Tree EChar->Forest EChar
+{--removeImmediateBound::Tree EChar->Forest EChar
 removeImmediateBound Node{rootLabel=Bound,subForest=subForest} = subForest
 removeImmediateBound node@Node{subForest=[item]} = [node {subForest=removeImmediateBound item}]
-removeImmediateBound node = [node]
+removeImmediateBound node = [node]--}
 
 
-lookaheadChoice::Forest EChar->Forest EChar
+{--lookaheadChoice::Forest EChar->Forest EChar
 lookaheadChoice items =
     case filter isBound items of
         [tree]->removeImmediateBound tree
@@ -236,16 +194,16 @@ lookaheadChoice items =
             [item] -> removeImmediateBound item
             items -> items
         _ -> error ("There are two bounds appearing in the tree at the same time:\n  ----"
-            ++ safeDrawForest (map (fmap show) items))
+            ++ safeDrawForest (map (fmap show) items))--}
 
-simplifyUsingLookahead::Tree EChar->Tree EChar
+{--simplifyUsingLookahead::Tree EChar->Tree EChar
 simplifyUsingLookahead (node@Node {subForest=[oneNode]}) = node {subForest=[simplifyUsingLookahead oneNode]}
 simplifyUsingLookahead (node@Node {subForest=[]}) = node
 simplifyUsingLookahead (Node {rootLabel=rootLabel, subForest=nextNodes}) =
-    Node {rootLabel=rootLabel, subForest=lookaheadChoice (simplifyUsingLookahead <$> nextNodes)}
+    Node {rootLabel=rootLabel, subForest=lookaheadChoice (simplifyUsingLookahead <$> nextNodes)}--}
 
 
-partial2CorrectPath::[(EString, Tree EChar)]->EString
+{--partial2CorrectPath::[(EString, Tree EChar)]->EString
 partial2CorrectPath [(es, tree)] = rootLabel tree:correctPath (subForest tree)
 partial2CorrectPath [] = []
 partial2CorrectPath items = --jtrace ("\n\ndog: " ++ safeDrawForest (map (fmap show) (map snd items))) $
@@ -257,10 +215,13 @@ partial2CorrectPath items = --jtrace ("\n\ndog: " ++ safeDrawForest (map (fmap s
             nonErrorItems -> if (hasSync (snd $ head nonErrorItems)) then partial2CorrectPath (map movePastNextSync nonErrorItems)
                     else error "ambiguous parse"
         _ -> error ("There are two bounds appearing in the tree at the same time:\n  ----"
-            ++ cleanDrawForest (snd <$> items))
+            ++ cleanDrawForest (snd <$> items))--}
 
 correctPath::Forest EChar->EString
-correctPath forest = partial2CorrectPath (map (\x -> (e "", x)) forest)
+correctPath [Node{rootLabel=item, subForest=[nextItem]}] = item:correctPath [nextItem]
+correctPath [Node{rootLabel=item, subForest=[]}] = [item]
+correctPath [] = []
+--correctPath forest = partial2CorrectPath (map (\x -> (e "", x)) forest)
 
 removeDoubleSyncs::Tree EChar->Tree EChar
 removeDoubleSyncs (Node {rootLabel=rootLabel, subForest=[next@(Node {rootLabel=Sync _})]}) = removeDoubleSyncs next
@@ -280,9 +241,11 @@ createParserForClass startRule g s =
 --    jtrace (cleanDrawForest (simplifyUsingLookahead <$> forest)) $
 --    jtrace (cleanDrawForest (simplifyUsingLookahead <$> (assignVariables forest))) $
 --    jtrace "End Resulting Forest\n"
-        enhancedString2String (correctPath (map (simplifyUsingLookahead) (assignVariables forest)))
-            where
-                forest=rawParse (parseTree g startRule) (createLString s)
+        enhancedString2String
+            $ correctPath
+            -- $ simplifyUsingLookahead
+            $ --assignVariables
+                    (rawParse (parseTree g startRule) (createLString s))
 
 createParser::Grammar->Parser
 createParser g = createParserForClass (main g) g

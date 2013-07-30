@@ -67,22 +67,10 @@ getTreeInfos t@Node{rootLabel=EOF} =
     }]
 getTreeInfos t@Node{rootLabel=FallBack, subForest=rest} =
     (\treeInfo->treeInfo{ tree=t, isFallBack=True }) <$> (rest >>= getTreeInfos)
-getTreeInfos t@Node{rootLabel=AStart _, subForest=rest} =
-    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
-getTreeInfos t@Node{rootLabel=AEnd, subForest=rest} =
+getTreeInfos t@Node{rootLabel=Out _, subForest=rest} =
     (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
 getTreeInfos t@Node{rootLabel=WhiteSpace _, subForest=rest} =
     (\treeInfo->treeInfo{ tree=t, allowsWhiteSpace=True }) <$> (rest >>= getTreeInfos)
-getTreeInfos t@Node{rootLabel=InfixTag _ _, subForest=rest} =
-    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
-getTreeInfos t@Node{rootLabel=EStart _ _, subForest=rest} =
-    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
-getTreeInfos t@Node{rootLabel=EmptyEStart, subForest=rest} =
-    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
-getTreeInfos t@Node{rootLabel=EInfo _ _, subForest=rest} =
-    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
-getTreeInfos t@Node{rootLabel=EEnd _, subForest=rest} =
-    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
 getTreeInfos tree =
     error ("Missing case in getTreeInfos: " ++ safeDrawETree tree)
 

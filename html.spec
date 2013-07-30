@@ -64,7 +64,7 @@ assignment => {lvalue} = {expression}_\;;
 
 return => return( {expression})?_\;;
 
-comment => //@value{ident};
+comment => //[^\n]*[\n];
 
 if => if \({expression}\) {body}( else {body})?;
 
@@ -89,7 +89,7 @@ num => @value(\d+);
 
 string => "@value([^"]*)";
 
-operators: ' == ' ' < ' ' > ' ' <= ' ' >= ' '+' '*' '-'
+operators: ' == ' ' < ' ' > ' ' <= ' ' >= ' ' + ' '*' '-'
 
 separator: '_, '
 

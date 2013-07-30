@@ -21,6 +21,8 @@ module CharSet (
 
 import Data.Char hiding (Space)
 
+import JDebug
+
 data CharType =
     Alpha
     | Alphanum
@@ -68,6 +70,7 @@ isInCharType c Space | isSpace c = True
 isInCharType c UppercaseChar | isUpper c = True
 isInCharType c WordChar | isAlphaNum c || c == '_' = True
 isInCharType c1 (SingleChar c2) | c1 == c2 = True
+--isInCharType c1 (SingleChar c2) | jtrace ("c1 = " ++ show c1 ++ " c2 = " ++ show c2) $ c1 == c2 = True
 isInCharType c _ = False
 
 

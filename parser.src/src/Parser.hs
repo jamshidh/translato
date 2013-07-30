@@ -179,44 +179,6 @@ movePastNextSync (output, Node {rootLabel=rootLabel, subForest=[]}) =
 movePastNextSync (output, node@Node {rootLabel=rootLabel, subForest=subForest}) =
     error ("ambiguity within ambiguity:\n\n" ++ cleanDraw node)
 
-{--removeImmediateBound::Tree EChar->Forest EChar
-removeImmediateBound Node{rootLabel=Bound,subForest=subForest} = subForest
-removeImmediateBound node@Node{subForest=[item]} = [node {subForest=removeImmediateBound item}]
-removeImmediateBound node = [node]--}
-
-
-{--lookaheadChoice::Forest EChar->Forest EChar
-lookaheadChoice items =
-    case filter isBound items of
-        [tree]->removeImmediateBound tree
-        [] -> case filter (not . (isError True)) items of
-            [] -> [Node {rootLabel=concatErrors (map getError items), subForest=[]}]
-            [item] -> removeImmediateBound item
-            items -> items
-        _ -> error ("There are two bounds appearing in the tree at the same time:\n  ----"
-            ++ safeDrawForest (map (fmap show) items))--}
-
-{--simplifyUsingLookahead::Tree EChar->Tree EChar
-simplifyUsingLookahead (node@Node {subForest=[oneNode]}) = node {subForest=[simplifyUsingLookahead oneNode]}
-simplifyUsingLookahead (node@Node {subForest=[]}) = node
-simplifyUsingLookahead (Node {rootLabel=rootLabel, subForest=nextNodes}) =
-    Node {rootLabel=rootLabel, subForest=lookaheadChoice (simplifyUsingLookahead <$> nextNodes)}--}
-
-
-{--partial2CorrectPath::[(EString, Tree EChar)]->EString
-partial2CorrectPath [(es, tree)] = rootLabel tree:correctPath (subForest tree)
-partial2CorrectPath [] = []
-partial2CorrectPath items = --jtrace ("\n\ndog: " ++ safeDrawForest (map (fmap show) (map snd items))) $
-    case filter (isBound.snd) items of
-        [(output, tree)]->output ++ partial2CorrectPath [(e "", tree)]
-        [] -> case filter (not.(isError False).snd) items of
-            [] -> [concatErrors (map (getError.snd) items)]
-            [(output, tree)] -> output ++ partial2CorrectPath [(e "", tree)]
-            nonErrorItems -> if (hasSync (snd $ head nonErrorItems)) then partial2CorrectPath (map movePastNextSync nonErrorItems)
-                    else error "ambiguous parse"
-        _ -> error ("There are two bounds appearing in the tree at the same time:\n  ----"
-            ++ cleanDrawForest (snd <$> items))--}
-
 correctPath::Forest EChar->EString
 correctPath [Node{rootLabel=item, subForest=[nextItem]}] = item:correctPath [nextItem]
 correctPath [Node{rootLabel=item, subForest=[]}] = [item]
@@ -243,7 +205,6 @@ createParserForClass startRule g s =
 --    jtrace "End Resulting Forest\n"
         enhancedString2String
             $ correctPath
-            -- $ simplifyUsingLookahead
             $ --assignVariables
                     (rawParse (parseTree g startRule) (createLString s))
 

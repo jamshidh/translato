@@ -20,7 +20,6 @@ import Data.List as L hiding (union, lookup, insert)
 import Data.Map hiding (map, foldl, filter)
 
 import CharSet
-import Context
 import EnhancedString as E
 import EStringTools
 import Grammar as G
@@ -29,13 +28,9 @@ import LeftFactoring
 import Lookahead
 import LString (LString, line, col, string, createLString)
 import qualified LString as LS
-import OperatorNames
 import SequenceMap
 import TreeTools
-import VarAssignment
-import XPath
 
---import Debug.Trace
 import JDebug
 
 type Attribute = (String, String)

@@ -6,7 +6,7 @@ license: AllRightsReserved
 license-file: ""
 description:  
 data-dir: ""
-extra-source-files: "" /home/jim/translato/parser.src/src/Parser.hs
+extra-source-files: ""
  
 executable parser
     build-depends: base -any, bytestring -any, containers -any,
@@ -17,9 +17,9 @@ executable parser
     hs-source-dirs: src
     other-modules: OperatorNames SequenceMap JDebug Grammar Colors
                    FakeColors Parser Editor XPath LText Lookahead LString Main
-                   GrammarParser ParseError EnhancedString EStringTools Quoter
-                   VarAssignment CharSet Generator ParseElements Context LeftFactoring
-                   GrammarTools TreeTools
+                   GrammarParser ParseError EnhancedString EStringTools Quoter CharSet
+                   Generator ParseElements Context LeftFactoring GrammarTools
+                   TreeTools
  
 test-suite test-parser
     build-depends: base -any, bytestring -any, containers -any,

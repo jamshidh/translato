@@ -25,7 +25,7 @@ import Data.List
 import Data.Map as M hiding (filter, map, foldl)
 import Data.Maybe
 import Text.ParserCombinators.Parsec
-import Text.ParserCombinators.Parsec.Expr
+import Text.ParserCombinators.Parsec.Expr hiding (Operator)
 import qualified Data.Set as Set
 
 import Colors hiding (reverse)
@@ -71,10 +71,10 @@ parseSimpleClass =
             parentNames=[]
         }
 
-data RuleOrOperatorsOrSeparator =
+data ClassItem =
     RuleItem Rule
     | Comment
-    | OperatorsItem [Sequence]
+    | OperatorsItem [Operator]
     | SeparatorItem Sequence
     | LeftItem Sequence
     | RightItem Sequence
@@ -99,25 +99,39 @@ parseFullClass =
         name<-ident
         char ']'
         many (char '=')
-        return Class {
+        return (classWithPriorities items name parents)
+        where
+            classWithPriorities items name parents = Class {
                 className=name,
-                rules=[rule|RuleItem rule<-items],
+                rules=[rule|RuleItem rule<-itemsWithPriority],
                 suffixSeqs=[],
-                operators=concat [operators|OperatorsItem operators<-items],
-                separator=case [separator|SeparatorItem separator<-items] of
+                operators=concat [operators|OperatorsItem operators<-itemsWithPriority],
+                separator=case [separator|SeparatorItem separator<-itemsWithPriority] of
                     [] -> [TextMatch " "]
                     [x] -> x
                     _ -> error "Only one separator allowed for a class",
-                left=case [left|LeftItem left<-items] of
+                left=case [left|LeftItem left<-itemsWithPriority] of
                     [] -> []
                     [x] -> x
                     _ -> error "Only one left allowed for a class",
-                right=case [right|RightItem right<-items] of
+                right=case [right|RightItem right<-itemsWithPriority] of
                     [] -> []
                     [x] -> x
                     _ -> error "Only one right allowed for a class",
                 parentNames=parents
-        }
+                }
+                where itemsWithPriority = addPriorityToItems 0 items
+
+            addPriorityToItems::Int->[ClassItem]->[ClassItem]
+            addPriorityToItems p (RuleItem rule:rest) = RuleItem (rule{rulePriority=p}):addPriorityToItems (p+1) rest
+            addPriorityToItems p (Comment:rest) = Comment:addPriorityToItems p rest
+            addPriorityToItems p (OperatorsItem ops:rest) =
+                        OperatorsItem (addPriority p <$> ops):addPriorityToItems (p+(length ops)) rest
+                            where addPriority p op = op{priority=p+priority op}
+            addPriorityToItems p (SeparatorItem separator:rest) = SeparatorItem separator:addPriorityToItems p rest
+            addPriorityToItems p (LeftItem seq:rest) = LeftItem seq:addPriorityToItems p rest
+            addPriorityToItems p (RightItem seq:rest) = RightItem seq:addPriorityToItems p rest
+            addPriorityToItems _ _ = []
 
 parseComment =
     do
@@ -136,14 +150,24 @@ parseRule =
         string ";"
         many (char '-')
         spaces
-        return (RuleItem Rule{name=name, rawSequence=sequence})
+        return (RuleItem Rule{name=name, rawSequence=sequence, rulePriority=0}) -- I will reset the rulePriority using the order of rules later
 
 parseOperators =
     do
         string "operators:"
         spaces
-        operators<- endBy parseQuote spaces
-        return (OperatorsItem operators)
+        operatorSequences <- endBy parseOperator spaces
+        return (OperatorsItem ((\(priority, associativity, symbol) -> Operator{symbol=symbol,priority=priority,associativity=associativity}) <$> addPriority 0 operatorSequences))
+    where
+        addPriority::Int->[(Associativity, Sequence)]->[(Int, Associativity, Sequence)]
+        addPriority p ((assoc, seq):rest) = (p, assoc, seq):addPriority (p+1) rest
+        addPriority _ [] = []
+
+parseOperator =
+    do
+        associativity <- option "l:" (string "r:")
+        operator <- parseQuote
+        return (if associativity == "l:" then LeftAssoc else RightAssoc, operator)
 
 parseSeparator =
     do

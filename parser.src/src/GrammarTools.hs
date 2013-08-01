@@ -21,6 +21,9 @@ module GrammarTools (
     addEOFToGrammar,
     stripWhitespaceFromGrammar,
     orIfy,
+    prepend,
+    (+++),
+    isBlockClass,
     loadGrammar,
     fixG
 ) where
@@ -98,12 +101,37 @@ rewriteLeftRecursionInClass g cl =
                             ++ (operator2SuffixSeq g cl <$> operators cl)
     }
 
-operator2SuffixSeq::Grammar->Class->Sequence->Sequence
-operator2SuffixSeq g cl seq = seq++[Out [InfixTag 0 (opSeq2Name seq)], Or (replicate 1 <$> Link <$> nonRecursiveRuleNames cl)]
+op2Infix::Operator->EChar
+op2Infix op = InfixTag
+    InfixOp{
+        opPriority=priority op,
+        opName=symbol2Name (symbol op),
+        opAssociativity=assoc2InfixAssoc $ associativity op
+    }
+    where
+        assoc2InfixAssoc LeftAssoc = InfixLeftAssoc
+        assoc2InfixAssoc RightAssoc = InfixRightAssoc
+
+operator2SuffixSeq::Grammar->Class->Operator->Sequence
+operator2SuffixSeq g cl op =
+    symbol op ++[Out [op2Infix op], Or (replicate 1 <$> Link <$> nonRecursiveRuleNames cl)]
     where nonRecursiveRuleNames cl = (name <$> filter (not . isLRecursive (className cl)) (rules cl))
                                         ++ (className <$> parents g cl)
-recursiveRule2SuffixSeq::Rule->Sequence
-recursiveRule2SuffixSeq rule = (Out [InfixTag 0 (name rule)]:) $ tail $ rawSequence rule
+recursiveRule2SuffixSeq::Rule->Sequence --TODO Unitary operators
+recursiveRule2SuffixSeq rule = (Out [InfixTag infixOp]:) $ tail $ rawSequence rule ++ [Out [EndCap (name rule)]]
+    where
+        infixOp =
+            InfixOp {
+                opPriority = rulePriority rule,
+                opName = name rule,
+                opAssociativity = InfixUseEndCap
+            }
+
+isBlockClass::Grammar->Class->Bool
+isBlockClass g cl =
+    or (isLRecursive (className cl) <$> rules cl)
+        || (not $ null $ operators cl)
+        || or (isBlockClass g <$> parents g cl)
 
 isLRecursive::String->Rule->Bool
 isLRecursive className Rule{name=ruleName, rawSequence=Link linkName:rest}
@@ -186,6 +214,17 @@ addEOFToGrammar g = g {
 addEOFToClass::Class->Class
 addEOFToClass c = c { rules=(\rule->rule{rawSequence=rawSequence rule ++ [EOF]}) <$> (rules c)}
 
+prepend::Expression->Sequence->Sequence
+prepend (Out eSequence1) (Out eSequence2:rest) = Out(eSequence1 ++ eSequence2):rest
+prepend e@(Out eSequence1) (Or seqs:rest) = Or ((e `prepend`) <$> seqs):rest
+prepend e seq = e:seq
+
+(+++)::Sequence->Sequence->Sequence
+x +++ y@(Out eSequence2:rest2) = case last x of
+    Out eSequence1 -> init x ++ [Out (eSequence1 ++ eSequence2)] ++ rest2
+    _ -> x ++ y
+x +++ y = x ++ y
+
 orIfy::[Sequence]->Sequence
 orIfy [seq] = seq
 orIfy [] = []
@@ -193,6 +232,36 @@ orIfy seqs = [Or (seqs >>= removeOr)]
     where
         removeOr (Or seqs:rest) = (++ rest) <$> seqs
         removeOr seq = [seq]
+
+----
+
+addToClassPriorities::Int->Class->Class
+addToClassPriorities p cl =
+    cl {
+        rules = addToRulePriorities p <$> rules cl,
+        operators = addToOperatorPriorities p <$> operators cl
+    }
+
+addToRulePriorities::Int->Rule->Rule
+addToRulePriorities p rule = rule{rulePriority=p+rulePriority rule}
+
+addToOperatorPriorities::Int->Operator->Operator
+addToOperatorPriorities p op = op{priority=p+priority op}
+
+maxPriority::Class->Int
+maxPriority cl = maximum ((rulePriority <$> rules cl) ++ (priority <$> operators cl))
+
+classToPriorityOffset::Grammar->Class->Int
+classToPriorityOffset g cl = 1 + (sum $ (1+) <$> maxPriority <$> parents g cl)
+
+adjustClass::Grammar->Class->Class
+adjustClass g cl = addToClassPriorities (classToPriorityOffset g cl) cl
+
+adjustPrioritiesByClassHiarchy::Grammar->Grammar
+adjustPrioritiesByClassHiarchy g =
+    g {
+        classes = fmap (adjustClass g) (classes g)
+    }
 
 -----------------------
 
@@ -205,7 +274,7 @@ loadGrammar filename =
             Left err -> error ("Error parsing grammar: " ++ show err)
             Right grammar -> return grammar
 
-fixG = rewriteLeftRecursionInGrammar . addEOFToGrammar . stripWhitespaceFromGrammar
+fixG = adjustPrioritiesByClassHiarchy . rewriteLeftRecursionInGrammar . addEOFToGrammar . stripWhitespaceFromGrammar
 
 --        task opts ((rewriteLeftRecursionInGrammar . addEOFToGrammar . stripWhitespaceFromGrammar) grammar)
 

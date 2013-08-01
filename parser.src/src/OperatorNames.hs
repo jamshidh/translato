@@ -15,7 +15,7 @@
 module OperatorNames (
     --OperatorSymbol,
     --expandOperators,
-    opSeq2Name,
+    symbol2Name,
     op2Name
 ) where
 
@@ -61,10 +61,10 @@ expandOperators g = g {
 op2Name (TextMatch s:rest) = rawOp2Name s ++ (op2Name rest)
 op2Name (x:rest) = op2Name rest--}
 
-opSeq2Name::Sequence->String
-opSeq2Name (TextMatch text:rest) = op2Name text ++ opSeq2Name rest
-opSeq2Name (WhiteSpace _:rest) = opSeq2Name rest
-opSeq2Name [] = []
+symbol2Name::Sequence->String
+symbol2Name (TextMatch text:rest) = op2Name text ++ symbol2Name rest
+symbol2Name (WhiteSpace _:rest) = symbol2Name rest
+symbol2Name [] = []
 
 
 op2Name::String->String
@@ -72,6 +72,7 @@ op2Name "+" = "plus"
 op2Name "-" = "minus"
 op2Name "*" = "times"
 op2Name "/" = "divide"
+op2Name "^" = "power"
 op2Name "." = "dot"
 op2Name "==" = "equals"
 op2Name "<" = "lessThan"

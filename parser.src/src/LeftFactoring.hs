@@ -30,7 +30,7 @@ import Grammar
 import GrammarTools
 import SequenceMap
 
-import JDebug
+--import JDebug
 
 verifyHead x = if null x then error "leftFactor called with empty sequence" else head x
 
@@ -40,11 +40,15 @@ normalizedEHead (WhiteSpace _:_) = Just (WhiteSpace " ")
 normalizedEHead x = Just (head x)
 
 leftFactor::SequenceMap->Sequence->Sequence
-leftFactor sm = leftFactor' . concatOuts . prepareForLeftFactor sm
+leftFactor sm =
+{--    jtrace ("--------" ++ (formatSequence $ concatOuts (fromJust $ lookup "command" sm))) $
+    jtrace ("--------" ++ (formatSequence $ concatOuts $ prepareForLeftFactor sm $ concatOuts (fromJust $ lookup "command" sm))) $
+    jtrace ("--------" ++ (formatSequence $ prepareForLeftFactor sm $ concatOuts $ prepareForLeftFactor sm $ concatOuts (fromJust $ lookup "command" sm))) $--}
+    leftFactor' . concatOuts . prepareForLeftFactor sm . concatOuts . prepareForLeftFactor sm
 
 leftFactor'::Sequence->Sequence
-leftFactor' (Or []:rest) = leftFactor' rest
-leftFactor' (Or [seq]:rest) = leftFactor' (seq ++ rest)
+leftFactor' (Or []:rest) = concatOuts $ leftFactor' rest
+leftFactor' (Or [seq]:rest) = concatOuts $ leftFactor' (seq ++ rest)
 leftFactor' (Or items:rest) = --jtrace ("Left factoring: " ++ intercalate "\n  " (map show items)) $
     (orIfy (makeSeq <$> theMap)) ++ leftFactor' rest
     where
@@ -53,12 +57,13 @@ leftFactor' (Or items:rest) = --jtrace ("Left factoring: " ++ intercalate "\n  "
 --        makeSeq (Just [EmptyEStart, exp], [EInfo name atts:oneSeq]) = EStart name atts:exp:oneSeq
         makeSeq (Just [Out [FutureItem], exp], seqs) | length firstItems == 1 =
             case firstItems of
-                [Out [ItemInfo eString]] -> Out eString:exp:(leftFactor' [Or (tail <$> seqs)])
+                [Out [ItemInfo eString]] ->
+                    Out eString `prepend` (exp `prepend` (concatOuts $ leftFactor' [Or (tail <$> seqs)]))
                 where
                     firstItems = nub [exp2|exp2@(Out _):_<-seqs]
-        makeSeq (Just first, rest2) = first ++ (leftFactor' $ orIfy rest2)
+        makeSeq (Just first, rest2) = first +++ (concatOuts $ leftFactor' $ orIfy rest2)
         makeSeq (Nothing, rest2) = orIfy rest2
-leftFactor' (x:rest) = x:leftFactor' rest
+leftFactor' (x:rest) = x:(concatOuts $ leftFactor' rest)
 leftFactor' [] = []
 
 prepareForLeftFactor::SequenceMap->Sequence->Sequence
@@ -68,13 +73,13 @@ prepareForLeftFactor sMap [Or seqs] = orIfy $ expandEStart <$> expandToToken <$>
         expandToToken (Link name:rest) =
                 case lookup name sMap of
                     Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ name)
-                    Just seq -> expandToToken (seq ++ rest)
-        expandToToken (Out eString:rest) = Out eString:expandToToken rest
-        expandToToken (Or seqs:rest) = orIfy (expandToToken <$> seqs) ++ rest
+                    Just seq -> expandToToken (seq +++ rest)
+        expandToToken (Out eString:rest) = Out eString `prepend` expandToToken rest
+        expandToToken (Or seqs:rest) = orIfy (expandToToken <$> seqs) +++ rest
         expandToToken seq = seq
         expandEStart::Sequence->Sequence
-        expandEStart (Out eString:Or seqs:rest) = orIfy ((Out eString:) <$> seqs) ++ rest
-        expandEStart (Or seqs:rest) = orIfy (expandEStart <$> seqs) ++ rest
+        expandEStart (Out eString:Or seqs:rest) = orIfy ((Out eString `prepend`) <$> seqs) +++ rest
+        expandEStart (Or seqs:rest) = orIfy (expandEStart <$> seqs) +++ rest
         expandEStart x = x
 prepareForLeftFactor sMap seq = seq
 
@@ -138,9 +143,10 @@ leftTest::Grammar->IO ()
 leftTest g =
     do
         let sMap = sequenceMap g
-        putStrLn (formatSequenceMap sMap)
+        --putStrLn (formatSequenceMap sMap)
         let seq = fromJust $ lookup "command" sMap
-        putStrLn (formatSequence $ concatOuts $ prepareForLeftFactor sMap seq)
+        --putStrLn (formatSequence $ concatOuts $ prepareForLeftFactor sMap seq)
+        putStrLn (formatSequence $ prepareForLeftFactor sMap seq)
 
 
 

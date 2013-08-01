@@ -63,9 +63,9 @@ seq2ParseTree sMap [] = []
 ---------------------------------
 
 rawParse::Forest Expression->LString->[EChar]
-rawParse [Node{rootLabel=EOF, subForest=rest}] s | string s == [] = Ch '\n':rawParse rest s
+rawParse [Node{rootLabel=EOF, subForest=rest}] s | string s == [] = rawParse rest s
 rawParse [Node{rootLabel=EOF, subForest=rest}] s = expectErr s "EOF"
-rawParse [] s = [Ch '\n']
+rawParse [] s = []
 
 rawParse [Node{rootLabel=TextMatch matchString, subForest=rest}] s | LS.isPrefixOf matchString s =
         rawParse rest (LS.drop (length matchString) s)
@@ -104,11 +104,11 @@ createParserForClass::String->Grammar->Parser
 createParserForClass startRule g s =
         enhancedString2String
 --        show
+            $ expandOperators
             $ fillInAttributes
             $ checkForVarConsistency []
             $ fillInVariableAssignments
             $ fillInFutureItems
---            $ assignVariables
             $ (rawParse (parseTree g startRule) (createLString s))
 
 createParser::Grammar->Parser

@@ -24,8 +24,8 @@ module TreeTools (
 import Data.Functor
 import Data.Tree
 
-safeDrawTree = drawTree . treeTake 3
-safeDrawForest = drawForest . forestTake 3
+safeDrawTree = drawTree . treeTake 8
+safeDrawForest = drawForest . forestTake 8
 
 cleanTree::Tree a->Tree [a]
 cleanTree (Node {rootLabel=c, subForest=[next]})=Node { rootLabel=c:rootLabel nextResult, subForest=subForest nextResult }

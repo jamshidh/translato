@@ -48,8 +48,12 @@ sequenceMap g =
                 fixedG = removeOption $ removeSepBy g
 
 classSequence::Grammar->Class->Sequence
-classSequence g cl = prefix ++ (if length suffix == 0 then [] else [List 0 suffix])
+classSequence g cl =
+    (if classIsBlocking then [Out [StartBlock]] else [])
+        ++ prefix ++ (if length suffix == 0 then [] else [List 0 suffix])
+    ++ (if classIsBlocking then [Out [EndBlock]] else [])
     where
+        classIsBlocking = isBlockClass g cl
         prefix = orIfy (nonSelfRule ++ selfRule)
         selfRule::[Sequence]
         selfRule = fullSequence <$> (filter ((== className cl) . name) (rules cl))
@@ -60,9 +64,9 @@ classSequence g cl = prefix ++ (if length suffix == 0 then [] else [List 0 suffi
 
 fullSequence::Rule->Sequence
 fullSequence rule =
-    [Out [EStart (name rule) (nub (seq2AttNames (rawSequence rule)))]]
-    ++ (rawSequence rule)
-    ++ [Out [EEnd (name rule)]]
+    Out [EStart (name rule) (nub (seq2AttNames (rawSequence rule)))]
+    `prepend`
+    rawSequence rule ++ [Out [EEnd (name rule)]]
         where
             seq2AttNames::Sequence->[String]
             seq2AttNames (Out [VStart name Nothing]:rest) = name:seq2AttNames rest

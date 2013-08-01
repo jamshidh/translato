@@ -89,7 +89,7 @@ num => @value(\d+);
 
 string => "@value([^"]*)";
 
-operators: ' == ' ' < ' ' > ' ' <= ' ' >= ' ' + ' '*' '-'
+operators: ' == ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '*' ' / ' ' + ' '-'
 
 separator: '_, '
 
@@ -101,13 +101,13 @@ separator: '_, '
 
 variable => @name;
 
+operators: '.'
+
 function => {lvalue}\({expression}*\);
 
 #array => {lvalue}\[{expression}\];
 
 lambda => function () {body};
-
-operators: '.'
 
 ====[/lvalue]=================
 

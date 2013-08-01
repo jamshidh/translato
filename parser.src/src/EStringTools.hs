@@ -18,7 +18,8 @@ module EStringTools (
     fillInFutureItems,
     checkForVarConsistency,
     fillInVariableAssignments,
-    fillInAttributes
+    fillInAttributes,
+    expandOperators
 ) where
 
 import Prelude hiding (lookup)
@@ -58,12 +59,11 @@ cleanEString [] = []
 fillInFutureItems::EString->EString
 fillInFutureItems (FutureItem:rest) = futureItem ++ fillInFutureItems restWithoutFutureItem
     where
-        (futureItem, restWithoutFutureItem) = splitFutureItem 0 rest
-        splitFutureItem 0 (ItemInfo eString:rest) = (eString, rest)
-        splitFutureItem count (c@(ItemInfo eString):rest) = fmap (c:) (splitFutureItem (count-1) rest)
-        splitFutureItem count (c@FutureItem:rest) = fmap (c:) (splitFutureItem (count+1) rest)
-        splitFutureItem count (c:rest) = fmap (c:) (splitFutureItem count rest)
-        splitFutureItem _ x = error ("Missing case in splitFutureItem: " ++ show x)
+        (futureItem, restWithoutFutureItem) = splitFutureItem rest
+        splitFutureItem s@(FutureItem:rest) = splitFutureItem $ fillInFutureItems s
+        splitFutureItem (ItemInfo eString:rest) = (eString, rest)
+        splitFutureItem (c:rest) = fmap (c:) (splitFutureItem rest)
+        splitFutureItem x = error ("Missing case in splitFutureItem: " ++ show x)
 fillInFutureItems (c:rest) = c:fillInFutureItems rest
 fillInFutureItems [] = []
 
@@ -114,3 +114,94 @@ fillInAttributes (EStart name atts:rest) =
         splitAtts count (c:rest) neededAtts = fmap (c:) (splitAtts count rest neededAtts)
 fillInAttributes (c:rest) = c:fillInAttributes rest
 fillInAttributes [] = []
+
+fstMap f (first, second) = (f first, second)
+
+expandOperators::EString->EString
+expandOperators (StartBlock:rest) = expandOperatorsInBlock blockString ++ expandOperators rest2
+    where
+        fullBlock::EString->(EString, EString)
+        fullBlock (EndBlock:rest) = ([], rest)
+        fullBlock (StartBlock:rest) = (inside1 ++ inside2, outside2)
+            where
+                (inside1, outside1) = fullBlock rest
+                (inside2, outside2) = fullBlock outside1
+        fullBlock (c:rest) = (c:inside, outside)
+            where (inside, outside) = fullBlock rest
+
+        (blockString, rest2) = fullBlock rest
+expandOperators (c:rest) = c:expandOperators rest
+expandOperators [] = []
+
+expandOperatorsInBlock::EString->EString
+expandOperatorsInBlock (FilledInEStart name atts:rest) =
+    expandOperatorsInBlock (NestedItem (FilledInEStart name atts:blockString):rest2)
+    where
+        (blockString, rest2) = getNestedItem rest
+expandOperatorsInBlock (n@(NestedItem _):t@(InfixTag _):FilledInEStart name atts:rest) =
+    expandOperatorsInBlock (n:t:NestedItem (FilledInEStart name atts:blockString):rest2)
+    where
+        (blockString, rest2) = getNestedItem rest
+
+expandOperatorsInBlock (NestedItem item:InfixTag InfixOp{opName=name,opAssociativity=InfixUseEndCap}:rest) =
+    expandOperatorsInBlock
+        ([FilledInEStart name []] ++ item ++ expandOperatorsInBlock inside ++ [EEnd name] ++ outside)
+        where (inside, outside) = splitByEndCap rest
+
+
+expandOperatorsInBlock [NestedItem left, InfixTag InfixOp{opName=name}, NestedItem right] =
+    [FilledInEStart name []] ++ left ++ right ++ [EEnd name]
+expandOperatorsInBlock
+    (NestedItem left:InfixTag o1:NestedItem right:InfixTag o2:rest)
+    = simplifyOpPair left o1 right o2 rest
+expandOperatorsInBlock [NestedItem item] = item
+expandOperatorsInBlock [] = []
+expandOperatorsInBlock s =
+    error ("Missing case in expandOperatorsInBlock: (" ++ show s)
+
+
+simplifyOpPair::EString->InfixOp->EString->InfixOp->EString->EString
+{--simplifyOpPair item1 op1 item2 op2@InfixOp{opAssociativity=InfixUseEndCap} rest =
+    expandOperatorsInBlock
+        (NestedItem item1:InfixTag op1:expandOperatorsInBlock (NestedItem item2:InfixTag op2:rest))--}
+
+simplifyOpPair left InfixOp{opName=name,opPriority=p1} right op2 rest
+    | p1 < opPriority op2 =
+    expandOperatorsInBlock
+        (NestedItem ([FilledInEStart name []] ++ left ++ right ++ [EEnd name]):InfixTag op2:rest)
+
+simplifyOpPair left op1 right op2@InfixOp{opPriority=p2} rest
+    | opPriority op1 > p2 =
+    expandOperatorsInBlock
+        (left ++ [InfixTag op1] ++ expandOperatorsInBlock (NestedItem right:InfixTag op2:rest))
+
+simplifyOpPair left op1@InfixOp{opName=name,opAssociativity=InfixLeftAssoc,opPriority=p1} right op2 rest
+    | op1 == op2 =
+    expandOperatorsInBlock (NestedItem ([FilledInEStart name []] ++ left ++ right ++ [EEnd name]):InfixTag op2:rest)
+
+simplifyOpPair left op1@InfixOp{opName=name,opPriority=p1} right op2 rest
+    | op1 == op2 =
+    expandOperatorsInBlock
+        (left ++ [InfixTag op1] ++ expandOperatorsInBlock (NestedItem right:InfixTag op2:rest))
+
+splitByEndCap::EString->(EString, EString)
+splitByEndCap (EndCap name:rest) = ([], rest)
+splitByEndCap (e@(InfixTag InfixOp{opAssociativity=InfixUseEndCap, opName=name}):rest) = (e:inside1 ++ [EndCap name] ++ inside2, outside2)
+    where
+        (inside1, outside1) = splitByEndCap rest
+        (inside2, outside2) = splitByEndCap outside1
+splitByEndCap (c:rest) = (c:inside, outside)
+    where (inside, outside) = splitByEndCap rest
+
+
+getNestedItem::EString->(EString, EString)
+getNestedItem (EEnd name:rest) = ([EEnd name], rest)
+getNestedItem (FilledInEStart name atts:rest) = ([FilledInEStart name atts] ++ inside1 ++ inside2, outside2)
+    where
+        (inside1, outside1) = getNestedItem rest
+        (inside2, outside2) = getNestedItem outside1
+getNestedItem (c:rest) = (c:inside, outside)
+    where (inside, outside) = getNestedItem rest
+
+
+

@@ -15,6 +15,8 @@
 module EnhancedString (
     EChar (..),
     EString,
+    InfixAssociativity(..),
+    InfixOp(..),
     concatErrors,
     e,
     chs2String,
@@ -28,14 +30,18 @@ import Data.List as DL
 
 import Colors
 import qualified LString as LS
-import XPath
 
 import JDebug
+
+data InfixAssociativity = InfixLeftAssoc | InfixRightAssoc | InfixUseEndCap deriving (Eq, Ord, Show)
+
+data InfixOp = InfixOp{opName::String, opPriority::Int, opAssociativity::InfixAssociativity} deriving (Eq, Ord)
 
 data EChar = Ch Char
     | EStart String [String]
     | FilledInEStart String [(String, String)]
     | EEnd String
+    | NestedItem EString
     | FutureItem
     | ItemInfo EString
     | VPush
@@ -46,8 +52,11 @@ data EChar = Ch Char
     | VAssign String String LS.LString --The LString is only added for error reporting, to know the location of the string
     | TabRight String
     | TabLeft
-    | InfixTag Int String
-    | Sync Char
+    | StartBlock
+    | EndBlock
+    | InfixTag InfixOp
+    | EndCap String
+--    | Sync Char
     | ExpectationError [String] LS.LString
     | Error String LS.LString deriving (Eq, Ord)
 
@@ -59,6 +68,7 @@ instance Show EChar where
     show (FutureItem) = cyan ("<??>")
     show (ItemInfo eString) = cyan ("{itemInfo=" ++ show eString ++ "}")
     show (EEnd name) = cyan ("</" ++ name ++ ">")
+    show (NestedItem s) = yellow "<<<" ++ show s ++ yellow ">>>"
     show VPush = magenta ">>VPush>>"
     show VPop = magenta "<<VPop<<"
     show (VOut name) = green ("[" ++ name ++ "]")
@@ -67,8 +77,10 @@ instance Show EChar where
     show (VAssign name val s) = green ("assign{" ++ name ++ "=" ++ LS.formatLString (LS.take (length val) s) ++ "}")
     show (TabLeft) = magenta "<=="
     show (TabRight tabString) = magenta ("==>(" ++ tabString ++ ")")
-    show (Sync c) = blue (underline ([c]))
-    show (InfixTag priority name) = cyan ("<-" ++ name ++ ":" ++ show priority ++ "->")
+    show StartBlock = red "["
+    show EndBlock = red "]"
+    show (InfixTag InfixOp{opPriority=p, opName=name}) = cyan ("<-" ++ name ++ ":" ++ show p ++ "->")
+    show (EndCap name) = yellow ("EndCap(" ++ name ++ ")")
     show (ExpectationError expected s) = red ("{ExpectationError: " ++ show expected ++ "}")
     show (Error message s) = red ("{Error: " ++ message ++ "}")
 
@@ -92,13 +104,16 @@ chs2String (VEnd:rest) = "}" ++ chs2String rest
 chs2String (EStart name atts:rest) = "<" ++ name ++ concat ((" "++) <$> atts) ++ ">" ++ chs2String rest
 chs2String (FilledInEStart name atts:rest) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ val ++ "'") <$> atts) ++ ">") ++ chs2String rest
 chs2String (EEnd name:rest) = "</" ++ name ++ ">" ++ chs2String rest
+chs2String (NestedItem s:rest) = yellow "<<<" ++ show s ++ yellow ">>>" ++ chs2String rest
 chs2String (VAssign name val s:rest) = green ("assign{" ++ name ++ "=" ++ LS.formatLString (LS.take (length val) s) ++ "}") ++ chs2String rest
 chs2String (FutureItem:rest) = blue "<??>" ++ chs2String rest
 chs2String (ItemInfo eString:rest) = blue ("{itemInfo=" ++ show eString ++ "}") ++ chs2String rest
 chs2String (TabRight _:_) = error "There shouldn't be a tabright in chs2String"
 chs2String (TabLeft:_) = error "There shouldn't be a tableft in chs2String"
-chs2String (InfixTag priority name:rest) = "Op(" ++ show priority ++ "," ++ name ++ ")" ++ chs2String rest
-chs2String (Sync _:rest) = chs2String rest
+chs2String (StartBlock:rest) = red "[" ++ chs2String rest
+chs2String (EndBlock:rest) = red "]" ++ chs2String rest
+chs2String (InfixTag (InfixOp{opPriority=p, opName=name}):rest) = "Op(" ++ show p ++ "," ++ name ++ ")" ++ chs2String rest
+chs2String (EndCap name:rest) = yellow ("EndCap(" ++ name ++ ")") ++ chs2String rest
 chs2String [] = []
 --chs2String x = error ("missing case in chs2String: " ++ show x)
 
@@ -178,7 +193,7 @@ addLineBreaks (needsBreak:breakRest) (e@(EEnd _):rest) = --jtrace "EEnd" $
 addLineBreaks [] (e@(EEnd _):rest) = error "shouldn't call addLIneBreaks for EEnd with empty breakStack"
 addLineBreaks breakStack (c:rest) = --jtrace ("Other: " ++ show c) $
     c:addLineBreaks breakStack rest
-addLineBreaks _ [] = []
+addLineBreaks _ [] = [Ch '\n']
 
 
 

@@ -38,7 +38,7 @@ import GHC.Exts
 
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
-import System.Environment
+--import System.Environment
 import System.IO
 import Text.ParserCombinators.Parsec as P hiding (try)
 

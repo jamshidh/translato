@@ -19,10 +19,14 @@ module Main (
 
 import Data.Functor
 import qualified Data.Map as M
+import Data.Text.Lazy.IO as TL hiding (putStrLn, interact)
 import System.Environment
+import Text.XML.Cursor
+import Text.XML
 
 import Colors
---import Generator
+import Generator
+import qualified Editor
 import Grammar hiding (main)
 import qualified Grammar as G (main)
 import GrammarTools
@@ -52,6 +56,9 @@ outputParseTree g = do
 test::Grammar->IO ()
 test = leftTest
 
+edit::Grammar->IO ()
+edit = Editor.edit
+
 outputParse::Grammar->IO ()
 outputParse g = do
     interact (createParser g)
@@ -65,12 +72,11 @@ outputParseElements cx = do
 
 outputString::Grammar->IO ()
 outputString g = do
-    putStrLn "To be added"
-    {--contents<-TL.getContents
+    contents<-TL.getContents
     let doc=try(parseText def contents)
     case generate g (fromDocument doc) of
         Right s -> putStrLn s
-        Left err -> error (show err)--}
+        Left err -> error (show err)
 
 try::(Show err)=>Either err a->a
 try (Left err) = error ("Error:" ++ show err)
@@ -88,7 +94,8 @@ options = M.fromList
         ("outputParseTree", outputParseTree),
         ("test", test),
         ("generate", outputString),
-        ("parseElements", outputParseElements)
+        ("parseElements", outputParseElements),
+        ("edit", edit)
     ]
 
 usage::String

@@ -47,6 +47,7 @@ tagName::Cursor->String
 --tagName (Cursor (NodeElement element)) = nameLocalName $ elementName element
 tagName c = case node c of
     NodeElement element -> name2String $ elementName element
+    x -> red ("<<<Not a tag: " ++ showCursor c ++ ">>>>") --error ("Missing case in tagName: " ++ show x)
 
 showCursor::Cursor->String
 showCursor c = case node c of
@@ -67,7 +68,7 @@ expand (x:rest, y)=(x, y):(expand (rest, y))
 
 
 generate::Grammar->Cursor->Either GenError String
-generate g c = fmap enhancedString2String (cursor2String (sequenceMap g) c)
+generate g c = fmap enhancedString2String (cursor2String (sequenceMap g) (head (child c >>= anyElement)))
 
 cursor2String::SequenceMap->Cursor->Either GenError EString
 cursor2String sMap c = case lookup (tagName c) sMap of
@@ -145,20 +146,26 @@ exp2String sMap (Link name) c remainingChildren | tagName (head remainingChildre
 exp2String sMap (Link name) c remainingChildren =
         Left $ GenError ("Expecting element with tagname '" ++ name ++ "', found " ++ showCursor c)
 
-exp2String sMap fullE@(Reparse second first) c remainingChildren =
-    seq2EString sMap second c remainingChildren
+{--exp2String sMap fullE@(Reparse second first) c remainingChildren =
+    seq2EString sMap second c remainingChildren--}
 
-exp2String sMap (AStart name) c remainingChildren =
+exp2String sMap (Out [VStart name _]) c remainingChildren =
     case c <@> name of
         Just value -> Right (e value, remainingChildren)
         Nothing -> Left $ GenError ("Missing attribute '" ++ name ++ "' in xml snippet \n    " ++ show c)
 
 exp2String sMap (TextMatch text) c remainingChildren = Right (e text, remainingChildren)
 exp2String sMap (WhiteSpace defaultValue) c remainingChildren = Right (e defaultValue, remainingChildren)
-exp2String sMap (TabStart tabString) c remainingChildren = Right ([TabRight tabString], remainingChildren)
-exp2String sMap TabEnd c remainingChildren = Right ([TabLeft], remainingChildren)
+exp2String sMap (Out [TabRight tabString]) c remainingChildren = Right ([TabRight tabString], remainingChildren)
+exp2String sMap (Out [TabLeft]) c remainingChildren = Right ([TabLeft], remainingChildren)
 
-exp2String sMap e c remainingChildren = (trace (cShow c remainingChildren e)) $ error ("Error: tag = " ++ tagName c ++ ", expression = " ++ show e)
+exp2String sMap (Out [EStart _ _]) c remainingChildren = Right ([], remainingChildren)
+
+exp2String sMap e c remainingChildren =
+    --(trace (cShow c remainingChildren e)) $
+    case node c of
+        NodeContent _ -> Right ([], remainingChildren)
+        _ -> error ("Error: tag = " ++ tagName c ++ ", expression = " ++ formatExpression e)
 
 
 

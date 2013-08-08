@@ -16,7 +16,9 @@ module Editor (
     edit
 ) where
 
-import Data.Text
+import Control.Monad
+import Data.Functor
+import Data.Text hiding (head)
 import Data.Text.Encoding
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.MenuComboToolbar.Menu
@@ -25,6 +27,7 @@ import Graphics.UI.Gtk.Multiline.TextView
 import System.IO
 
 import Grammar
+import JDebug
 
 uiDef =
   "<ui>\
@@ -62,41 +65,78 @@ uiDef =
   \  </toolbar>\
   \</ui>"
 
+data MenuTree = TrSubMenu String [MenuTree] Bool | TrItem String (IO())
+
+createMenu::[MenuTree]->IO MenuBar
+createMenu tree = do
+    menu <- menuBarNew
+    --let menuItems = menuTree2MenuItem <$> tree
+
+    addMenuItemsToMenu menu (menuTree2MenuItem <$> tree)
+    return menu
+
+addMenuItemsToMenu::MenuShellClass a=>a->[IO MenuItem]->IO ()
+addMenuItemsToMenu menu [first] = jtrace "one" $ do
+    first' <- first
+    menuShellAppend menu first'
+addMenuItemsToMenu menu (first:rest) = jtrace "many" $ do
+    first' <- first
+    menuShellAppend menu first'
+    addMenuItemsToMenu menu rest
+addMenuItemsToMenu _ [] = error "huh?"
+
+menuTree2MenuItem::MenuTree->IO MenuItem
+menuTree2MenuItem (TrSubMenu name trSubItems rightJustify) = do
+    menu <- menuNew
+    menuItem <- menuItemNewWithLabel name
+    menuItemSetSubmenu menuItem menu
+    addMenuItemsToMenu menu (menuTree2MenuItem <$> trSubItems)
+    menuItemSetRightJustified menuItem rightJustify
+    return menuItem
+menuTree2MenuItem (TrItem name action) = do
+    item <- menuItemNewWithMnemonic name
+    onActivateLeaf item action
+    return item
+
 edit::Grammar->IO ()
 edit g = do
     initGUI
     window <- windowNew
-    windowSetTitle window "qqqq"
-    menu <- menuBarNew
-    openItem <- menuItemNewWithLabel "Open"
-    saveItem <- menuItemNewWithLabel "Save"
-    quitItem <- menuItemNewWithLabel "Quit"
-
-    menuShellAppend menu openItem
-    menuShellAppend menu saveItem
-    menuShellAppend menu quitItem
-
-    --widgetShowAll menu
+    windowSetTitle window "Editor"
 
     scrolledTextView <- scrolledWindowNew Nothing Nothing
     textView <- textViewNew
     set scrolledTextView [ containerChild := textView ]
 
-    loadButton <- buttonNewWithLabel "Load"
-    onClicked loadButton (loadBuffer textView window)
-
-    outputButton <- buttonNewWithLabel "Save"
-    onClicked outputButton (saveBuffer textView)
-
     resetButton <- buttonNewWithLabel "Reset"
     onClicked resetButton (resetBuffer textView)
 
+    menu <- createMenu
+            [
+                TrSubMenu "File"
+                    [
+                        TrItem "Open" (loadBuffer textView window),
+                        TrItem "Save" (saveBuffer textView),
+                        TrItem "_Quit" mainQuit
+                    ] False,
+                TrSubMenu "Edit"
+                    [
+                        TrItem "Find" mainQuit
+                    ] False,
+                TrSubMenu "Help"
+                    [
+                        TrItem "about" mainQuit
+                    ] True
+            ]
+
+
+    --set quitItem [ useUnderLine := True ]
+
+    --widgetShowAll menu
 
     vbox <- vBoxNew False 10
     hbox <- hBoxNew False 10
     --set hbox [ containerChild := outputButton, containerChild := resetButton ]
-    boxPackStart hbox loadButton PackGrow 0
-    boxPackStart hbox outputButton PackGrow 0
     boxPackStart hbox resetButton PackGrow 0
 
     boxPackStart vbox menu PackNatural 0

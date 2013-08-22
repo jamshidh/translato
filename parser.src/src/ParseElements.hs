@@ -14,20 +14,24 @@
 -----------------------------------------------------------------------------
 
 module ParseElements (
-    parseElements
+    parseElements,
+    parseElementsMain
 ) where
 
 import Data.List
 import Data.Map as M hiding (map)
 import Data.Text hiding (map, concat, foldl1, foldl, head, intercalate, tail, length)
 import Data.Text.Lazy (toStrict, fromStrict)
+import Data.Text.Lazy.IO as TL hiding (putStrLn, interact)
 import Text.XML
 import Text.XML.Cursor
+import System.Console.GetOpt
 
 import Context
 --import ManyWorldsParser
 import Parser
 import Grammar hiding (tagName, Name)
+import GrammarTools
 import ParseError
 import SequenceMap
 
@@ -93,3 +97,42 @@ input2Output sMap c | isElement c = let element = getElement c in
     elementNodes = map (input2Output sMap) (child c)
     }
 input2Output g c = node c
+
+--------------
+
+----------------
+
+data Options = Options { specFileName::String }
+defaultOptions = Options { specFileName = "file.spec" }
+
+optionDefs::[OptDescr Options]
+optionDefs = []
+
+args2Grammar::[String]->IO Grammar
+args2Grammar args = loadGrammar filename
+    where (options, filename) =
+            case getOpt Permute optionDefs args of
+                ([o], [f], _) -> (o, f)
+
+try::(Show err)=>Either err a->a
+try (Left err) = error ("Error:" ++ show err)
+try (Right a) = a
+
+parseElementsMain::[String]->IO ()
+parseElementsMain args = do
+    grammar <- args2Grammar args
+    contents<-TL.getContents
+    let doc=try(parseText def contents)
+    putStrLn "To be added"
+    {--contents<-TL.getContents
+    let doc=try(parseText def contents)
+    putStrLn (TL.unpack (renderText def (parseElements cx (fromDocument doc))))--}
+
+
+
+
+
+
+
+
+

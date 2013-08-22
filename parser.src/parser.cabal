@@ -4,25 +4,28 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
+description:  
 data-dir: ""
 extra-source-files: ""
  
 executable parser
     build-depends: base -any, bytestring -any, containers -any,
-                   fgl -any, filepath -any, gtk -any, parsec -any,
+                   data-lens-template -any, fgl -any, filepath -any, gtk -any,
+                   parsec -any, regex-base -any, regex-compat -any,
                    system-filepath -any, text -any, xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: Editor2 OperatorNames SequenceMap JDebug Grammar
-                   Colors FakeColors Parser Editor XPath LText Lookahead LString Main
-                   GrammarParser ParseError EnhancedString EStringTools Quoter CharSet
-                   Generator ParseElements Context LeftFactoring GrammarTools
-                   TreeTools
+    other-modules: SequenceMap Lookahead LText StupidSetGet Editor
+                   LString Main CharSet ParseElements ParseError TreeTools Quoter
+                   Editor2 Grammar OperatorNames FakeColors CmdOptions Generator
+                   JDebug Colors GrammarParser Shower EStringTools Context
+                   GrammarTools EnhancedString XPath Parser LeftFactoring
  
 test-suite test-parser
     build-depends: base -any, bytestring -any, containers -any,
-                   fgl -any, filepath -any, gtk -any, parsec -any,
+                   data-lens-template -any, fgl -any, filepath -any, gtk -any,
+                   parsec -any, regex-base -any, regex-compat -any,
                    system-filepath -any, text -any, xml-conduit -any
     type: exitcode-stdio-1.0
     main-is: Main.hs

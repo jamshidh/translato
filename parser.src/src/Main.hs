@@ -19,102 +19,48 @@ module Main (
 
 import Data.Functor
 import qualified Data.Map as M
-import Data.Text.Lazy.IO as TL hiding (putStrLn, interact)
 import System.Environment
-import Text.XML.Cursor
-import Text.XML
 
 import Colors
 import Generator
 import qualified Editor
-import Grammar hiding (main)
-import qualified Grammar as G (main)
-import GrammarTools
-import LeftFactoring
 import Parser
---import ParseElements
-import SequenceMap
+import ParseElements
+import Shower
 
 import JDebug
 
-outputGrammar::Grammar->IO ()
-outputGrammar g = do
-    putStrLn $ formatGrammar g
-
-outputSimplifiedSequenceMap::Grammar->IO ()
-outputSimplifiedSequenceMap g = do
-    putStrLn $ formatSequenceMap (leftFactorSequenceMap $ sequenceMap g)
-
-outputSequenceMap::Grammar->IO ()
-outputSequenceMap g = do
-    putStrLn $ formatSequenceMap (sequenceMap g)
-
-outputParseTree::Grammar->IO ()
-outputParseTree g = do
-    putStrLn $ safeDrawEForest (parseTree g (G.main g))
-
-test::Grammar->IO ()
-test = leftTest
-
-edit::Grammar->IO ()
-edit = Editor.edit
-
-outputParse::Grammar->IO ()
-outputParse g = do
-    interact (createParser g)
-
-outputParseElements::Grammar->IO ()
-outputParseElements cx = do
-    putStrLn "To be added"
-    {--contents<-TL.getContents
-    let doc=try(parseText def contents)
-    putStrLn (TL.unpack (renderText def (parseElements cx (fromDocument doc))))--}
-
-outputString::Grammar->IO ()
-outputString g = do
-    contents<-TL.getContents
-    let doc=try(parseText def contents)
-    case generate g (fromDocument doc) of
-        Right s -> putStrLn s
-        Left err -> error (show err)
-
-try::(Show err)=>Either err a->a
-try (Left err) = error ("Error:" ++ show err)
-try (Right a) = a
-
-data Opts = Opts { grammarFilename::String, task::Grammar->IO() }
-
-defaults = Opts { grammarFilename="grammar.spec", task=outputParse }
-
-options = M.fromList
+commands::M.Map String ([String]->IO())
+commands = M.fromList
     [
-        ("outputGrammar", outputGrammar),
-        ("outputSequenceMap", outputSequenceMap),
-        ("outputSimplifiedSequenceMap", outputSimplifiedSequenceMap),
-        ("outputParseTree", outputParseTree),
-        ("test", test),
-        ("generate", outputString),
-        ("parseElements", outputParseElements),
-        ("edit", edit)
+        ("outputGrammar", showGrammarMain),
+        ("outputSequenceMap", showSequenceMapMain),
+        ("outputSimplifiedSequenceMap", showSimplifiedSequenceMapMain),
+        ("outputParseTree", showParseTreeMain),
+        ("generate", generatorMain   ),
+        ("parseElements", parseElementsMain),
+        ("parse", parseMain),
+        ("edit", Editor.editMain)
     ]
 
 usage::String
 usage = "parser [option] " ++ underline("PARSEFILE") ++ "\n"
     ++ "Options:\n"
-    ++ concat ((++ "\n") <$> ("\t--" ++) <$> fst <$> M.toList options)
-
-args2Opts::[String]->Opts->Opts
-args2Opts (('-':'-':word):rest) o =
-    case M.lookup word options of
-        Just option -> args2Opts rest (o { task=option })
-        Nothing -> error ("Unknown option: " ++ word ++ "\nUsage:\n" ++ usage)
-args2Opts (filename:rest) o = args2Opts rest (o { grammarFilename=filename })
-args2Opts [] o = o
-
+    ++ (concat $ ("\t--" ++) <$> (++ "\n") <$> fst <$> M.toList commands)
 
 main = do
     args <- getArgs
-    let opts = args2Opts args defaults
-    grammar<-loadGrammar (grammarFilename opts)
-    task opts (fixG grammar)
+    case args of
+        [] -> error ("You need to supply a command:\n"
+                    ++ (concat $ ("\t" ++) <$> (++ "\n") <$> fst <$> M.toList commands))
+        (commandString:argsRest) ->
+            case M.lookup commandString commands of
+                Just command -> command argsRest
+
+
+
+
+
+
+
 

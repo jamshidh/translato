@@ -14,18 +14,21 @@
 
 module Generator (
     generate,
-    GenError (GenError)
+    GenError (GenError),
+    generatorMain
 ) where
 
 import Prelude hiding (lookup)
 import Data.Functor
 import Data.Text hiding (map, concat, foldl1, foldl, head, intercalate, tail)
+import Data.Text.Lazy.IO as TL hiding (putStrLn, interact)
 import Data.Map hiding (map, foldl)
 import Data.Maybe
 import Data.List hiding (lookup)
 import Text.XML
 import Text.XML.Cursor
 import Control.Arrow
+import System.Console.GetOpt
 
 import Debug.Trace
 
@@ -166,6 +169,33 @@ exp2String sMap e c remainingChildren =
     case node c of
         NodeContent _ -> Right ([], remainingChildren)
         _ -> error ("Error: tag = " ++ tagName c ++ ", expression = " ++ formatExpression e)
+
+----------------
+
+data Options = Options { specFileName::String }
+defaultOptions = Options { specFileName = "file.spec" }
+
+optionDefs::[OptDescr Options]
+optionDefs = []
+
+args2Grammar::[String]->IO Grammar
+args2Grammar args = loadGrammar filename
+    where (options, filename) =
+            case getOpt Permute optionDefs args of
+                ([o], [f], _) -> (o, f)
+
+try::(Show err)=>Either err a->a
+try (Left err) = error ("Error:" ++ show err)
+try (Right a) = a
+
+generatorMain::[String]->IO ()
+generatorMain args = do
+    grammar <- args2Grammar args
+    contents<-TL.getContents
+    let doc=try(parseText def contents)
+    case generate grammar (fromDocument doc) of
+        Right s -> putStrLn s
+        Left err -> error (show err)
 
 
 

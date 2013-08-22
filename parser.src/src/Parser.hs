@@ -6,7 +6,8 @@ module Parser (
     createParserForClass,
     createParser,
     parseTree,
-    seq2ParseTree
+    seq2ParseTree,
+    parseMain
 ) where
 
 import Prelude hiding (lookup)
@@ -15,11 +16,14 @@ import Data.Functor
 import Data.Graph.Inductive.Query.Monad
 import Data.Maybe
 import Data.Tree
-import Text.XML
 import Data.List as L hiding (union, lookup, insert)
 import Data.Map hiding (map, foldl, filter)
+import System.Console.GetOpt
+import Text.Regex
+
 
 import CharSet
+import CmdOptions
 import EnhancedString as E
 import EStringTools
 import Grammar as G
@@ -113,3 +117,27 @@ createParserForClass startRule g s =
 
 createParser::Grammar->Parser
 createParser g = createParserForClass (main g) g
+
+---------
+
+data Options = Options { specFileName::Maybe String, inputFileName::Maybe String } deriving (Show, Read)
+deflt = Options { specFileName = Nothing, inputFileName=Nothing }
+
+parseMain::[String]->IO ()
+parseMain args = do
+    let options = arg2Opts args deflt
+    let specFileName' =
+            case specFileName options of
+                Nothing ->
+                    case inputFileName options of
+                        Nothing -> error "You have to supply the spec filename"
+                        Just fileName -> extension ++ ".spec"
+                            where Just [extension] = matchRegex (mkRegex "\\.([^\\.]+$)") fileName
+    grammar<-loadGrammar specFileName'
+    interact (createParser (fixG grammar))
+
+
+
+
+
+

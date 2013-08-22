@@ -1,3 +1,5 @@
+{-# LANGUAGE TemplateHaskell #-}
+
 -----------------------------------------------------------------------------
 --
 -- Module      :  Editor
@@ -13,7 +15,8 @@
 -----------------------------------------------------------------------------
 
 module Editor (
-    edit
+    edit,
+    editMain
 ) where
 
 import Control.Monad
@@ -24,12 +27,15 @@ import Graphics.UI.Gtk
 import Graphics.UI.Gtk.MenuComboToolbar.Menu
 import Graphics.UI.Gtk.Multiline.TextIter
 import Graphics.UI.Gtk.Multiline.TextView
+import System.Console.GetOpt as O
 import System.IO
 
+import CmdOptions
 import Grammar
+import GrammarTools
 import JDebug
 
-uiDef =
+{--uiDef =
   "<ui>\
   \  <menubar>\
   \    <menu name=\"File\" action=\"FileAction\">\
@@ -63,7 +69,7 @@ uiDef =
   \      <separator/>\
   \    </placeholder>\
   \  </toolbar>\
-  \</ui>"
+  \</ui>"--}
 
 data MenuTree = TrSubMenu String [MenuTree] Bool | TrItem String (IO())
 
@@ -76,10 +82,10 @@ createMenu tree = do
     return menu
 
 addMenuItemsToMenu::MenuShellClass a=>a->[IO MenuItem]->IO ()
-addMenuItemsToMenu menu [first] = jtrace "one" $ do
+addMenuItemsToMenu menu [first] = do
     first' <- first
     menuShellAppend menu first'
-addMenuItemsToMenu menu (first:rest) = jtrace "many" $ do
+addMenuItemsToMenu menu (first:rest) = do
     first' <- first
     menuShellAppend menu first'
     addMenuItemsToMenu menu rest
@@ -217,6 +223,20 @@ openOpenFileDialog parentWindow = do
             return (Just fileName)
        ResponseCancel -> return Nothing
        ResponseDeleteEvent -> return Nothing
+
+-----------------------
+
+data Options = Options { specFileName::String, qqqq::Int, dog::Bool } deriving (Show, Read)
+deflt = Options { specFileName = "file.spec", qqqq=1, dog=True }
+
+-- $()
+
+editMain::[String]->IO ()
+editMain args = do
+    let options = arg2Opts args deflt
+    putStrLn (show options)
+    grammar <- loadGrammar (specFileName options)
+    Editor.edit grammar
 
 
 

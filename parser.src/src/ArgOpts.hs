@@ -39,6 +39,13 @@ mkClause (name, theType) = do
     let rest = mkName "rest"
     let orig = mkName "orig"
     let value = mkName "value"
+    let changeValue =
+            (RecUpdE
+                    (VarE orig)
+                    [(name,
+                    (AppE (AppE (VarE (mkName "argReadOrError")) (VarE value)) (LitE (StringL (nameBase name))))
+                )])
+
     return
         (Clause
             [
@@ -52,9 +59,9 @@ mkClause (name, theType) = do
                     ),
                 VarP orig
             ]
-            (NormalB (RecUpdE (VarE orig) [(name,
-                    (AppE (AppE (VarE (mkName "argReadOrError")) (VarE value)) (LitE (StringL (nameBase name))))
-                )]))
+            (NormalB
+                (AppE (AppE (VarE (mkName "f")) (VarE rest)) changeValue)
+            )
             []
         )
 

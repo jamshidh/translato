@@ -19,6 +19,7 @@ import Data.Tree
 import Data.List as L hiding (union, lookup, insert)
 import Data.Map hiding (map, foldl, filter)
 import System.Console.GetOpt
+import System.IO
 import Text.Regex
 
 
@@ -121,7 +122,7 @@ createParser g = createParserForClass (main g) g
 
 ---------
 
-data Options = Options { specFileName::Maybe String, inputFileName::Maybe String } deriving (Show, Read)
+data Options = Options { specFileName::Maybe String, inputFileName::Maybe String }
 deflt = Options { specFileName = Nothing, inputFileName=Nothing }
 
 parseMain::[String]->IO ()
@@ -133,9 +134,19 @@ parseMain args = do
                     case inputFileName options of
                         Nothing -> error "You have to supply the spec filename"
                         Just fileName -> extension ++ ".spec"
-                            where Just [extension] = matchRegex (mkRegex "\\.([^\\.]+$)") fileName
+                            where
+                                extension =
+                                    case matchRegex (mkRegex "\\.([^\\.]+$)") fileName of
+                                        Just [x] -> x
+                                        _ -> error "You need to supply the spec filename when the inputFileName doesn't have an extension"
+                Just x -> x
     grammar<-loadGrammar specFileName'
-    interact (createParser (fixG grammar))
+    case inputFileName options of
+        Just fileName -> do
+                fileHandle <- openFile fileName ReadMode
+                input <- hGetContents fileHandle
+                putStr (createParser (fixG grammar) input)
+        Nothing -> interact (createParser (fixG grammar))
 
 
 

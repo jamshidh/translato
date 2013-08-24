@@ -21,6 +21,7 @@ module Editor (
 
 import Control.Monad
 import Data.Functor
+import Data.Maybe
 import Data.Text hiding (head)
 import Data.Text.Encoding
 import Graphics.UI.Gtk
@@ -29,6 +30,7 @@ import Graphics.UI.Gtk.Multiline.TextIter
 import Graphics.UI.Gtk.Multiline.TextView
 import System.Console.GetOpt as O
 import System.IO
+import Text.Regex
 
 import ArgOpts
 import Grammar
@@ -226,16 +228,26 @@ openOpenFileDialog parentWindow = do
 
 -----------------------
 
-data Options = Options { specFileName::String, qqqq::Int } deriving (Show, Read)
-deflt = Options { specFileName = "file.spec", qqqq=1 }
+data Options = Options { specFileName::Maybe String, fileName::String, qqqq::Int } deriving (Show, Read)
+deflt = Options { specFileName=Nothing, fileName="fred", qqqq=1 }
 
--- $()
+getExtension x =
+    case matchRegex (mkRegex "\\.([^\\.]+$)") x of
+        Just [x] -> x
+        _ -> error "You need to supply the spec filename when the inputFileName doesn't have an extension"
+
+fixOptions::Options->Options
+fixOptions o@Options{specFileName=Nothing} = o{specFileName=Just specFileName}
+    where
+        specFileName = getExtension (fileName o) ++ ".spec"
 
 editMain::[String]->IO ()
 editMain args = do
-    let options = $(arg2Opts ''Options) args deflt
+    let options =
+            fixOptions
+                ($(arg2Opts ''Options ["fileName"]) args deflt)
     putStrLn (show options)
-    grammar <- loadGrammar (specFileName options)
+    grammar <- loadGrammar (fromJust $ specFileName options)
     Editor.edit grammar
 
 

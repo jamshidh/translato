@@ -15,6 +15,7 @@
 
 module ArgOpts (
     arg2Opts,
+    tagTheUntagged,
     argReadOrError
 ) where
 
@@ -33,6 +34,14 @@ getFields optName = do
 
 makeFunction::Name->Dec
 makeFunction name = FunD name []
+
+tagTheUntagged::[String]->[String]->[String]
+tagTheUntagged args [] = args
+tagTheUntagged [] (next:_) = error ("You need to supply the value of '" ++ next ++ "'")
+tagTheUntagged (command@('-':'-':_):param:rest) baseList = command:param:tagTheUntagged rest baseList
+tagTheUntagged [arg@('-':'-':command)] baseList = arg:tagTheUntagged [] baseList
+tagTheUntagged (firstArg:argRest) (nextBase:baseRest) =
+    ("--" ++ nextBase):firstArg:tagTheUntagged argRest baseRest
 
 mkClause::(Name, Type)->Q Clause
 mkClause (name, theType) = do
@@ -87,20 +96,29 @@ mkEmptyClause = do
             []
         )
 
-arg2Opts::Name->ExpQ
-arg2Opts name = do
+arg2Opts::Name->[String]->ExpQ
+arg2Opts name baseList = do
     let args = mkName "args"
     let orig = mkName "orig"
     let f = mkName "f"
     fields <- getFields name
     clauses <- sequence ((mkClause <$> fields) ++ [mkErrorClause, mkEmptyClause])
+--    functionCall <- runQ [|f (tagTheUntagged args) orig|]
     return
         (
             LamE
                 [VarP args,VarP orig]
                 (LetE
                     [FunD f clauses]
-                    (AppE (AppE (VarE f) (VarE args)) (VarE orig))))
+                    (AppE
+                        (AppE
+                            (VarE f)
+                            (AppE
+                                (AppE
+                                    (VarE (mkName "tagTheUntagged"))
+                                    (VarE args))
+                                (ListE (LitE . StringL <$> baseList))))
+                        (VarE orig))))
 
 
 

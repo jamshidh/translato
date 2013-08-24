@@ -127,7 +127,7 @@ deflt = Options { specFileName = Nothing, inputFileName=Nothing }
 
 parseMain::[String]->IO ()
 parseMain args = do
-    let options = $(arg2Opts ''Options) args deflt
+    let options = $(arg2Opts ''Options []) args deflt
     let specFileName' =
             case specFileName options of
                 Nothing ->

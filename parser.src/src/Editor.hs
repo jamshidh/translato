@@ -30,7 +30,7 @@ import Graphics.UI.Gtk.Multiline.TextView
 import System.Console.GetOpt as O
 import System.IO
 
-import CmdOptions
+import ArgOpts
 import Grammar
 import GrammarTools
 import JDebug
@@ -226,14 +226,14 @@ openOpenFileDialog parentWindow = do
 
 -----------------------
 
-data Options = Options { specFileName::String, qqqq::Int, dog::Bool } deriving (Show, Read)
-deflt = Options { specFileName = "file.spec", qqqq=1, dog=True }
+data Options = Options { specFileName::String, qqqq::Int } deriving (Show, Read)
+deflt = Options { specFileName = "file.spec", qqqq=1 }
 
 -- $()
 
 editMain::[String]->IO ()
 editMain args = do
-    let options = arg2Opts args deflt
+    let options = $(arg2Opts ''Options) args deflt
     putStrLn (show options)
     grammar <- loadGrammar (specFileName options)
     Editor.edit grammar

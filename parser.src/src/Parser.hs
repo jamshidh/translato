@@ -22,8 +22,9 @@ import System.Console.GetOpt
 import Text.Regex
 
 
+import ArgOpts
 import CharSet
-import CmdOptions
+--import CmdOptions
 import EnhancedString as E
 import EStringTools
 import Grammar as G
@@ -125,7 +126,7 @@ deflt = Options { specFileName = Nothing, inputFileName=Nothing }
 
 parseMain::[String]->IO ()
 parseMain args = do
-    let options = arg2Opts args deflt
+    let options = $(arg2Opts ''Options) args deflt
     let specFileName' =
             case specFileName options of
                 Nothing ->

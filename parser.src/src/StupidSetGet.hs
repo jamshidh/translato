@@ -22,7 +22,7 @@ module StupidSetGet (
 ) where
 
 import Data.Functor
-import Text.Regex
+--import Text.Regex
 
 import JDebug
 

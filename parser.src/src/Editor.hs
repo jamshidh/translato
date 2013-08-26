@@ -21,6 +21,7 @@ module Editor (
 
 import Control.Monad
 import Data.Functor
+import Data.IORef
 import Data.Maybe
 import Data.Text hiding (head)
 import Data.Text.Encoding
@@ -106,11 +107,12 @@ menuTree2MenuItem (TrItem name action) = do
     onActivateLeaf item action
     return item
 
-edit::Grammar->IO ()
-edit g = do
+edit::Grammar->String->IO ()
+edit g fileNameString = do
     initGUI
     window <- windowNew
-    windowSetTitle window "Editor"
+    fileNameRef <- newIORef fileNameString
+    windowSetTitle window fileNameString
 
     scrolledTextView <- scrolledWindowNew Nothing Nothing
     textView <- textViewNew
@@ -123,8 +125,9 @@ edit g = do
             [
                 TrSubMenu "File"
                     [
-                        TrItem "Open" (loadBuffer textView window),
-                        TrItem "Save" (saveBuffer textView),
+                        TrItem "Open" (promptAndLoadBuffer textView window),
+                        TrItem "Save" (saveBuffer fileNameRef textView),
+                        TrItem "Save As...." (saveBufferAs fileNameRef textView window),
                         TrItem "_Quit" mainQuit
                     ] False,
                 TrSubMenu "Edit"
@@ -153,11 +156,15 @@ edit g = do
     set window [ containerBorderWidth := 10,
         containerChild := vbox, windowDefaultWidth := 400, windowDefaultHeight := 300 ]
     onDestroy window mainQuit
+
+    loadBuffer fileNameString textView window
+
+
     widgetShowAll window
     mainGUI
 
-saveBuffer::TextView->IO ()
-saveBuffer tv =
+saveBuffer::IORef String->TextView->IO ()
+saveBuffer fileNameRef tv =
     do
         txtBuff <- textViewGetBuffer tv
         startIt <- textBufferGetStartIter txtBuff
@@ -166,10 +173,18 @@ saveBuffer tv =
         srcString <- textBufferGetText txtBuff startIt endIt True
 
   --      buffer <- textViewGetBuffer tv
-        let filename = "/home/jim/translato/qqqq3.html"
+        filename <- readIORef fileNameRef
         --fileHandle<-openFile filename WriteMode
         writeFile filename srcString
         --hClose fileHandle
+
+saveBufferAs::IORef String->TextView->Window->IO ()
+saveBufferAs fileNameRef tv window =
+    do
+        Just filename <- openOpenFileDialog FileChooserActionSave window
+        windowSetTitle window filename
+        writeIORef fileNameRef filename
+        saveBuffer fileNameRef tv
 
 resetBuffer::TextView->IO ()
 resetBuffer tv =
@@ -185,10 +200,9 @@ resetBuffer tv =
         end <- textBufferGetIterAtOffset buf 2
         textBufferApplyTag buf tag start end
 
-loadBuffer::TextView->Window->IO ()
-loadBuffer tv window =
+loadBuffer::String->TextView->Window->IO ()
+loadBuffer filename tv window =
     do
-        Just filename <- openOpenFileDialog window
         fileHandle<-openFile filename ReadMode
         contents<-hGetContents fileHandle
 
@@ -202,18 +216,28 @@ loadBuffer tv window =
         endIt <- textBufferGetEndIter txtBuff
         textBufferSetByteString txtBuff startIt endIt True--}
 
+promptAndLoadBuffer::TextView->Window->IO ()
+promptAndLoadBuffer tv window =
+    do
+        Just fileName <- openOpenFileDialog FileChooserActionOpen window
+        loadBuffer fileName tv window
+        windowSetTitle window fileName
+
 {--chooseFile::IO String
 chooseFile =
     do
         fileChooser <- fileChooserNew--}
 
-openOpenFileDialog :: Window -> IO (Maybe String)
-openOpenFileDialog parentWindow = do
+openOpenFileDialog::FileChooserAction->Window->IO (Maybe String)
+openOpenFileDialog action parentWindow = do
+    let openButton = case action of
+                        FileChooserActionOpen -> "gtk-open"
+                        _ -> "gtk-save"
     dialog <- fileChooserDialogNew
                 (Just "Select coding file")
                 (Just parentWindow)
-                FileChooserActionOpen
-                [("gtk-open"   , ResponseAccept)
+                action
+                [(openButton   , ResponseAccept)
                     ,("gtk-cancel" , ResponseCancel)]
 
     widgetShow dialog
@@ -248,7 +272,7 @@ editMain args = do
                 ($(arg2Opts ''Options ["fileName"]) args deflt)
     putStrLn (show options)
     grammar <- loadGrammar (fromJust $ specFileName options)
-    Editor.edit grammar
+    Editor.edit grammar (fileName options)
 
 
 

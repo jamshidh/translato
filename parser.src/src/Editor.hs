@@ -23,7 +23,7 @@ import Control.Monad
 import Data.Functor
 import Data.IORef
 import Data.Maybe
-import Data.Text hiding (head)
+import Data.Text hiding (head, concat)
 import Data.Text.Encoding
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.MenuComboToolbar.Menu
@@ -36,12 +36,14 @@ import Text.Regex
 import ArgOpts
 import Grammar
 import GrammarTools
+import Menu
+
 import JDebug
 
-{--uiDef =
+uiDef =
   "<ui>\
   \  <menubar>\
-  \    <menu name=\"File\" action=\"FileAction\">\
+  \    <menu name=\"File\" action='FileAction'>\
   \      <menuitem name=\"New\" action=\"NewAction\" />\
   \      <menuitem name=\"Open\" action=\"OpenAction\" />\
   \      <menuitem name=\"Save\" action=\"SaveAction\" />\
@@ -54,6 +56,9 @@ import JDebug
   \      <menuitem name=\"Cut\" action=\"CutAction\"/>\
   \      <menuitem name=\"Copy\" action=\"CopyAction\"/>\
   \      <menuitem name=\"Paste\" action=\"PasteAction\"/>\
+  \    </menu>\
+  \    <menu name=\"Help\" action=\"HelpAction\">\
+  \      <menuitem name=\"About\" action=\"AboutAction\"/>\
   \    </menu>\
   \  </menubar>\
   \  <toolbar>\
@@ -72,40 +77,8 @@ import JDebug
   \      <separator/>\
   \    </placeholder>\
   \  </toolbar>\
-  \</ui>"--}
+  \</ui>"
 
-data MenuTree = TrSubMenu String [MenuTree] Bool | TrItem String (IO())
-
-createMenu::[MenuTree]->IO MenuBar
-createMenu tree = do
-    menu <- menuBarNew
-    --let menuItems = menuTree2MenuItem <$> tree
-
-    addMenuItemsToMenu menu (menuTree2MenuItem <$> tree)
-    return menu
-
-addMenuItemsToMenu::MenuShellClass a=>a->[IO MenuItem]->IO ()
-addMenuItemsToMenu menu [first] = do
-    first' <- first
-    menuShellAppend menu first'
-addMenuItemsToMenu menu (first:rest) = do
-    first' <- first
-    menuShellAppend menu first'
-    addMenuItemsToMenu menu rest
-addMenuItemsToMenu _ [] = error "huh?"
-
-menuTree2MenuItem::MenuTree->IO MenuItem
-menuTree2MenuItem (TrSubMenu name trSubItems rightJustify) = do
-    menu <- menuNew
-    menuItem <- menuItemNewWithLabel name
-    menuItemSetSubmenu menuItem menu
-    addMenuItemsToMenu menu (menuTree2MenuItem <$> trSubItems)
-    menuItemSetRightJustified menuItem rightJustify
-    return menuItem
-menuTree2MenuItem (TrItem name action) = do
-    item <- menuItemNewWithMnemonic name
-    onActivateLeaf item action
-    return item
 
 edit::Grammar->String->IO ()
 edit g fileNameString = do
@@ -121,45 +94,50 @@ edit g fileNameString = do
     resetButton <- buttonNewWithLabel "Reset"
     onClicked resetButton (resetBuffer textView)
 
-    menu <- createMenu
+    vbox <- vBoxNew False 10
+    hbox <- hBoxNew False 10
+
+    addMenuToWindow window vbox
+        (
             [
-                TrSubMenu "File"
+                TrSubMenu "_File"
                     [
-                        TrItem "Open" (promptAndLoadBuffer textView window),
-                        TrItem "Save" (saveBuffer fileNameRef textView),
-                        TrItem "Save As...." (saveBufferAs fileNameRef textView window),
-                        TrItem "_Quit" mainQuit
+                        TrItem "Open" Nothing (promptAndLoadBuffer textView window),
+                        TrItem "Save" Nothing (saveBuffer fileNameRef textView),
+                        TrItem "Save As...." Nothing (saveBufferAs fileNameRef textView window),
+                        TrItem "_Quit" (Just "<Control>q") mainQuit
                     ] False,
                 TrSubMenu "Edit"
                     [
-                        TrItem "Find" mainQuit
+                        TrItem "Find" Nothing mainQuit
                     ] False,
                 TrSubMenu "Help"
                     [
-                        TrItem "about" mainQuit
+                        TrItem "about" Nothing mainQuit
                     ] True
             ]
+            )
 
 
-    --set quitItem [ useUnderLine := True ]
-
-    --widgetShowAll menu
-
-    vbox <- vBoxNew False 10
-    hbox <- hBoxNew False 10
     --set hbox [ containerChild := outputButton, containerChild := resetButton ]
-    boxPackStart hbox resetButton PackGrow 0
-
-    boxPackStart vbox menu PackNatural 0
-    boxPackStart vbox hbox PackNatural 0
-    boxPackStart vbox scrolledTextView PackGrow 0
     set window [ containerBorderWidth := 10,
-        containerChild := vbox, windowDefaultWidth := 400, windowDefaultHeight := 300 ]
-    onDestroy window mainQuit
+        containerChild := vbox, windowDefaultWidth := 800, windowDefaultHeight := 600 ]
 
     loadBuffer fileNameString textView window
 
 
+    {-maybeToolbar <- uiManagerGetWidget ui "/ui/toolbar"
+    let toolbar = case maybeToolbar of
+            (Just x) -> x
+            Nothing -> error "Cannot get toolbar from string."
+    boxPackStart vbox toolbar PackNatural 0-}
+
+    boxPackStart hbox resetButton PackGrow 0
+
+    boxPackStart vbox hbox PackNatural 0
+    boxPackStart vbox scrolledTextView PackGrow 0
+
+    onDestroy window mainQuit
     widgetShowAll window
     mainGUI
 
@@ -270,7 +248,6 @@ editMain args = do
     let options =
             fixOptions
                 ($(arg2Opts ''Options ["fileName"]) args deflt)
-    putStrLn (show options)
     grammar <- loadGrammar (fromJust $ specFileName options)
     Editor.edit grammar (fileName options)
 

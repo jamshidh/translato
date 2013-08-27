@@ -15,7 +15,7 @@ executable parser
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: Menu ArgOpts OperatorNames SequenceMap
+    other-modules: ToolBar Menu ArgOpts OperatorNames SequenceMap
                    JDebug Grammar CmdOptions Colors FakeColors Parser Editor XPath
                    Editor2 LText Lookahead LString Main GrammarParser ParseError
                    StupidSetGet EnhancedString EStringTools Shower Quoter CharSet

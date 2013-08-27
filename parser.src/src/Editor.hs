@@ -37,30 +37,12 @@ import ArgOpts
 import Grammar
 import GrammarTools
 import Menu
+import ToolBar
 
 import JDebug
 
 uiDef =
   "<ui>\
-  \  <menubar>\
-  \    <menu name=\"File\" action='FileAction'>\
-  \      <menuitem name=\"New\" action=\"NewAction\" />\
-  \      <menuitem name=\"Open\" action=\"OpenAction\" />\
-  \      <menuitem name=\"Save\" action=\"SaveAction\" />\
-  \      <menuitem name=\"SaveAs\" action=\"SaveAsAction\" />\
-  \      <separator/>\
-  \      <menuitem name=\"Exit\" action=\"ExitAction\"/>\
-  \      <placeholder name=\"FileMenuAdditions\" />\
-  \    </menu>\
-  \    <menu name=\"Edit\" action=\"EditAction\">\
-  \      <menuitem name=\"Cut\" action=\"CutAction\"/>\
-  \      <menuitem name=\"Copy\" action=\"CopyAction\"/>\
-  \      <menuitem name=\"Paste\" action=\"PasteAction\"/>\
-  \    </menu>\
-  \    <menu name=\"Help\" action=\"HelpAction\">\
-  \      <menuitem name=\"About\" action=\"AboutAction\"/>\
-  \    </menu>\
-  \  </menubar>\
   \  <toolbar>\
   \    <placeholder name=\"FileToolItems\">\
   \      <separator/>\
@@ -117,6 +99,18 @@ edit g fileNameString = do
                     ] True
             ]
             )
+
+    addToolBarToWindow window vbox
+        (
+            [
+                Item stockOpen (Just "Open File") (promptAndLoadBuffer textView window),
+                Item stockSave (Just "Save File") (saveBuffer fileNameRef textView),
+                Item stockSaveAs (Just "Save File As....") (saveBufferAs fileNameRef textView window),
+                Item stockQuit (Just "Quit the program") mainQuit,
+                Item stockFind (Just "Find....") mainQuit,
+                Item stockAbout (Just "About") mainQuit
+            ]
+        )
 
 
     --set hbox [ containerChild := outputButton, containerChild := resetButton ]
@@ -197,9 +191,12 @@ loadBuffer filename tv window =
 promptAndLoadBuffer::TextView->Window->IO ()
 promptAndLoadBuffer tv window =
     do
-        Just fileName <- openOpenFileDialog FileChooserActionOpen window
-        loadBuffer fileName tv window
-        windowSetTitle window fileName
+        maybeFileName <- openOpenFileDialog FileChooserActionOpen window
+        case maybeFileName of
+            Just fileName -> do
+                loadBuffer fileName tv window
+                windowSetTitle window fileName
+            Nothing -> return ()
 
 {--chooseFile::IO String
 chooseFile =

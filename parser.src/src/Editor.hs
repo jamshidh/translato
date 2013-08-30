@@ -74,7 +74,7 @@ edit g fileNameString = do
                 TrSubMenu "_File"
                     [
                         TrItem "Open" Nothing (promptAndLoadBuffer textView window),
-                        TrItem "Save" Nothing (saveBuffer fileNameRef textView),
+                        TrItem "Save" (Just "<Control>s") (saveBuffer fileNameRef textView),
                         TrItem "Save As...." Nothing (saveBufferAs fileNameRef textView window),
                         TrItem "_Quit" (Just "<Control>q") mainQuit
                     ] False,
@@ -84,7 +84,7 @@ edit g fileNameString = do
                     ] False,
                 TrSubMenu "Help"
                     [
-                        TrItem "about" Nothing mainQuit
+                        TrItem "about" Nothing showAboutDialog
                     ] True
             ]
             )
@@ -97,7 +97,7 @@ edit g fileNameString = do
                 Item stockSaveAs (Just "Save File As....") (saveBufferAs fileNameRef textView window),
                 Item stockQuit (Just "Quit the program") mainQuit,
                 Item stockFind (Just "Find....") mainQuit,
-                Item stockAbout (Just "About") mainQuit
+                Item stockAbout (Just "About") showAboutDialog
             ]
         )
 
@@ -111,7 +111,11 @@ edit g fileNameString = do
     boxPackStart hbox resetButton PackGrow 0
 
     boxPackStart vbox hbox PackNatural 0
-    boxPackStart vbox scrolledTextView PackGrow 0
+
+    vPaned <- vPanedNew
+    boxPackStart vbox vPaned PackGrow 0
+
+    panedPack1 vPaned scrolledTextView True True
 
 
     storeSource <- listStoreNew
@@ -123,7 +127,8 @@ edit g fileNameString = do
             Error 2 "abcd"
         ]
 
-    addListBoxToWindow window vbox storeSource [("Line #", DataExtractor line), ("message", DataExtractor message)]
+    addListBoxToWindow window vPaned storeSource [("Line #", DataExtractor line), ("message", DataExtractor message)]
+
 
 ----------------------------------
 
@@ -156,6 +161,11 @@ edit g fileNameString = do
 
     onDestroy window mainQuit
     widgetShowAll window
+
+    Rectangle _ _ width height <- widgetGetAllocation vPaned
+
+    panedSetPosition vPaned width
+
     mainGUI
 
 saveBuffer::IORef String->TextView->IO ()
@@ -225,6 +235,31 @@ promptAndLoadBuffer tv window =
 chooseFile =
     do
         fileChooser <- fileChooserNew--}
+
+showAboutDialog::IO()
+showAboutDialog = do
+    aboutDialog <- aboutDialogNew
+
+    set aboutDialog [
+            aboutDialogProgramName := "Parser Editor",
+            aboutDialogVersion := "Alpha",
+            aboutDialogAuthors := ["Jamshid Hormuzdiar"]
+            --aboutDialogName :: AboutDialogClass self => Attr self StringSource
+            --aboutDialogCopyright :: AboutDialogClass self => Attr self StringSource
+            --aboutDialogComments :: AboutDialogClass self => Attr self StringSource
+            --aboutDialogLicense :: AboutDialogClass self => Attr self (Maybe String)Source
+            --aboutDialogWebsite :: AboutDialogClass self => Attr self StringSource
+            --aboutDialogWebsiteLabel :: AboutDialogClass self => Attr self StringSource
+            --aboutDialogDocumenters :: AboutDialogClass self => Attr self [String]Source
+            --aboutDialogArtists :: AboutDialogClass self => Attr self [String]Source
+            --aboutDialogTranslatorCredits :: AboutDialogClass self => Attr self StringSource
+            --aboutDialogLogo :: AboutDialogClass self => ReadWriteAttr self Pixbuf (Maybe Pixbuf)Source
+            --aboutDialogLogoIconName :: AboutDialogClass self => ReadWriteAttr self String (Maybe String)Source
+            --aboutDialogWrapLicense :: AboutDialogClass self => Attr self BoolSource
+       ]
+
+    dialogRun aboutDialog
+    widgetHide aboutDialog
 
 openOpenFileDialog::FileChooserAction->Window->IO (Maybe String)
 openOpenFileDialog action parentWindow = do

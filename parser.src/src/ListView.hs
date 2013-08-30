@@ -37,7 +37,7 @@ instance Format (CI String) where
 
 data DataExtractor a b =forall b.(Format b, Ord b)=>DataExtractor (a->b)
 
-addListBoxToWindow::BoxClass a=>Window->a->ListStore b->[(String, DataExtractor b c)]->IO()
+addListBoxToWindow::PanedClass a=>Window->a->ListStore b->[(String, DataExtractor b c)]->IO()
 addListBoxToWindow window box storeSource columns = do
     --I don't know why I can't just use storeSource2 everywhere, but it causes the app to crash.
     --For now I don't care, I'll do what works without understanding it.
@@ -59,7 +59,7 @@ addListBoxToWindow window box storeSource columns = do
 
     mapM_ (\(position, (name, extractor)) -> addColumn position name storeSource storeSource2 extractor treeView) (zip [1..] columns)
 
-    boxPackStart box treeView PackGrow 0
+    panedPack2 box treeView True True
 
     return ()
 

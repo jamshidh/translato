@@ -54,6 +54,9 @@ edit g fileNameString = do
     window <- windowNew
     fileNameRef <- newIORef fileNameString
     windowSetTitle window fileNameString
+    --windowSetHasFrame window True
+    --windowSetDecorated window False
+    --windowSetFrameDimensions window 50 50 50 50
 
     scrolledTextView <- scrolledWindowNew Nothing Nothing
     textView <- textViewNew
@@ -62,8 +65,8 @@ edit g fileNameString = do
     resetButton <- buttonNewWithLabel "Reset"
     onClicked resetButton (resetBuffer textView)
 
-    vbox <- vBoxNew False 10
-    hbox <- hBoxNew False 10
+    vbox <- vBoxNew False 0
+    hbox <- hBoxNew True 0
 
     addMenuToWindow window vbox
         (
@@ -100,7 +103,7 @@ edit g fileNameString = do
 
 
     --set hbox [ containerChild := outputButton, containerChild := resetButton ]
-    set window [ containerBorderWidth := 10,
+    set window [ containerBorderWidth := 4,
         containerChild := vbox, windowDefaultWidth := 800, windowDefaultHeight := 600 ]
 
     loadBuffer fileNameString textView window
@@ -121,6 +124,35 @@ edit g fileNameString = do
         ]
 
     addListBoxToWindow window vbox storeSource [("Line #", DataExtractor line), ("message", DataExtractor message)]
+
+----------------------------------
+
+    statusBarBox <- hBoxNew False 0
+    boxPackStart vbox statusBarBox PackNatural 0
+
+
+
+    statusBar <- statusbarNew
+    statusBarButton <- buttonNewWithLabel "qqqq"
+    validImage <- imageNewFromFile "redBall.png"
+    --validImage <- imageNewFromStock stockYes IconSizeMenu
+
+    boxPackStart statusBarBox statusBarButton PackNatural 0
+    boxPackEnd statusBarBox validImage PackNatural 0
+
+    label <- labelNew (Just "qqqq")
+
+    boxPackStart statusBarBox label PackNatural 0
+
+    id <- statusbarGetContextId statusBar "qqqq"
+
+    statusbarSetHasResizeGrip statusBar True
+
+    statusbarPush statusBar id "qqqq"
+
+
+
+----------------
 
     onDestroy window mainQuit
     widgetShowAll window

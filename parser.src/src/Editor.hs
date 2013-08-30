@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
 
 -----------------------------------------------------------------------------
 --
@@ -20,6 +20,8 @@ module Editor (
 ) where
 
 import Control.Monad
+import Control.Monad.Trans
+import Data.CaseInsensitive
 import Data.Functor
 import Data.IORef
 import Data.Maybe
@@ -27,6 +29,8 @@ import Data.Text hiding (head, concat)
 import Data.Text.Encoding
 import Graphics.UI.Gtk
 import Graphics.UI.Gtk.MenuComboToolbar.Menu
+import Graphics.UI.Gtk.ModelView
+import Graphics.UI.Gtk.ModelView.TreeView
 import Graphics.UI.Gtk.Multiline.TextIter
 import Graphics.UI.Gtk.Multiline.TextView
 import System.Console.GetOpt as O
@@ -36,31 +40,13 @@ import Text.Regex
 import ArgOpts
 import Grammar
 import GrammarTools
+import ListView
 import Menu
 import ToolBar
 
 import JDebug
 
-uiDef =
-  "<ui>\
-  \  <toolbar>\
-  \    <placeholder name=\"FileToolItems\">\
-  \      <separator/>\
-  \      <toolitem name=\"New\" action=\"NewAction\"/>\
-  \      <toolitem name=\"Open\" action=\"OpenAction\"/>\
-  \      <toolitem name=\"Save\" action=\"SaveAction\"/>\
-  \      <separator/>\
-  \    </placeholder>\
-  \    <placeholder name=\"EditToolItems\">\
-  \      <separator/>\
-  \      <toolitem name=\"Cut\" action=\"CutAction\"/>\
-  \      <toolitem name=\"Copy\" action=\"CopyAction\"/>\
-  \      <toolitem name=\"Paste\" action=\"PasteAction\"/>\
-  \      <separator/>\
-  \    </placeholder>\
-  \  </toolbar>\
-  \</ui>"
-
+data Error = Error { line::Int, message::CI String }
 
 edit::Grammar->String->IO ()
 edit g fileNameString = do
@@ -119,17 +105,22 @@ edit g fileNameString = do
 
     loadBuffer fileNameString textView window
 
-
-    {-maybeToolbar <- uiManagerGetWidget ui "/ui/toolbar"
-    let toolbar = case maybeToolbar of
-            (Just x) -> x
-            Nothing -> error "Cannot get toolbar from string."
-    boxPackStart vbox toolbar PackNatural 0-}
-
     boxPackStart hbox resetButton PackGrow 0
 
     boxPackStart vbox hbox PackNatural 0
     boxPackStart vbox scrolledTextView PackGrow 0
+
+
+    storeSource <- listStoreNew
+        [
+            Error {line=1, message="World"},
+            Error {line=11, message="Bee, you ate the flowers!"},
+            Error {line=20, message="You ate the flowers!"},
+            Error {line=5, message="carl, you ate the flowers!"},
+            Error 2 "abcd"
+        ]
+
+    addListBoxToWindow window vbox storeSource [("Line #", DataExtractor line), ("message", DataExtractor message)]
 
     onDestroy window mainQuit
     widgetShowAll window

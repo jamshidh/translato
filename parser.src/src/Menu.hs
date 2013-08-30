@@ -18,41 +18,10 @@ module Menu (
 ) where
 
 import Graphics.UI.Gtk
---import Graphics.UI.Gtk.MenuComboToolbar.Menu
 
 import JDebug
 
 data MenuTree = TrSubMenu String [MenuTree] Bool | TrItem String (Maybe String) (IO())
-
-{-createMenu::[MenuTree]->IO MenuBar
-createMenu tree = do
-    menu <- menuBarNew
-    --let menuItems = menuTree2MenuItem <$> tree
-
-    addMenuItemsToMenu menu (menuTree2MenuItem <$> tree)
-    return menu
-
-addMenuItemsToMenu::MenuShellClass a=>a->[IO MenuItem]->IO ()
-addMenuItemsToMenu menu [first] = do
-    first' <- first
-    menuShellAppend menu first'
-addMenuItemsToMenu menu (first:rest) = do
-    first' <- first
-    menuShellAppend menu first'
-    addMenuItemsToMenu menu rest
-addMenuItemsToMenu _ [] = error "huh?"
-
-menuTree2MenuItem::MenuTree->ActionGroup->IO (String, ActionGroup)
-menuTree2MenuItem (TrSubMenu name trSubItems rightJustify) actionGroup = do
-    menu <- menuNew
-    menuItem <- menuItemNewWithLabel name
-    menuItemSetSubmenu menuItem menu
-    addMenuItemsToMenu menu (menuTree2MenuItem <$> trSubItems)
-    menuItemSetRightJustified menuItem rightJustify
-    return menuItem
-menuTree2MenuItem (TrItem name accelerator action) actionGroup = do
---    onActivateLeaf item action
-    return ()-}
 
 --Note- I am doing something dumb here, but I don't know of a better way to do it.
 --I am converting a haskell data tree to an xml string representing the menu, then using a uimanager
@@ -111,8 +80,6 @@ menuTree2MenuData menu = do
             treeString2ActionGroup rest (position + 1) actionGroup
 
         flattened = flatten menu
-
-
 
 ---------------------
 

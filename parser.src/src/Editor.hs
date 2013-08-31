@@ -92,12 +92,14 @@ edit g fileNameString = do
     addToolBarToWindow window vbox
         (
             [
-                Item stockOpen (Just "Open File") (promptAndLoadBuffer textView window),
-                Item stockSave (Just "Save File") (saveBuffer fileNameRef textView),
-                Item stockSaveAs (Just "Save File As....") (saveBufferAs fileNameRef textView window),
-                Item stockQuit (Just "Quit the program") mainQuit,
-                Item stockFind (Just "Find....") mainQuit,
-                Item stockAbout (Just "About") showAboutDialog
+                Item (Stock stockOpen) (Just "Open File") (promptAndLoadBuffer textView window),
+                Item (Stock stockSave) (Just "Save File") (saveBuffer fileNameRef textView),
+                Item (Stock stockSaveAs) (Just "Save File As....") (saveBufferAs fileNameRef textView window),
+                Item (Stock stockQuit) (Just "Quit the program") mainQuit,
+                Item (Stock stockFind) (Just "Find....") mainQuit,
+                Item (Stock stockAbout) (Just "About") showAboutDialog,
+                Item (Stock stockAbout) Nothing showAboutDialog,
+                Item (File "redBall.png") (Just "Validate") showAboutDialog
             ]
         )
 

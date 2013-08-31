@@ -5,6 +5,7 @@
 module Parser (
     createParserForClass,
     createParser,
+    createParserWithErrors,
     parseTree,
     seq2ParseTree,
     parseMain
@@ -41,7 +42,7 @@ import JDebug
 
 type Attribute = (String, String)
 
-type EParser = LString->EString
+type EParser = String->EString
 type Parser = String->String
 
 err::LString->String->Forest EChar
@@ -106,19 +107,37 @@ rawParse items s = rawParse [chooseOne items s] s
 parseTree::Grammar->String->Forest Expression
 parseTree g startRule=seq2ParseTree (leftFactorSequenceMap $ sequenceMap g) [Link startRule]
 
-createParserForClass::String->Grammar->Parser
-createParserForClass startRule g s =
-        enhancedString2String
---        show
-            $ expandOperators
+createEParserForClass::String->Grammar->EParser
+createEParserForClass startRule g s =
+            expandOperators
             $ fillInAttributes
             $ checkForVarConsistency []
             $ fillInVariableAssignments
             $ fillInFutureItems
             $ (rawParse (parseTree g startRule) (createLString s))
 
+createParserForClass::String->Grammar->Parser
+createParserForClass startRule g s =
+        enhancedString2String
+--        show
+        $ createEParserForClass startRule g s
+
+createEParser::Grammar->EParser
+createEParser g = createEParserForClass (main fixedG) fixedG
+    where fixedG = fixG g
+
 createParser::Grammar->Parser
-createParser g = createParserForClass (main g) g
+createParser g = enhancedString2String . createEParser g
+
+createParserWithErrors::Grammar->String->(String, EString)
+createParserWithErrors g s = jtrace (show (length result)) $ (enhancedString2String result, getErrors result)
+    where
+        result = createEParser g s
+        getErrors::EString->EString
+        getErrors [] = jtrace "abcd" $ []
+        getErrors (c@(Error _ _):rest) = jtrace (show c) $ c:getErrors rest
+        getErrors (c@(ExpectationError _ _):rest) = jtrace (show c) $ c:getErrors rest
+        getErrors (c:rest) = jtrace (show c) $ getErrors rest
 
 ---------
 
@@ -127,7 +146,7 @@ deflt = Options { specFileName = Nothing, inputFileName=Nothing }
 
 parseMain::[String]->IO ()
 parseMain args = do
-    let options = $(arg2Opts ''Options []) args deflt
+    let options = $(arg2Opts ''Options ["inputFileName"]) args deflt
     let specFileName' =
             case specFileName options of
                 Nothing ->
@@ -145,8 +164,8 @@ parseMain args = do
         Just fileName -> do
                 fileHandle <- openFile fileName ReadMode
                 input <- hGetContents fileHandle
-                putStr (createParser (fixG grammar) input)
-        Nothing -> interact (createParser (fixG grammar))
+                putStr (show $ createParserWithErrors grammar input)
+        Nothing -> interact (show . createParserWithErrors grammar)
 
 
 

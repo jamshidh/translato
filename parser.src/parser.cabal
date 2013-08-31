@@ -4,6 +4,7 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
+description:  
 data-dir: ""
 extra-source-files: ""
  
@@ -11,22 +12,24 @@ executable parser
     build-depends: base -any, bytestring -any, case-insensitive -any,
                    containers -any, fgl -any, filepath -any, gtk -any, mtl -any,
                    parsec -any, regex-compat -any, system-filepath -any,
-                   template-haskell -any, text -any, xml-conduit -any
+                   template-haskell -any, text -any, utf8-string -any,
+                   xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: ArgOpts OperatorNames
-                   SequenceMap JDebug Grammar CmdOptions Colors FakeColors Parser
-                   Editor XPath Editor2 LText Lookahead LString Main GrammarParser
-                   ParseError ToolBar StupidSetGet EnhancedString EStringTools Shower
-                   Quoter CharSet ListView Menu Generator ParseElements Context
-                   LeftFactoring GrammarTools TreeTools
+    other-modules: ArgOpts OperatorNames SequenceMap JDebug Grammar
+                   CmdOptions Colors FakeColors Parser Editor XPath Editor2 LText
+                   Lookahead LString Main GrammarParser ParseError ToolBar
+                   StupidSetGet EnhancedString EStringTools Shower Quoter CharSet
+                   ListView Menu Generator ParseElements Context LeftFactoring
+                   GrammarTools TreeTools
  
 test-suite test-parser
     build-depends: base -any, bytestring -any, case-insensitive -any,
                    containers -any, fgl -any, filepath -any, gtk -any, mtl -any,
                    parsec -any, regex-compat -any, system-filepath -any,
-                   template-haskell -any, text -any, xml-conduit -any
+                   template-haskell -any, text -any, utf8-string -any,
+                   xml-conduit -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

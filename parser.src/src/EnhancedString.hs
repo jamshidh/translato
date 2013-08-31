@@ -81,8 +81,10 @@ instance Show EChar where
     show EndBlock = red "]"
     show (InfixTag InfixOp{opPriority=p, opName=name}) = cyan ("<-" ++ name ++ ":" ++ show p ++ "->")
     show (EndCap name) = yellow ("EndCap(" ++ name ++ ")")
-    show (ExpectationError expected s) = red ("{ExpectationError: " ++ show expected ++ "}")
-    show (Error message s) = red ("{Error: " ++ message ++ "}")
+--    show (ExpectationError expected s) = red ("{ExpectationError: " ++ show expected ++ "}")
+--    show (Error message s) = red ("{Error: " ++ message ++ "}")
+    show (ExpectationError expected s) = red "ExpectationError"
+    show (Error message s) = red "Error"
 
 type EString = [EChar]
 

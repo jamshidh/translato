@@ -19,37 +19,38 @@ module Editor (
     editMain
 ) where
 
-import Control.Monad
-import Control.Monad.Trans
+import Data.ByteString.UTF8
 import Data.CaseInsensitive
 import Data.Functor
 import Data.IORef
 import Data.Maybe
-import Data.Text hiding (head, concat)
+import Data.Text as T hiding (head, concat)
 import Data.Text.Encoding
 import Graphics.UI.Gtk
-import Graphics.UI.Gtk.MenuComboToolbar.Menu
-import Graphics.UI.Gtk.ModelView
-import Graphics.UI.Gtk.ModelView.TreeView
-import Graphics.UI.Gtk.Multiline.TextIter
-import Graphics.UI.Gtk.Multiline.TextView
-import System.Console.GetOpt as O
 import System.IO
 import Text.Regex
 
 import ArgOpts
+import qualified EnhancedString as E
 import Grammar
 import GrammarTools
 import ListView
+import qualified LString as LS
 import Menu
+import Parser
 import ToolBar
 
 import JDebug
 
-data Error = Error { line::Int, message::CI String }
+data Error = Error { line::Int, column::Int, message::CI String } deriving (Show)
 
 edit::Grammar->String->IO ()
 edit g fileNameString = do
+    storeSource <- listStoreNew
+        [
+            Error 2 2 "abcd"
+        ]
+
     initGUI
     window <- windowNew
     fileNameRef <- newIORef fileNameString
@@ -61,9 +62,6 @@ edit g fileNameString = do
     scrolledTextView <- scrolledWindowNew Nothing Nothing
     textView <- textViewNew
     set scrolledTextView [ containerChild := textView ]
-
-    resetButton <- buttonNewWithLabel "Reset"
-    onClicked resetButton (resetBuffer textView)
 
     vbox <- vBoxNew False 0
     hbox <- hBoxNew True 0
@@ -82,6 +80,10 @@ edit g fileNameString = do
                     [
                         TrItem "Find" Nothing mainQuit
                     ] False,
+                TrSubMenu "Tools"
+                    [
+                        TrItem "Validate" (Just "<Control>v") (validate g textView storeSource)
+                    ] False,
                 TrSubMenu "Help"
                     [
                         TrItem "about" Nothing showAboutDialog
@@ -98,8 +100,7 @@ edit g fileNameString = do
                 Item (Stock stockQuit) (Just "Quit the program") mainQuit,
                 Item (Stock stockFind) (Just "Find....") mainQuit,
                 Item (Stock stockAbout) (Just "About") showAboutDialog,
-                Item (Stock stockAbout) Nothing showAboutDialog,
-                Item (File "redBall.png") (Just "Validate") showAboutDialog
+                Item (File "redBall.png") (Just "Validate") (validate g textView storeSource)
             ]
         )
 
@@ -110,8 +111,6 @@ edit g fileNameString = do
 
     loadBuffer fileNameString textView window
 
-    boxPackStart hbox resetButton PackGrow 0
-
     boxPackStart vbox hbox PackNatural 0
 
     vPaned <- vPanedNew
@@ -119,17 +118,7 @@ edit g fileNameString = do
 
     panedPack1 vPaned scrolledTextView True True
 
-
-    storeSource <- listStoreNew
-        [
-            Error {line=1, message="World"},
-            Error {line=11, message="Bee, you ate the flowers!"},
-            Error {line=20, message="You ate the flowers!"},
-            Error {line=5, message="carl, you ate the flowers!"},
-            Error 2 "abcd"
-        ]
-
-    addListBoxToWindow window vPaned storeSource [("Line #", DataExtractor line), ("message", DataExtractor message)]
+    addListBoxToWindow window vPaned storeSource [("Line #", DataExtractor line), ("Column #", DataExtractor column), ("message", DataExtractor message)]
 
 
 ----------------------------------
@@ -170,6 +159,34 @@ edit g fileNameString = do
 
     mainGUI
 
+validate::Grammar->TextView->ListStore Error->IO()
+validate g tv errors = do
+    --let initialText = T.pack "qqqq"
+    buff <- textViewGetBuffer tv
+    --textBufferSetByteString buff (encodeUtf8 initialText)
+    start <- textBufferGetStartIter buff
+    end <- textBufferGetEndIter buff
+    bufferString <- textBufferGetByteString buff start end False
+    let (res, errorList) = createParserWithErrors g (toString bufferString)
+    mapM_ (\error -> listStoreAppend errors error) (eString2Error <$> errorList)
+    putStrLn (show (eString2Error <$> errorList))
+    mapM_ (highlightError buff) (eString2Error <$> errorList)
+    where
+        eString2Error::E.EChar->Error
+        eString2Error (E.Error message input) = Error (LS.line input) (LS.col input) (mk message)
+        eString2Error (E.ExpectationError expected input) = Error (LS.line input) (LS.col input) (mk ("Expected: " ++ show expected))
+
+        highlightError::TextBuffer->Error->IO()
+        highlightError buff error = do
+            tagTable <- textBufferGetTagTable buff
+            tag <- textTagNew (Just "qqqq")
+            set tag [textTagUnderline := UnderlineError, textTagBackground := "Pink"]
+            textTagTableAdd tagTable tag
+            start <- textBufferGetIterAtLineOffset buff (line error) (column error)
+            end <- textBufferGetIterAtLineOffset buff (line error) (column error + 1)
+            textBufferApplyTag buff tag start end
+
+
 saveBuffer::IORef String->TextView->IO ()
 saveBuffer fileNameRef tv =
     do
@@ -192,20 +209,6 @@ saveBufferAs fileNameRef tv window =
         windowSetTitle window filename
         writeIORef fileNameRef filename
         saveBuffer fileNameRef tv
-
-resetBuffer::TextView->IO ()
-resetBuffer tv =
-    do
-        let initialText = pack "qqqq"
-        buf <- textViewGetBuffer tv
-        tagTable <- textBufferGetTagTable buf
-        textBufferSetByteString buf (encodeUtf8 initialText)
-        tag <- textTagNew (Just "qqqq")
-        set tag [textTagUnderline := UnderlineError, textTagBackground := "Pink"]
-        textTagTableAdd tagTable tag
-        start <- textBufferGetIterAtOffset buf 0
-        end <- textBufferGetIterAtOffset buf 2
-        textBufferApplyTag buf tag start end
 
 loadBuffer::String->TextView->Window->IO ()
 loadBuffer filename tv window =

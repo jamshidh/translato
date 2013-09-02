@@ -178,6 +178,8 @@ validate g validImage textView errors = do
     if null errorList
         then imageSetFromFile validImage "greenBall.png"
         else imageSetFromFile validImage "redBall.png"
+    listStoreClear errors
+    textBufferRemoveAllTags buff start end
     mapM_ (\error -> listStoreAppend errors error) (eString2Error <$> errorList)
     mapM_ (highlightError buff) (eString2Error <$> errorList)
     where
@@ -188,7 +190,7 @@ validate g validImage textView errors = do
         highlightError::TextBuffer->Error->IO()
         highlightError buff error = do
             tagTable <- textBufferGetTagTable buff
-            tag <- textTagNew (Just "qqqq")
+            tag <- textTagNew Nothing
             set tag [textTagUnderline := UnderlineError, textTagBackground := "Pink"]
             textTagTableAdd tagTable tag
             start <- textBufferGetIterAtLineOffset buff (line error) (column error)

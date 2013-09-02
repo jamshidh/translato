@@ -62,6 +62,7 @@ fillInFutureItems (FutureItem:rest) = futureItem ++ fillInFutureItems restWithou
         (futureItem, restWithoutFutureItem) = splitFutureItem rest
         splitFutureItem s@(FutureItem:rest) = splitFutureItem $ fillInFutureItems s
         splitFutureItem (ItemInfo eString:rest) = (eString, rest)
+        splitFutureItem s@(ExpectationError _ _:rest) = ([Unknown], s)
         splitFutureItem (c:rest) = fmap (c:) (splitFutureItem rest)
         splitFutureItem x = error ("Missing case in splitFutureItem: " ++ show x)
 fillInFutureItems (c:rest) = c:fillInFutureItems rest
@@ -118,18 +119,24 @@ fillInAttributes [] = []
 fstMap f (first, second) = (f first, second)
 
 expandOperators::EString->EString
-expandOperators (StartBlock:rest) = expandOperatorsInBlock blockString ++ expandOperators rest2
+expandOperators (StartBlock:rest) = case fullBlock rest of
+    Right (blockString, rest2) -> expandOperatorsInBlock blockString ++ expandOperators rest2
+    Left e -> [e]
     where
-        fullBlock::EString->(EString, EString)
-        fullBlock (EndBlock:rest) = ([], rest)
-        fullBlock (StartBlock:rest) = (inside1 ++ inside2, outside2)
-            where
-                (inside1, outside1) = fullBlock rest
-                (inside2, outside2) = fullBlock outside1
-        fullBlock (c:rest) = (c:inside, outside)
-            where (inside, outside) = fullBlock rest
+        fullBlock::EString->Either EChar (EString, EString)
+        fullBlock (EndBlock:rest) = Right ([], rest)
+        fullBlock (c@(ExpectationError _ _):rest) = Left c
+        fullBlock (StartBlock:rest) = --Nested Blocks
+            case fullBlock rest of
+                Right (inside1, outside1) ->
+                    case fullBlock outside1 of
+                        Right (inside2, outside2) -> Right (inside1 ++ inside2, outside2)
+                        Left e -> Left e
+                Left e -> Left e
+        fullBlock (c:rest) = case fullBlock rest of
+                Right (inside, outside) -> Right (c:inside, outside)
+                Left e -> Left e
 
-        (blockString, rest2) = fullBlock rest
 expandOperators (c:rest) = c:expandOperators rest
 expandOperators [] = []
 

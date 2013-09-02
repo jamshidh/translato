@@ -52,6 +52,7 @@ data EChar = Ch Char
     | VAssign String String LS.LString --The LString is only added for error reporting, to know the location of the string
     | TabRight String
     | TabLeft
+    | Unknown --used when error occurs before ItemInfo is given
     | StartBlock
     | EndBlock
     | InfixTag InfixOp

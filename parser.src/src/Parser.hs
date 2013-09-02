@@ -130,14 +130,14 @@ createParser::Grammar->Parser
 createParser g = enhancedString2String . createEParser g
 
 createParserWithErrors::Grammar->String->(String, EString)
-createParserWithErrors g s = jtrace (show (length result)) $ (enhancedString2String result, getErrors result)
+createParserWithErrors g s = (enhancedString2String result, getErrors result)
     where
         result = createEParser g s
         getErrors::EString->EString
-        getErrors [] = jtrace "abcd" $ []
-        getErrors (c@(Error _ _):rest) = jtrace (show c) $ c:getErrors rest
-        getErrors (c@(ExpectationError _ _):rest) = jtrace (show c) $ c:getErrors rest
-        getErrors (c:rest) = jtrace (show c) $ getErrors rest
+        getErrors [] = []
+        getErrors (c@(Error _ _):rest) = c:getErrors rest
+        getErrors (c@(ExpectationError _ _):rest) = c:getErrors rest
+        getErrors (c:rest) = getErrors rest
 
 ---------
 

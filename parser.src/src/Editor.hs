@@ -24,7 +24,7 @@ import Data.CaseInsensitive
 import Data.Functor
 import Data.IORef
 import Data.Maybe
-import Data.Text as T hiding (head, concat)
+import Data.Text as T hiding (head, concat, null)
 import Data.Text.Encoding
 import Graphics.UI.Gtk
 import System.IO
@@ -59,6 +59,8 @@ edit g fileNameString = do
     --windowSetDecorated window False
     --windowSetFrameDimensions window 50 50 50 50
 
+    validImage <- imageNewFromFile "redBall.png"
+
     scrolledTextView <- scrolledWindowNew Nothing Nothing
     textView <- textViewNew
     set scrolledTextView [ containerChild := textView ]
@@ -82,7 +84,7 @@ edit g fileNameString = do
                     ] False,
                 TrSubMenu "Tools"
                     [
-                        TrItem "Validate" (Just "<Control>v") (validate g textView storeSource)
+                        TrItem "Validate" (Just "<Control>v") (validate g validImage textView storeSource)
                     ] False,
                 TrSubMenu "Help"
                     [
@@ -100,7 +102,7 @@ edit g fileNameString = do
                 Item (Stock stockQuit) (Just "Quit the program") mainQuit,
                 Item (Stock stockFind) (Just "Find....") mainQuit,
                 Item (Stock stockAbout) (Just "About") showAboutDialog,
-                Item (File "redBall.png") (Just "Validate") (validate g textView storeSource)
+                Item (File "redBall.png") (Just "Validate") (validate g validImage textView storeSource)
             ]
         )
 
@@ -130,7 +132,6 @@ edit g fileNameString = do
 
     statusBar <- statusbarNew
     statusBarButton <- buttonNewWithLabel "qqqq"
-    validImage <- imageNewFromFile "redBall.png"
     --validImage <- imageNewFromStock stockYes IconSizeMenu
 
     boxPackStart statusBarBox statusBarButton PackNatural 0
@@ -165,8 +166,8 @@ edit g fileNameString = do
 
     mainGUI
 
-validate::Grammar->TextView->ListStore Error->IO()
-validate g textView errors = do
+validate::Grammar->Image->TextView->ListStore Error->IO()
+validate g validImage textView errors = do
     --let initialText = T.pack "qqqq"
     buff <- textViewGetBuffer textView
     --textBufferSetByteString buff (encodeUtf8 initialText)
@@ -174,8 +175,10 @@ validate g textView errors = do
     end <- textBufferGetEndIter buff
     bufferString <- textBufferGetByteString buff start end False
     let (res, errorList) = createParserWithErrors g (toString bufferString)
+    if null errorList
+        then imageSetFromFile validImage "greenBall.png"
+        else imageSetFromFile validImage "redBall.png"
     mapM_ (\error -> listStoreAppend errors error) (eString2Error <$> errorList)
-    putStrLn (show (eString2Error <$> errorList))
     mapM_ (highlightError buff) (eString2Error <$> errorList)
     where
         eString2Error::E.EChar->Error

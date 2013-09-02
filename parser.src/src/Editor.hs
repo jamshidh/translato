@@ -132,10 +132,16 @@ edit g fileNameString = do
 
     statusBar <- statusbarNew
     statusBarButton <- buttonNewWithLabel "qqqq"
+    positionLabel <- labelNew (Just "Line 0, Col 0")
     --validImage <- imageNewFromStock stockYes IconSizeMenu
+
+    textBuffer <- textViewGetBuffer textView
+    after textView moveCursor (onCursorMoved positionLabel textBuffer)
+    after textBuffer bufferChanged (onBuffChanged positionLabel textBuffer)
 
     boxPackStart statusBarBox statusBarButton PackNatural 0
     boxPackEnd statusBarBox validImage PackNatural 0
+    boxPackEnd statusBarBox positionLabel PackNatural 0
 
     label <- labelNew (Just "qqqq")
 
@@ -165,6 +171,21 @@ edit g fileNameString = do
     textBufferPlaceCursor buff start
 
     mainGUI
+
+onCursorMoved::Label->TextBuffer->MovementStep->Int->Bool->IO()
+onCursorMoved positionLabel textBuffer _ _ _=updatePositionLabel positionLabel textBuffer
+
+onBuffChanged::Label->TextBuffer->IO()
+onBuffChanged positionLabel=updatePositionLabel positionLabel
+
+updatePositionLabel::Label->TextBuffer->IO()
+updatePositionLabel positionLabel textBuffer=do
+    mark <- textBufferGetInsert textBuffer
+    iter <- textBufferGetIterAtMark textBuffer mark
+    line <- textIterGetLine iter
+    col <- textIterGetLineOffset iter
+    labelSetText positionLabel ("Line " ++ show line ++ ", Col " ++ show col)
+
 
 validate::Grammar->Image->TextView->ListStore Error->IO()
 validate g validImage textView errors = do

@@ -140,8 +140,8 @@ edit g fileNameString = do
     after textBuffer bufferChanged (onBuffChanged positionLabel textBuffer)
 
     boxPackStart statusBarBox statusBarButton PackNatural 0
-    boxPackEnd statusBarBox validImage PackNatural 0
-    boxPackEnd statusBarBox positionLabel PackNatural 0
+    boxPackEnd statusBarBox validImage PackNatural 2
+    boxPackEnd statusBarBox positionLabel PackNatural 10
 
     label <- labelNew (Just "qqqq")
 

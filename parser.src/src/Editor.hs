@@ -157,12 +157,18 @@ edit g fileNameString = do
 
     panedSetPosition vPaned width
 
+    widgetGrabFocus textView
+
+    buff <- textViewGetBuffer textView
+    start <- textBufferGetStartIter buff
+    textBufferPlaceCursor buff start
+
     mainGUI
 
 validate::Grammar->TextView->ListStore Error->IO()
-validate g tv errors = do
+validate g textView errors = do
     --let initialText = T.pack "qqqq"
-    buff <- textViewGetBuffer tv
+    buff <- textViewGetBuffer textView
     --textBufferSetByteString buff (encodeUtf8 initialText)
     start <- textBufferGetStartIter buff
     end <- textBufferGetEndIter buff

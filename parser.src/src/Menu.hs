@@ -68,7 +68,7 @@ menuTree2MenuData menu = do
         treeString2ActionGroup::TreeString->Int->ActionGroup->IO ActionGroup
         treeString2ActionGroup [] _ actionGroup = return actionGroup
         treeString2ActionGroup (Start name:rest) position actionGroup = do
-            action <- actionNew ("menu_action_" ++ show position) name (Just "tooltip") (Just stockQuit)
+            action <- actionNew ("menu_action_" ++ show position) name (Just "tooltip") Nothing
             actionGroupAddAction actionGroup action
             treeString2ActionGroup rest (position + 1) actionGroup
         treeString2ActionGroup (End:rest) position actionGroup =

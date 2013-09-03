@@ -110,16 +110,21 @@ edit g fileNameString = do
 
     --set hbox [ containerChild := outputButton, containerChild := resetButton ]
     set window [ containerBorderWidth := 4,
-        containerChild := vbox, windowDefaultWidth := 800, windowDefaultHeight := 600 ]
+        containerChild := vbox, windowDefaultWidth := 1400, windowDefaultHeight := 900 ]
 
     loadBuffer fileNameString textView window
 
     boxPackStart vbox hbox PackNatural 0
 
     vPaned <- vPanedNew
+    hPaned <- hPanedNew
     boxPackStart vbox vPaned PackGrow 0
 
-    panedPack1 vPaned scrolledTextView True True
+    tree <- treeViewNew
+
+    panedPack1 hPaned scrolledTextView True True
+    panedPack1 vPaned hPaned True True
+    panedPack2 hPaned tree True True
 
     addListBoxToWindow window vPaned storeSource
         [
@@ -165,9 +170,11 @@ edit g fileNameString = do
     onDestroy window mainQuit
     widgetShowAll window
 
-    Rectangle _ _ width height <- widgetGetAllocation vPaned
+    Rectangle _ _ _ height <- widgetGetAllocation vPaned
+    panedSetPosition vPaned (round (0.8 * fromIntegral height))
 
-    panedSetPosition vPaned width
+    Rectangle _ _ width _ <- widgetGetAllocation hPaned
+    panedSetPosition hPaned (round (0.8 * fromIntegral width))
 
     widgetGrabFocus textView
 

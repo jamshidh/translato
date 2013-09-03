@@ -1,23 +1,33 @@
 
-definitions =><ws>{list(var|function, '<ws>')}<ws>;
-
-var =>@returnType @name<ws>\;
-
+file => {definition}*
 ;
 
-function =>@returnType @name<ws>({list(param, '<ws>, ')}) \{
-  {list(command, '<ws>')}
+ident => [a-zA-Z][0-9a-zA-Z]*;
+
+====[definition]===========
+var =>@type @name_\;;
+function =>@returnType @name_\({param}*\) \{
+  {command}*
 \};
+separator: '\n\n'
+====[/definition]==========
 
+====[param]=================
 param =>@type @name;
+separator: ', '
+====[/param]================
 
-command=>{assignment|expression}<ws>\;;
-
+====[command:expression]====
 assignment=>{lvalue}={expression};
+separator: '\n'
+====[/command]==============
 
-lvalue=>{ident};
+====[expression]============
+functionCall=>@name({expression}*);
+variable=>@name;
+====[/expression]===========
 
-expression=>{ident|functionCall};
+lvalue=>{variable};
 
-functionCall=>@name({list(ident, ',')});
+
 

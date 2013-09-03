@@ -18,6 +18,7 @@ module ParseError (
     Range,
     format,
     formatRange,
+    rangeAt,
     singleCharacterRangeAt,
     message
 ) where
@@ -60,15 +61,20 @@ formatRange (start, end) = formatPosition start ++ "-" ++ formatPosition end
 
 ---------------------
 
+rangeAt::LS.LString->Int->Range
+rangeAt s length = (positionAt s, positionAt (LS.drop length s))
+
 singleCharacterRangeAt::LS.LString->Range
-singleCharacterRangeAt s = (positionAt s, positionAt (LS.tail s))
+singleCharacterRangeAt s = rangeAt s 1
 
 data ParseError =
     Error { ranges::[Range], description::String } |
     ExpectationError { ranges::[Range], expected::[String] } |
-    MatchError { ranges::[Range], first::String, second::String }
+    MatchError { name::String, ranges::[Range], first::String, second::String }
     deriving (Eq, Ord, Show)
 
 message::ParseError->String
 message Error{description=description} = description
-message ExpectationError{expected=expected} = "Expected " ++ intercalate ", or " (show <$> expected)
+message ExpectationError{expected=expected} = "Expected " ++ intercalate ", or " expected
+message MatchError{name=name, first=first, second=second} =
+    show name ++ "s don't match: " ++ show first ++ " != " ++ show second

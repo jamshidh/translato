@@ -102,7 +102,9 @@ rawParse [Node{rootLabel=Character charset, subForest=rest}] s =
 
 rawParse [x] _ = error ("Missing case in rawParse: " ++ safeDrawTree (fmap show x))
 
-rawParse items s = rawParse [chooseOne items s] s
+rawParse items s = case chooseOne items s of
+    Left err -> [Fail err]
+    Right tree -> rawParse [tree] s
 
 ------------------------
 

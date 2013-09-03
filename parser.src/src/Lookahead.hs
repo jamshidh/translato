@@ -104,8 +104,8 @@ check s TreeInfo{firstMatchers=exps} = or (eCheck s <$> exps)
 funcAnd::(a->Bool)->(a->Bool)->a->Bool
 funcAnd f1 f2 = \x -> f1 x && f2 x
 
-chooseOne::Forest Expression->LString->Tree Expression
-chooseOne [tree] s = tree
+chooseOne::Forest Expression->LString->Either ParseError (Tree Expression)
+chooseOne [tree] s = Right tree
 chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length trees)) $
     --jtrace ("chooseOne: " ++ safeDrawEForest trees) $
     --jtrace ("string: " ++ show s) $
@@ -115,26 +115,20 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
     case (maximumsBy fst ((filter ((/= 0) . fst)) (addTextMatchSize s <$> treeInfos))) of
         [] -> case (check s) `filter` ((not . isFallBack) `filter` treeInfos) of
                 [] -> case filter ((== FallBack) . rootLabel) trees of
-                    [] ->
-                        Node {
-                            rootLabel =
-                                Out
-                                    [Fail (
-                                        ExpectationError{
-                                            expected=treeInfos >>= (\TreeInfo { allowsWhiteSpace=w, firstMatchers=exps } -> formatItem w <$> exps),
-                                            ranges=[singleCharacterRangeAt s]})],
-                            subForest = []}
+                    [] -> Left ExpectationError{
+                            expected=treeInfos >>= (\TreeInfo { allowsWhiteSpace=w, firstMatchers=exps } -> formatItem w <$> exps),
+                            ranges=[singleCharacterRangeAt s]}
                             where
                                 formatItem::Bool->Expression->String
                                 formatItem w e = (if w then "_ " else "") ++ formatExpression e
-                    [item] -> item
+                    [item] -> Right item
                     _ -> error "Multiple fallback cases encountered"
-                [item] -> tree item
+                [item] -> Right (tree item)
                 items ->  error (
                             "multiple things matched in chooseOne:"
                                 ++ (safeDrawEForest $ tree <$> items)
                                 ++ "\ns = " ++ LS.string s)
-        [(_, item)] -> tree item
+        [(_, item)] -> Right (tree item)
         items -> error ("multiple TextMatches matched in chooseOne:"
                             ++ safeDrawEForest ((tree . removeTextMatchSize) <$> items)
                             ++ "\ns = " ++ LS.string s)

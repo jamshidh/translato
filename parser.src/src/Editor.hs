@@ -20,11 +20,12 @@ module Editor (
 ) where
 
 import Data.ByteString.UTF8
-import Data.CaseInsensitive
+import Data.CaseInsensitive hiding (map)
 import Data.Functor
 import Data.IORef
+import Data.List
 import Data.Maybe
-import Data.Text as T hiding (head, concat, null)
+import Data.Text as T hiding (head, concat, null, map, intercalate)
 import Data.Text.Encoding
 import Graphics.UI.Gtk hiding (Range)
 import System.IO
@@ -122,7 +123,7 @@ edit g fileNameString = do
 
     addListBoxToWindow window vPaned storeSource
         [
-            ("Location", DataExtractor (formatRange . (head . ranges))),
+            ("Location", DataExtractor ((intercalate "\n") . (formatRange <$>) . ranges)),
             ("Message", DataExtractor message)
         ]
 

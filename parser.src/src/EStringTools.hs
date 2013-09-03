@@ -31,6 +31,7 @@ import Data.Tree
 
 import EnhancedString
 import qualified LString as LS
+import ParseError
 import TreeTools
 
 import JDebug
@@ -75,12 +76,15 @@ checkForVarConsistency (vars:vStackRest) (e@(VAssign name val s):rest) =
     case lookup name vars of
         Nothing -> e:checkForVarConsistency (insert name (val, s) vars:vStackRest) rest
         Just (val2, s2) ->
-            if val == val2
-                then checkForVarConsistency (vars:vStackRest) rest
-                else error ("'" ++ name ++ "'s don't match: "
-                        ++ LS.formatLString (LS.take (length val) s)
-                        ++ " and "
-                        ++ LS.formatLString (LS.take (length val2) s2))
+            (if val == val2
+                then []
+                else [Fail $ MatchError
+                                name
+                                [rangeAt s2 (length val2), rangeAt s (length val)]
+                                val2
+                                val
+                                ])
+            ++ checkForVarConsistency (vars:vStackRest) rest
 checkForVarConsistency vStack (c:rest) = c:checkForVarConsistency vStack rest
 checkForVarConsistency _ [] = []
 
@@ -93,6 +97,7 @@ fillInVariableAssignments (VStart name (Just s):rest) =
         splitVariableValue (c@VEnd:rest) = ("", rest)
         splitVariableValue (Ch c:rest) = (c:value, rest2)
             where (value, rest2) = splitVariableValue rest
+        splitVariableValue (Fail err:rest) = ("[Unknown]", [])
         splitVariableValue (EStart _ _:rest) = splitVariableValue rest
         splitVariableValue (EEnd _:rest) = splitVariableValue rest
         splitVariableValue x = error ("Missing case in splitVariableValue: " ++ show x)

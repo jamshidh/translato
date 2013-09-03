@@ -32,6 +32,7 @@ import Grammar
 import LeftFactoring
 import qualified LString as LS
 import LString (LString)
+import ParseError
 import TreeTools
 
 import JDebug
@@ -116,11 +117,12 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
                 [] -> case filter ((== FallBack) . rootLabel) trees of
                     [] ->
                         Node {
-                            rootLabel = Out
-                                    [ExpectationError
-                                        (treeInfos >>=
-                                            (\TreeInfo { allowsWhiteSpace=w, firstMatchers=exps } -> formatItem w <$> exps))
-                                        s],
+                            rootLabel =
+                                Out
+                                    [Fail (
+                                        ExpectationError{
+                                            expected=treeInfos >>= (\TreeInfo { allowsWhiteSpace=w, firstMatchers=exps } -> formatItem w <$> exps),
+                                            ranges=[singleCharacterRangeAt s]})],
                             subForest = []}
                             where
                                 formatItem::Bool->Expression->String

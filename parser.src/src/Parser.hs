@@ -26,7 +26,6 @@ import Text.Regex
 
 import ArgOpts
 import CharSet
---import CmdOptions
 import EnhancedString as E
 import EStringTools
 import Grammar as G
@@ -35,6 +34,7 @@ import LeftFactoring
 import Lookahead
 import LString (LString, line, col, string, createLString)
 import qualified LString as LS
+import ParseError
 import SequenceMap
 import TreeTools
 
@@ -46,10 +46,12 @@ type EParser = String->EString
 type Parser = String->String
 
 err::LString->String->Forest EChar
-err s message = [Node { rootLabel=Error message s, subForest=[]}]
+err s message =
+    [Node { rootLabel=Fail $ Error [singleCharacterRangeAt s] message, subForest=[]}]
 
 expectErr::LString->String->[EChar]
-expectErr s expectation = [ExpectationError [expectation] s]
+expectErr s expectation =
+    [Fail $ ExpectationError [singleCharacterRangeAt s] [expectation]]
 
 -------------------------------
 
@@ -129,14 +131,13 @@ createEParser g = createEParserForClass (main fixedG) fixedG
 createParser::Grammar->Parser
 createParser g = enhancedString2String . createEParser g
 
-createParserWithErrors::Grammar->String->(String, EString)
+createParserWithErrors::Grammar->String->(String, [ParseError])
 createParserWithErrors g s = (enhancedString2String result, getErrors result)
     where
         result = createEParser g s
-        getErrors::EString->EString
+        getErrors::EString->[ParseError]
         getErrors [] = []
-        getErrors (c@(Error _ _):rest) = c:getErrors rest
-        getErrors (c@(ExpectationError _ _):rest) = c:getErrors rest
+        getErrors (Fail err:rest) = err:getErrors rest
         getErrors (c:rest) = getErrors rest
 
 ---------

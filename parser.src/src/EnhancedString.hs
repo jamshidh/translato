@@ -17,7 +17,6 @@ module EnhancedString (
     EString,
     InfixAssociativity(..),
     InfixOp(..),
-    concatErrors,
     e,
     chs2String,
     enhancedString2String,
@@ -30,6 +29,7 @@ import Data.List as DL
 
 import Colors
 import qualified LString as LS
+import ParseError
 
 import JDebug
 
@@ -57,9 +57,11 @@ data EChar = Ch Char
     | EndBlock
     | InfixTag InfixOp
     | EndCap String
---    | Sync Char
-    | ExpectationError [String] LS.LString
-    | Error String LS.LString deriving (Eq, Ord)
+    | Fail ParseError
+--    | ExpectationError [String] LS.LString
+--    | Error String LS.LString
+    deriving (Eq, Ord)
+
 
 instance Show EChar where
     show (Ch '\n') = "\\n"
@@ -84,8 +86,7 @@ instance Show EChar where
     show (EndCap name) = yellow ("EndCap(" ++ name ++ ")")
 --    show (ExpectationError expected s) = red ("{ExpectationError: " ++ show expected ++ "}")
 --    show (Error message s) = red ("{Error: " ++ message ++ "}")
-    show (ExpectationError expected s) = red "ExpectationError"
-    show (Error message s) = red "Error"
+    show (Fail error) = red ("Fail: " ++ message error)
 
 type EString = [EChar]
 
@@ -95,10 +96,7 @@ e [] = []
 
 chs2String::EString->String
 chs2String (Ch x:rest) = x:chs2String rest
-chs2String (Error err s:rest) =
-    red ("\nError(line:" ++ show (LS.line s) ++ ",col:" ++ show (LS.col s) ++ "): " ++ err ++ "\n") ++ chs2String rest
-chs2String (ExpectationError err s:rest) = red ("\nError(line:" ++ show (LS.line s) ++ ",col:" ++ show (LS.col s) ++ "): "
-    ++ "Expecting " ++ intercalate " or " (map show err) ++ ", but got " ++ show (truncateString 10 (LS.string s)) ++ "\n") ++ chs2String rest
+chs2String (Fail err:rest) = red (format err) ++ chs2String rest
 chs2String (VPush:rest) = magenta ">>VPush" ++ chs2String rest
 chs2String (VPop:rest) = magenta "<<VPop<<" ++ chs2String rest
 chs2String (VOut name:rest) = green ("[" ++ name ++ "]") ++ chs2String rest
@@ -119,33 +117,6 @@ chs2String (InfixTag (InfixOp{opPriority=p, opName=name}):rest) = "Op(" ++ show 
 chs2String (EndCap name:rest) = yellow ("EndCap(" ++ name ++ ")") ++ chs2String rest
 chs2String [] = []
 --chs2String x = error ("missing case in chs2String: " ++ show x)
-
-
-
-
-
-
-
-
-
-
-
-
-
-
-concatErrors::[EChar]->EChar
-concatErrors [] = error "Can't call concatErrors with empty list"
-concatErrors [err] = err
-concatErrors (ExpectationError expectation s:rest) =
-    ExpectationError (expectation ++ expectationRest) s
-        where expectationRest = getExpectation (concatErrors rest);
-
-getExpectation::EChar->[String]
-getExpectation (ExpectationError expectation _) = expectation
-
-theString::EChar->LS.LString
-theString (Error _ s) = s
-theString (ExpectationError _ s) = s
 
 enhancedString2String::EString->String
 enhancedString2String es =

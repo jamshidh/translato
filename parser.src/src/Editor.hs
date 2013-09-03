@@ -26,7 +26,7 @@ import Data.IORef
 import Data.Maybe
 import Data.Text as T hiding (head, concat, null)
 import Data.Text.Encoding
-import Graphics.UI.Gtk
+import Graphics.UI.Gtk hiding (Range)
 import System.IO
 import Text.Regex
 
@@ -38,18 +38,16 @@ import ListView
 import qualified LString as LS
 import Menu
 import Parser
+import ParseError
 import ToolBar
 
 import JDebug
 
-data Error = Error { line::Int, column::Int, message::CI String } deriving (Show)
+--data Error = Error { line::Int, column::Int, message::CI String } deriving (Show)
 
 edit::Grammar->String->IO ()
 edit g fileNameString = do
-    storeSource <- listStoreNew
-        [
-            Error 2 2 "abcd"
-        ]
+    storeSource <- listStoreNew []
 
     initGUI
     window <- windowNew
@@ -68,6 +66,8 @@ edit g fileNameString = do
     vbox <- vBoxNew False 0
     hbox <- hBoxNew True 0
 
+    let validateFn = validate g validImage textView storeSource
+
     addMenuToWindow window vbox
         (
             [
@@ -84,7 +84,7 @@ edit g fileNameString = do
                     ] False,
                 TrSubMenu "Tools"
                     [
-                        TrItem "Validate" (Just "<Control>v") (validate g validImage textView storeSource)
+                        TrItem "Validate" (Just "<Control>v") validateFn
                     ] False,
                 TrSubMenu "Help"
                     [
@@ -102,7 +102,7 @@ edit g fileNameString = do
                 Item (Stock stockQuit) (Just "Quit the program") mainQuit,
                 Item (Stock stockFind) (Just "Find....") mainQuit,
                 Item (Stock stockAbout) (Just "About") showAboutDialog,
-                Item (File "redBall.png") (Just "Validate") (validate g validImage textView storeSource)
+                Item (File "redBall.png") (Just "Validate") validateFn
             ]
         )
 
@@ -120,7 +120,11 @@ edit g fileNameString = do
 
     panedPack1 vPaned scrolledTextView True True
 
-    addListBoxToWindow window vPaned storeSource [("Line #", DataExtractor line), ("Column #", DataExtractor column), ("message", DataExtractor message)]
+    addListBoxToWindow window vPaned storeSource
+        [
+            ("Location", DataExtractor (formatRange . (head . ranges))),
+            ("Message", DataExtractor message)
+        ]
 
 
 ----------------------------------
@@ -137,7 +141,7 @@ edit g fileNameString = do
 
     textBuffer <- textViewGetBuffer textView
     after textView moveCursor (onCursorMoved positionLabel textBuffer)
-    after textBuffer bufferChanged (onBuffChanged positionLabel textBuffer)
+    after textBuffer bufferChanged (onBuffChanged positionLabel textBuffer validateFn)
 
     boxPackStart statusBarBox statusBarButton PackNatural 0
     boxPackEnd statusBarBox validImage PackNatural 2
@@ -170,13 +174,17 @@ edit g fileNameString = do
     start <- textBufferGetStartIter buff
     textBufferPlaceCursor buff start
 
+    validateFn
+
     mainGUI
 
 onCursorMoved::Label->TextBuffer->MovementStep->Int->Bool->IO()
 onCursorMoved positionLabel textBuffer _ _ _=updatePositionLabel positionLabel textBuffer
 
-onBuffChanged::Label->TextBuffer->IO()
-onBuffChanged positionLabel=updatePositionLabel positionLabel
+onBuffChanged::Label->TextBuffer->(IO())->IO()
+onBuffChanged positionLabel textBuffer validate=do
+    updatePositionLabel positionLabel textBuffer
+    validate
 
 updatePositionLabel::Label->TextBuffer->IO()
 updatePositionLabel positionLabel textBuffer=do
@@ -187,7 +195,7 @@ updatePositionLabel positionLabel textBuffer=do
     labelSetText positionLabel ("Line " ++ show line ++ ", Col " ++ show col)
 
 
-validate::Grammar->Image->TextView->ListStore Error->IO()
+validate::Grammar->Image->TextView->ListStore ParseError->IO()
 validate g validImage textView errors = do
     --let initialText = T.pack "qqqq"
     buff <- textViewGetBuffer textView
@@ -201,23 +209,26 @@ validate g validImage textView errors = do
         else imageSetFromFile validImage "redBall.png"
     listStoreClear errors
     textBufferRemoveAllTags buff start end
-    mapM_ (\error -> listStoreAppend errors error) (eString2Error <$> errorList)
-    mapM_ (highlightError buff) (eString2Error <$> errorList)
+    mapM_ (\error -> listStoreAppend errors error) errorList
+    mapM_ (highlightError buff) errorList
     where
-        eString2Error::E.EChar->Error
-        eString2Error (E.Error message input) = Error (LS.line input) (LS.col input) (mk message)
-        eString2Error (E.ExpectationError expected input) = Error (LS.line input) (LS.col input) (mk ("Expected: " ++ show expected))
+--        eString2Error::ParseError->Error
+--        eString2Error (E.Error message input) = Error (LS.line input) (LS.col input) (mk message)
+--        eString2Error (E.ExpectationError expected input) = Error (LS.line input) (LS.col input) (mk ("Expected: " ++ show expected))
 
-        highlightError::TextBuffer->Error->IO()
+        highlightError::TextBuffer->ParseError->IO()
         highlightError buff error = do
             tagTable <- textBufferGetTagTable buff
             tag <- textTagNew Nothing
             set tag [textTagUnderline := UnderlineError, textTagBackground := "Pink"]
             textTagTableAdd tagTable tag
-            start <- textBufferGetIterAtLineOffset buff (line error) (column error)
-            end <- textBufferGetIterAtLineOffset buff (line error) (column error + 1)
-            textBufferApplyTag buff tag start end
+            mapM_ (highlightRange buff tag) (ranges error)
 
+        highlightRange::TextBuffer->TextTag->Range->IO()
+        highlightRange buff tag (Position{line=line1, column=column1}, Position{line=line2, column=column2}) = do
+            start <- textBufferGetIterAtLineOffset buff line1 column1
+            end <- textBufferGetIterAtLineOffset buff line2 column2
+            textBufferApplyTag buff tag start end
 
 saveBuffer::IORef String->TextView->IO ()
 saveBuffer fileNameRef tv =

@@ -62,7 +62,7 @@ fillInFutureItems (FutureItem:rest) = futureItem ++ fillInFutureItems restWithou
         (futureItem, restWithoutFutureItem) = splitFutureItem rest
         splitFutureItem s@(FutureItem:rest) = splitFutureItem $ fillInFutureItems s
         splitFutureItem (ItemInfo eString:rest) = (eString, rest)
-        splitFutureItem s@(ExpectationError _ _:rest) = ([Unknown], s)
+        splitFutureItem s@(Fail _:rest) = ([Unknown], s)
         splitFutureItem (c:rest) = fmap (c:) (splitFutureItem rest)
         splitFutureItem x = error ("Missing case in splitFutureItem: " ++ show x)
 fillInFutureItems (c:rest) = c:fillInFutureItems rest
@@ -125,7 +125,7 @@ expandOperators (StartBlock:rest) = case fullBlock rest of
     where
         fullBlock::EString->Either EChar (EString, EString)
         fullBlock (EndBlock:rest) = Right ([], rest)
-        fullBlock (c@(ExpectationError _ _):rest) = Left c
+        fullBlock (c@(Fail _):rest) = Left c
         fullBlock (StartBlock:rest) = --Nested Blocks
             case fullBlock rest of
                 Right (inside1, outside1) ->

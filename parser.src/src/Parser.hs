@@ -5,6 +5,7 @@
 module Parser (
     createParserForClass,
     createParser,
+    createEParserWithErrors,
     createParserWithErrors,
     parseTree,
     seq2ParseTree,
@@ -133,14 +134,17 @@ createEParser g = createEParserForClass (main fixedG) fixedG
 createParser::Grammar->Parser
 createParser g = enhancedString2String . createEParser g
 
-createParserWithErrors::Grammar->String->(String, [ParseError])
-createParserWithErrors g s = (enhancedString2String result, getErrors result)
+createEParserWithErrors::Grammar->String->(EString, [ParseError])
+createEParserWithErrors g s = (result, getErrors result)
     where
         result = createEParser g s
         getErrors::EString->[ParseError]
         getErrors [] = []
         getErrors (Fail err:rest) = err:getErrors rest
         getErrors (c:rest) = getErrors rest
+
+createParserWithErrors::Grammar->String->(String, [ParseError])
+createParserWithErrors g s = mapFst enhancedString2String (createEParserWithErrors g s)
 
 ---------
 

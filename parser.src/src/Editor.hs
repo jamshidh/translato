@@ -27,6 +27,7 @@ import Data.List
 import Data.Maybe
 import Data.Text as T hiding (head, concat, null, map, intercalate)
 import Data.Text.Encoding
+import Data.Tree
 import Graphics.UI.Gtk hiding (Range)
 import System.IO
 import Text.Regex
@@ -48,7 +49,10 @@ import JDebug
 
 edit::Grammar->String->IO ()
 edit g fileNameString = do
-    storeSource <- listStoreNew []
+    errorStore <- listStoreNew []
+    parseStore <- treeStoreNew [Node{rootLabel="qqqq",subForest=[Node{rootLabel="abcd", subForest=[]}, Node{rootLabel="qq2", subForest=[]}]}]
+
+
 
     initGUI
     window <- windowNew
@@ -67,7 +71,9 @@ edit g fileNameString = do
     vbox <- vBoxNew False 0
     hbox <- hBoxNew True 0
 
-    let validateFn = validate g validImage textView storeSource
+    tree <- treeViewNewWithModel parseStore
+
+    let validateFn = validate g validImage textView errorStore parseStore tree
 
     addMenuToWindow window vbox
         (
@@ -120,13 +126,25 @@ edit g fileNameString = do
     hPaned <- hPanedNew
     boxPackStart vbox vPaned PackGrow 0
 
-    tree <- treeViewNew
+--------------
+
+    col <- treeViewColumnNew
+
+    --renderer <- cellRendererPixbufNew
+    renderer <- cellRendererTextNew
+
+    cellLayoutPackStart col renderer True
+
+    --cellLayoutSetAttributes col renderer store $ \row -> [cellPixbuf := itemIcon icos row]
+    cellLayoutSetAttributes col renderer parseStore $ \row -> [cellText   := row]
+
+    treeViewAppendColumn tree col
 
     panedPack1 hPaned scrolledTextView True True
     panedPack1 vPaned hPaned True True
     panedPack2 hPaned tree True True
 
-    addListBoxToWindow window vPaned storeSource
+    addListBoxToWindow window vPaned errorStore
         [
             ("Location", DataExtractor ((intercalate "\n") . (formatRange <$>) . ranges)),
             ("Message", DataExtractor message)
@@ -203,26 +221,66 @@ updatePositionLabel positionLabel textBuffer=do
     labelSetText positionLabel ("Line " ++ show line ++ ", Col " ++ show col)
 
 
-validate::Grammar->Image->TextView->ListStore ParseError->IO()
-validate g validImage textView errors = do
+validate::Grammar->Image->TextView->ListStore ParseError->TreeStore String->TreeView->IO()
+validate g validImage textView errorStore parseStore parseView = do
     --let initialText = T.pack "qqqq"
     buff <- textViewGetBuffer textView
     --textBufferSetByteString buff (encodeUtf8 initialText)
     start <- textBufferGetStartIter buff
     end <- textBufferGetEndIter buff
     bufferString <- textBufferGetByteString buff start end False
-    let (res, errorList) = createParserWithErrors g (toString bufferString)
+    let (res, errorList) = createEParserWithErrors g (toString bufferString)
     if null errorList
         then imageSetFromFile validImage "greenBall.png"
         else imageSetFromFile validImage "redBall.png"
-    listStoreClear errors
+    listStoreClear errorStore
+    treeStoreClear parseStore
     textBufferRemoveAllTags buff start end
-    mapM_ (\error -> listStoreAppend errors error) errorList
+    mapM_ (\error -> listStoreAppend errorStore error) errorList
+
+    mapM_ (treeStoreInsertTree parseStore [] 0) (fst $ result2Forest res)
+
+    treeViewExpandAll parseView
+
+
     mapM_ (highlightError buff) errorList
     where
 --        eString2Error::ParseError->Error
 --        eString2Error (E.Error message input) = Error (LS.line input) (LS.col input) (mk message)
 --        eString2Error (E.ExpectationError expected input) = Error (LS.line input) (LS.col input) (mk ("Expected: " ++ show expected))
+
+        result2Forest::E.EString->(Forest String, E.EString)
+        result2Forest [] = ([], [])
+        result2Forest (E.FilledInEStart tagName attributes:rest) =
+            (Node{rootLabel=tagName, subForest=res}:result2, rest3)
+                where
+                    (res, rest2) = result2Forest rest
+                    (result2, rest3) = result2Forest rest2
+        result2Forest (E.EEnd _:rest) = ([], rest)
+        result2Forest (E.Fail e:rest) = ([Node{rootLabel="error", subForest=[]}], [])
+        result2Forest x = error ("Missing case in result2Tree: " ++ show x)
+{-data EChar = Ch Char
+    | EStart String [String]
+    | EEnd String
+    | NestedItem EString
+    | FutureItem
+    | ItemInfo EString
+    | VPush
+    | VPop
+    | VOut String
+    | VStart String (Maybe LS.LString) --The LString is only added for error reporting, to know the location of the string
+    | VEnd
+    | VAssign String String LS.LString --The LString is only added for error reporting, to know the location of the string
+    | TabRight String
+    | TabLeft
+    | Unknown --used when error occurs before ItemInfo is given
+    | StartBlock
+    | EndBlock
+    | InfixTag InfixOp
+    | EndCap String
+    | Fail ParseError-}
+
+
 
         highlightError::TextBuffer->ParseError->IO()
         highlightError buff error = do

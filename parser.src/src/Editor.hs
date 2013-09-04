@@ -140,6 +140,8 @@ edit g fileNameString = do
 
     treeViewAppendColumn tree col
 
+    treeViewSetEnableTreeLines tree True
+
     panedPack1 hPaned scrolledTextView True True
     panedPack1 vPaned hPaned True True
     panedPack2 hPaned tree True True

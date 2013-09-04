@@ -89,6 +89,8 @@ num => @value(\d+);
 
 string => "@value([^"]*)";
 
+embeddedElement => {node}*;
+
 operators: ' == ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '*' ' / ' ' + ' '-'
 
 separator: '_, '

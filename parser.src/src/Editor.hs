@@ -19,13 +19,13 @@ module Editor (
     editMain
 ) where
 
-import Data.ByteString.UTF8
+import Data.ByteString.UTF8 hiding (break)
 import Data.CaseInsensitive hiding (map)
 import Data.Functor
 import Data.IORef
 import Data.List
 import Data.Maybe
-import Data.Text as T hiding (head, concat, null, map, intercalate)
+import Data.Text as T hiding (head, concat, null, map, intercalate, break)
 import Data.Text.Encoding
 import Data.Tree
 import Graphics.UI.Gtk hiding (Range)
@@ -133,14 +133,17 @@ edit g fileNameString = do
     --renderer <- cellRendererPixbufNew
     renderer <- cellRendererTextNew
 
+    --set renderer [ cellBackground := "blue" ]
+
     cellLayoutPackStart col renderer True
 
     --cellLayoutSetAttributes col renderer store $ \row -> [cellPixbuf := itemIcon icos row]
-    cellLayoutSetAttributes col renderer parseStore $ \row -> [cellText   := row]
+    cellLayoutSetAttributes col renderer parseStore $ \row -> [cellTextMarkup   := Just row]
 
     treeViewAppendColumn tree col
 
     treeViewSetEnableTreeLines tree True
+    treeViewSetHeadersVisible tree False
 
     panedPack1 hPaned scrolledTextView True True
     panedPack1 vPaned hPaned True True
@@ -254,12 +257,21 @@ validate g validImage textView errorStore parseStore parseView = do
         result2Forest::E.EString->(Forest String, E.EString)
         result2Forest [] = ([], [])
         result2Forest (E.FilledInEStart tagName attributes:rest) =
-            (Node{rootLabel=tagName, subForest=res}:result2, rest3)
+            (Node{rootLabel=
+                    "<span background='light blue'>" ++ tagName ++ "</span>"
+                    ++ concat ((\(name, value) -> "\n  <span background='light grey'>" ++ name ++ "=" ++ value ++ "</span>") <$> attributes), subForest=res}:result2, rest3)
                 where
                     (res, rest2) = result2Forest rest
                     (result2, rest3) = result2Forest rest2
         result2Forest (E.EEnd _:rest) = ([], rest)
-        result2Forest (E.Fail e:rest) = ([Node{rootLabel="error", subForest=[]}], [])
+        result2Forest s@(E.Ch c:rest) = ([Node{rootLabel=E.enhancedString2String word, subForest=[]}] ++ nextRes, rest3)
+            where
+                (word, rest2) = break notCh s
+                notCh::E.EChar->Bool
+                notCh (E.Ch _) = False
+                notCh _ = True
+                (nextRes, rest3) = result2Forest rest2
+        result2Forest (E.Fail e:rest) = ([Node{rootLabel="<span background='red'>error</span>", subForest=[]}], [])
         result2Forest x = error ("Missing case in result2Tree: " ++ show x)
 {-data EChar = Ch Char
     | EStart String [String]

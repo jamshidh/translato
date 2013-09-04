@@ -1,0 +1,23 @@
+
+<html>
+  <body>
+    <table id="scores">
+      <tr><td><input id="first" onkeyup="this.value = this.value.replace(/[^0-9]/, ''); updateResult()" /></td></tr>
+      <tr><td><input id="second" onkeyup="updateResult()" /></td></tr>
+      <tr><td><input id="result" /></td></tr>
+    </table>
+    <script>
+
+      function updateResult() {
+        document.getElementById("result").value = 
+             parseInt(document.getElementById("first").value) + 
+             parseInt(document.getElementById("second").value);
+      }
+
+      var item = <tr><td><input id="first" onkeyup="this.value = this.value.replace(/[^0-9]/, ''); updateResult()" /></td></tr>
+
+      document.getElementById(scores).appendChild(item);
+
+    </script>
+  </body>
+</html>

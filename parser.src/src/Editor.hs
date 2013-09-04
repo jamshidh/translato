@@ -68,12 +68,14 @@ edit g fileNameString = do
     textView <- textViewNew
     set scrolledTextView [ containerChild := textView ]
 
+    scrolledParseTreeView <- scrolledWindowNew Nothing Nothing
+    parseTreeView <- treeViewNewWithModel parseStore
+    set scrolledParseTreeView [ containerChild := parseTreeView ]
+
     vbox <- vBoxNew False 0
     hbox <- hBoxNew True 0
 
-    tree <- treeViewNewWithModel parseStore
-
-    let validateFn = validate g validImage textView errorStore parseStore tree
+    let validateFn = validate g validImage textView errorStore parseStore parseTreeView
 
     addMenuToWindow window vbox
         (
@@ -140,14 +142,14 @@ edit g fileNameString = do
     --cellLayoutSetAttributes col renderer store $ \row -> [cellPixbuf := itemIcon icos row]
     cellLayoutSetAttributes col renderer parseStore $ \row -> [cellTextMarkup   := Just row]
 
-    treeViewAppendColumn tree col
+    treeViewAppendColumn parseTreeView col
 
-    treeViewSetEnableTreeLines tree True
-    treeViewSetHeadersVisible tree False
+    treeViewSetEnableTreeLines parseTreeView True
+    treeViewSetHeadersVisible parseTreeView False
 
     panedPack1 hPaned scrolledTextView True True
     panedPack1 vPaned hPaned True True
-    panedPack2 hPaned tree True True
+    panedPack2 hPaned scrolledParseTreeView True True
 
     addListBoxToWindow window vPaned errorStore
         [

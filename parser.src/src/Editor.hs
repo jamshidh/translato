@@ -419,15 +419,6 @@ openOpenFileDialog action parentWindow = do
        ResponseCancel -> return Nothing
        ResponseDeleteEvent -> return Nothing
 
-doCut=do
-    putStrLn "doCut"
-
-doCopy=do
-    putStrLn "doCopy"
-
-doPaste=do
-    putStrLn "doPaste"
-
 doFind=do
     putStrLn "doFind"
 

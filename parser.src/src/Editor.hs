@@ -77,6 +77,9 @@ edit g fileNameString = do
 
     let validateFn = validate g validImage textView errorStore parseStore parseTreeView
 
+    clipboard <- clipboardGet selectionPrimary
+    buff <- textViewGetBuffer textView
+
     addMenuToWindow window vbox
         (
             [
@@ -89,7 +92,10 @@ edit g fileNameString = do
                     ] False,
                 TrSubMenu "Edit"
                     [
-                        TrItem "Find" Nothing mainQuit
+                        TrItem "Cut" (Just "<Control>x") (textBufferCutClipboard buff clipboard True),
+                        TrItem "Copy" (Just "<Control>c") (textBufferCopyClipboard buff clipboard),
+                        TrItem "Paste" (Just "<Control>v") (textBufferPasteClipboardAtCursor buff clipboard True),
+                        TrItem "Find" Nothing doFind
                     ] False,
                 TrSubMenu "Tools"
                     [
@@ -261,7 +267,7 @@ validate g validImage textView errorStore parseStore parseView = do
         result2Forest (E.FilledInEStart tagName attributes:rest) =
             (Node{rootLabel=
                     "<span background='light blue'>" ++ tagName ++ "</span>"
-                    ++ concat ((\(name, value) -> "\n  <span background='light grey'>" ++ name ++ "=" ++ value ++ "</span>") <$> attributes), subForest=res}:result2, rest3)
+                    ++ concat ((\(name, value) -> " <span background='light grey'>" ++ name ++ "=" ++ value ++ "</span>") <$> attributes), subForest=res}:result2, rest3)
                 where
                     (res, rest2) = result2Forest rest
                     (result2, rest3) = result2Forest rest2
@@ -412,6 +418,18 @@ openOpenFileDialog action parentWindow = do
             return (Just fileName)
        ResponseCancel -> return Nothing
        ResponseDeleteEvent -> return Nothing
+
+doCut=do
+    putStrLn "doCut"
+
+doCopy=do
+    putStrLn "doCopy"
+
+doPaste=do
+    putStrLn "doPaste"
+
+doFind=do
+    putStrLn "doFind"
 
 -----------------------
 

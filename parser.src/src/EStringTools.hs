@@ -117,7 +117,10 @@ fillInAttributes (EStart name atts:rest) =
         splitAtts 0 (c@(EEnd _):rest) neededAtts = ([], c:rest)
         splitAtts count (c@(EEnd _):rest) neededAtts = fmap (c:) (splitAtts (count-1) rest neededAtts)
         splitAtts count (c@(EStart _ _):rest) neededAtts = fmap (c:) (splitAtts (count+1) rest neededAtts)
+        splitAtts count (c@(Fail _):rest) neededAtts =
+            ((\x -> (x, "[Unknown]")) <$> neededAtts, [c])
         splitAtts count (c:rest) neededAtts = fmap (c:) (splitAtts count rest neededAtts)
+        splitAtts count s neededAtts = error ("Missing case in splitAtts: " ++ show count ++ ", " ++ show s ++ ", " ++ show neededAtts)
 fillInAttributes (c:rest) = c:fillInAttributes rest
 fillInAttributes [] = []
 

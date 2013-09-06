@@ -73,7 +73,8 @@ singleCharacterRangeAt s = rangeAt s 1
 data ParseError =
     Error { ranges::[Range], description::String } |
     ExpectationError { ranges::[Range], expected::[String] } |
-    MatchError { name::String, ranges::[Range], first::String, second::String }
+    MatchError { name::String, ranges::[Range], first::String, second::String } |
+    AmbiguityError { ranges::[Range] }
     deriving (Eq, Ord, Show)
 
 message::ParseError->String
@@ -81,3 +82,4 @@ message Error{description=description} = description
 message ExpectationError{expected=expected} = "Expected " ++ intercalate ", or " expected
 message MatchError{name=name, first=first, second=second} =
     show name ++ "s don't match: " ++ show first ++ " != " ++ show second
+message AmbiguityError{} = "Ambiguity Error"

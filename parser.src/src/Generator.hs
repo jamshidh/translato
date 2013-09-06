@@ -1,3 +1,4 @@
+{-# Language TemplateHaskell #-}
 -----------------------------------------------------------------------------
 --
 -- Module      :  Generator
@@ -33,6 +34,7 @@ import System.Console.GetOpt
 import Debug.Trace
 
 --import OperatorNames
+import ArgOpts
 import Colors
 import Grammar hiding (tagName, Name)
 import GrammarParser
@@ -164,35 +166,28 @@ exp2String sMap (Out [TabLeft]) c remainingChildren = Right ([TabLeft], remainin
 
 exp2String sMap (Out [EStart _ _]) c remainingChildren = Right ([], remainingChildren)
 
-exp2String sMap e c remainingChildren =
+exp2String sMap exp c remainingChildren =
     --(trace (cShow c remainingChildren e)) $
     case node c of
         NodeContent _ -> Right ([], remainingChildren)
-        _ -> error ("Error: tag = " ++ tagName c ++ ", expression = " ++ formatExpression e)
+        _ -> error ("Error: tag = " ++ tagName c ++ ", expression = " ++ formatExpression exp)
 
 ----------------
 
 data Options = Options { specFileName::String }
 defaultOptions = Options { specFileName = "file.spec" }
 
-optionDefs::[OptDescr Options]
-optionDefs = []
-
-args2Grammar::[String]->IO Grammar
-args2Grammar args = loadGrammar filename
-    where (options, filename) =
-            case getOpt Permute optionDefs args of
-                ([o], [f], _) -> (o, f)
-
-try::(Show err)=>Either err a->a
-try (Left err) = error ("Error:" ++ show err)
-try (Right a) = a
+deflt::Options
+deflt = Options{specFileName="qqqq.spec"}
 
 generatorMain::[String]->IO ()
 generatorMain args = do
-    grammar <- args2Grammar args
+    let options = $(arg2Opts ''Options ["specFileName"]) args deflt
+    grammar <- loadGrammar $ specFileName options
     contents<-TL.getContents
-    let doc=try(parseText def contents)
+    let doc=case parseText def contents of
+                Left err -> error ("Error:" ++ show err)
+                Right x -> x
     case generate grammar (fromDocument doc) of
         Right s -> putStrLn s
         Left err -> error (show err)

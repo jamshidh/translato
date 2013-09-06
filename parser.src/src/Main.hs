@@ -44,9 +44,9 @@ commands = M.fromList
     ]
 
 usage::String
-usage = "parser [option] " ++ underline("PARSEFILE") ++ "\n"
+usage = "parser COMMAND [option]\n"
     ++ "Options:\n"
-    ++ (concat $ ("\t--" ++) <$> (++ "\n") <$> fst <$> M.toList commands)
+    ++ (concat $ ("\t" ++) <$> (++ "\n") <$> fst <$> M.toList commands)
 
 main = do
     args <- getArgs
@@ -56,7 +56,7 @@ main = do
         (commandString:argsRest) ->
             case M.lookup commandString commands of
                 Just command -> command argsRest
-
+                Nothing -> putStrLn usage
 
 
 

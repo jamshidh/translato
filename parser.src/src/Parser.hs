@@ -66,7 +66,7 @@ seq2ParseTree sMap (List 0 seq:rest) =
 seq2ParseTree sMap (List count seq:rest) =
     seq2ParseTree sMap (seq ++ [List (count -1) seq] ++ rest)
 seq2ParseTree sMap (Or seqs:rest) =
-        (((++ rest) <$> seqs) >>= seq2ParseTree sMap)
+        seq2ParseTree sMap =<< (++ rest) <$> seqs
 seq2ParseTree sMap (e:rest) = [Node{rootLabel=e, subForest=seq2ParseTree sMap rest}]
 seq2ParseTree sMap [] = []
 
@@ -171,8 +171,8 @@ parseMain args = do
         Just fileName -> do
                 fileHandle <- openFile fileName ReadMode
                 input <- hGetContents fileHandle
-                putStr (show $ createParserWithErrors grammar input)
-        Nothing -> interact (show . createParserWithErrors grammar)
+                putStr $ createParser grammar input
+        Nothing -> interact $ createParser grammar
 
 
 

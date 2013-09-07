@@ -124,15 +124,16 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
                     [item] -> Right item
                     _ -> error "Multiple fallback cases encountered"
                 [item] -> Right (tree item)
-                items ->  jtrace (
-                            "multiple things matched in chooseOne:"
+                items ->  jtrace ("multiple things matched in chooseOne:"
                                 ++ (safeDrawEForest $ tree <$> items)
-                                ++ "\ns = " ++ LS.string s) $
-                                Left AmbiguityError{ ranges=[singleCharacterRangeAt s] }
+                                ++ "\ns = " ++ LS.string s)
+                                $ Left AmbiguityError{ ranges=[singleCharacterRangeAt s] }
         [(_, item)] -> Right (tree item)
-        items -> error ("multiple TextMatches matched in chooseOne:"
+        items -> jtrace ("multiple TextMatches matched in chooseOne:"
                             ++ safeDrawEForest ((tree . removeTextMatchSize) <$> items)
                             ++ "\ns = " ++ LS.string s)
+                            $ Left AmbiguityError{ ranges=[singleCharacterRangeAt s] }
+
         where
 --                theMaxTextMatchSize = trees
                 treeInfos::[TreeInfo]

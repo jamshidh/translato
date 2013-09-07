@@ -35,6 +35,8 @@ format (ExpectationError ranges expected) = "[" ++ intercalate ", " (formatRange
     ++ intercalate ", " expected
 format (MatchError name ranges first second) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"
     ++ name ++ " didn't match: first=" ++ first ++ ", second=" ++ second
+format (AmbiguityError ranges) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"
+    ++ "AmbiguityError"
 
 -- Position is a location in the input....
 

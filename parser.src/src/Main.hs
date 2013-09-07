@@ -27,6 +27,7 @@ import qualified Editor
 import Parser
 import ParseElements
 import Shower
+import SMShower
 
 import JDebug
 

@@ -23,7 +23,7 @@ separator: '\n'
 ====[/command]==============
 
 ====[expression]============
-functionCall=>@name({expression}*);
+functionCall=>@name\({expression}*\);
 variable=>@name;
 ====[/expression]===========
 

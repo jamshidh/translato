@@ -38,12 +38,10 @@ instance Format (CI String) where
 data DataExtractor a b =forall b.(Format b, Ord b)=>DataExtractor (a->b)
 
 addListBoxToWindow::PanedClass a=>Window->a->ListStore b->[(String, DataExtractor b c)]->IO()
-addListBoxToWindow window box storeSource columns = do
+addListBoxToWindow _ box storeSource columns = do
     --I don't know why I can't just use storeSource2 everywhere, but it causes the app to crash.
     --For now I don't care, I'll do what works without understanding it.
     storeSource2 <- treeModelSortNewWithModel storeSource
-
-    renderer1 <- cellRendererTextNew
 
     treeView <- treeViewNewWithModel storeSource2
 

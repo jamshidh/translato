@@ -16,8 +16,8 @@ module SequenceMap (
     SequenceMap,
     sequenceMap,
     formatSequenceMap,
-    removeSepBy,
-    removeSepByFromSeq
+    removeOption,
+    removeSepBy
 ) where
 
 import Data.Functor
@@ -41,11 +41,10 @@ formatSubstitution (name, seq) = name ++ " => " ++ formatSequence seq
 sequenceMap::Grammar->SequenceMap
 sequenceMap g =
     union
-        (fromList (fmap (classSequence g) <$> M.toList (classes fixedG)))
+        (fromList (fmap (classSequence g) <$> (M.toList $ classes g)))
         (fmap orIfy (fromListWith (++) ((\rule -> (name rule, [fullSequence rule])) <$> allRules)))
             where
-                allRules = elems (classes fixedG) >>= rules
-                fixedG = removeOption $ removeSepBy g
+                allRules = elems (classes g) >>= rules
 
 classSequence::Grammar->Class->Sequence
 classSequence g cl =
@@ -56,7 +55,7 @@ classSequence g cl =
         classIsBlocking = isBlockClass g cl
         prefix = orIfy (nonSelfRule ++ selfRule)
         selfRule::[Sequence]
-        selfRule = fullSequence <$> (filter ((== className cl) . name) (rules cl))
+        selfRule = fullSequence <$> filter ((== className cl) . name) (rules cl)
         nonSelfRule::[Sequence]
         nonSelfRule = replicate 1 <$> Link <$>
                             ((filter (/= className cl) (nub $ name <$> rules cl)) ++ (parentNames cl))

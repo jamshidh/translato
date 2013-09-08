@@ -171,7 +171,7 @@ getLongestPrefix lists =
 leftTest::Grammar->IO ()
 leftTest g =
     do
-        let sMap = sequenceMap g
+        let sMap = sequenceMap $ removeOption $ removeSepBy g
         --putStrLn (formatSequenceMap sMap)
         let seq = fromJust $ lookup "command" sMap
         --putStrLn (formatSequence $ concatOuts $ prepareForLeftFactor sMap seq)

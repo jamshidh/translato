@@ -20,13 +20,13 @@ module Editor (
 ) where
 
 import Data.ByteString.UTF8 hiding (break)
-import Data.CaseInsensitive hiding (map)
+--import Data.CaseInsensitive hiding (map)
 import Data.Functor
 import Data.IORef
 import Data.List
 import Data.Maybe
-import Data.Text as T hiding (head, concat, null, map, intercalate, break)
-import Data.Text.Encoding
+--import Data.Text as T hiding (head, concat, null, map, intercalate, break)
+--import Data.Text.Encoding
 import Data.Tree
 import Graphics.UI.Gtk hiding (Range)
 import System.IO
@@ -37,13 +37,13 @@ import qualified EnhancedString as E
 import Grammar
 import GrammarTools
 import ListView
-import qualified LString as LS
+--import qualified LString as LS
 import Menu
 import Parser
 import ParseError
 import ToolBar
 
-import JDebug
+--import JDebug
 
 --data Error = Error { line::Int, column::Int, message::CI String } deriving (Show)
 
@@ -54,7 +54,7 @@ edit g fileNameString = do
 
 
 
-    initGUI
+    _ <- initGUI
     window <- windowNew
     fileNameRef <- newIORef fileNameString
     windowSetTitle window fileNameString
@@ -78,7 +78,7 @@ edit g fileNameString = do
     let validateFn = validate g validImage textView errorStore parseStore parseTreeView
 
     clipboard <- clipboardGet selectionPrimary
-    buff <- textViewGetBuffer textView
+    textBuffer <- textViewGetBuffer textView
 
     addMenuToWindow window vbox
         (
@@ -92,9 +92,9 @@ edit g fileNameString = do
                     ] False,
                 TrSubMenu "Edit"
                     [
-                        TrItem "Cut" (Just "<Control>x") (textBufferCutClipboard buff clipboard True),
-                        TrItem "Copy" (Just "<Control>c") (textBufferCopyClipboard buff clipboard),
-                        TrItem "Paste" (Just "<Control>v") (textBufferPasteClipboardAtCursor buff clipboard True),
+                        TrItem "Cut" (Just "<Control>x") (textBufferCutClipboard textBuffer clipboard True),
+                        TrItem "Copy" (Just "<Control>c") (textBufferCopyClipboard textBuffer clipboard),
+                        TrItem "Paste" (Just "<Control>v") (textBufferPasteClipboardAtCursor textBuffer clipboard True),
                         TrItem "Find" Nothing doFind
                     ] False,
                 TrSubMenu "Tools"
@@ -126,7 +126,7 @@ edit g fileNameString = do
     set window [ containerBorderWidth := 4,
         containerChild := vbox, windowDefaultWidth := 1400, windowDefaultHeight := 900 ]
 
-    loadBuffer fileNameString textView window
+    loadBuffer fileNameString textView
 
     boxPackStart vbox hbox PackNatural 0
 
@@ -176,7 +176,6 @@ edit g fileNameString = do
     positionLabel <- labelNew (Just "Line 0, Col 0")
     --validImage <- imageNewFromStock stockYes IconSizeMenu
 
-    textBuffer <- textViewGetBuffer textView
     after textView moveCursor (onCursorMoved positionLabel textBuffer)
     after textBuffer bufferChanged (onBuffChanged positionLabel textBuffer validateFn)
 
@@ -209,9 +208,8 @@ edit g fileNameString = do
 
     widgetGrabFocus textView
 
-    buff <- textViewGetBuffer textView
-    start <- textBufferGetStartIter buff
-    textBufferPlaceCursor buff start
+    start <- textBufferGetStartIter textBuffer
+    textBufferPlaceCursor textBuffer start
 
     validateFn
 
@@ -221,9 +219,9 @@ onCursorMoved::Label->TextBuffer->MovementStep->Int->Bool->IO()
 onCursorMoved positionLabel textBuffer _ _ _=updatePositionLabel positionLabel textBuffer
 
 onBuffChanged::Label->TextBuffer->(IO())->IO()
-onBuffChanged positionLabel textBuffer validate=do
+onBuffChanged positionLabel textBuffer doValidate=do
     updatePositionLabel positionLabel textBuffer
-    validate
+    doValidate
 
 updatePositionLabel::Label->TextBuffer->IO()
 updatePositionLabel positionLabel textBuffer=do
@@ -262,14 +260,14 @@ validate g validImage textView errorStore parseStore parseView = do
                     (res, rest2) = result2Forest rest
                     (result2, rest3) = result2Forest rest2
         result2Forest (E.EEnd _:rest) = ([], rest)
-        result2Forest s@(E.Ch c:rest) = ([Node{rootLabel=E.enhancedString2String word, subForest=[]}] ++ nextRes, rest3)
+        result2Forest s@(E.Ch _:_) = ([Node{rootLabel=E.enhancedString2String word, subForest=[]}] ++ nextRes, rest3)
             where
                 (word, rest2) = break notCh s
                 notCh::E.EChar->Bool
                 notCh (E.Ch _) = False
                 notCh _ = True
                 (nextRes, rest3) = result2Forest rest2
-        result2Forest (E.Fail e:_) = ([Node{rootLabel="<span background='red'>error</span>", subForest=[]}], [])
+        result2Forest (E.Fail _:_) = ([Node{rootLabel="<span background='red'>error</span>", subForest=[]}], [])
         result2Forest (E.Unknown:_) = ([Node{rootLabel="<span background='red'>Unknown</span>", subForest=[]}], [])
         result2Forest x = error ("Missing case in result2Forest: " ++ show x)
         escape::String->String
@@ -304,12 +302,12 @@ validate g validImage textView errorStore parseStore parseView = do
 
 
         highlightError::TextBuffer->ParseError->IO()
-        highlightError buff error = do
+        highlightError buff err = do
             tagTable <- textBufferGetTagTable buff
             tag <- textTagNew Nothing
             set tag [textTagUnderline := UnderlineError, textTagBackground := "Pink"]
             textTagTableAdd tagTable tag
-            mapM_ (highlightRange buff tag) (ranges error)
+            mapM_ (highlightRange buff tag) (ranges err)
 
         highlightRange::TextBuffer->TextTag->Range->IO()
         highlightRange buff tag (Position{line=line1, column=column1}, Position{line=line2, column=column2}) = do
@@ -340,14 +338,13 @@ saveBufferAs fileNameRef tv window =
         writeIORef fileNameRef filename
         saveBuffer fileNameRef tv
 
-loadBuffer::String->TextView->Window->IO ()
-loadBuffer filename tv window =
+loadBuffer::String->TextView->IO ()
+loadBuffer filename tv =
     do
         fileHandle<-openFile filename ReadMode
         contents<-hGetContents fileHandle
 
         buf <- textViewGetBuffer tv
-        tagTable <- textBufferGetTagTable buf
         textBufferSetText buf contents
         hClose fileHandle
 
@@ -362,7 +359,7 @@ promptAndLoadBuffer tv window =
         maybeFileName <- openOpenFileDialog FileChooserActionOpen window
         case maybeFileName of
             Just fileName -> do
-                loadBuffer fileName tv window
+                loadBuffer fileName tv
                 windowSetTitle window fileName
             Nothing -> return ()
 
@@ -415,8 +412,7 @@ openOpenFileDialog action parentWindow = do
        ResponseAccept -> do
             Just fileName <- fileChooserGetFilename dialog
             return (Just fileName)
-       ResponseCancel -> return Nothing
-       ResponseDeleteEvent -> return Nothing
+       _ -> return Nothing
 
 doFind=do
     putStrLn "doFind"

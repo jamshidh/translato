@@ -57,10 +57,10 @@ expectErr s expectation =
 -------------------------------
 
 addName::String->Sequence->Sequence
+addName _ [] = []
 addName name (TextMatch text _:rest) = TextMatch text (Just name):rest
 addName name (Character charset _:rest) = Character charset (Just name):rest
 addName name (c:rest) = c:addName name rest
-addName _ seq = error ("Missing case in addName: " ++ formatSequence seq)
 
 seq2ParseTree::SequenceMap->Sequence->Forest Expression
 seq2ParseTree sMap (Link name:rest) =

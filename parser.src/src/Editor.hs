@@ -255,7 +255,7 @@ validate g validImage textView errorStore parseStore parseView = do
         result2Forest (E.FilledInEStart tagName attributes:rest) =
             (Node{rootLabel=
                     "<span background='light blue'>" ++ escape tagName ++ "</span>"
-                    ++ concat ((\(name, value) -> " <span background='light grey'>" ++ escape name ++ "=" ++ escape value ++ "</span>") <$> attributes), subForest=res}:result2, rest3)
+                    ++ concat ((\(name, value) -> " <span background='light grey'>" ++ escape name ++ "=" ++ escape (E.formatMaybe value) ++ "</span>") <$> attributes), subForest=res}:result2, rest3)
                 where
                     (res, rest2) = result2Forest rest
                     (result2, rest3) = result2Forest rest2

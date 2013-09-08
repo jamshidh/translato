@@ -134,13 +134,12 @@ createEParserForClass startRule g s =
 
 createParserForClass::String->Grammar->Parser
 createParserForClass startRule g s =
-        enhancedString2String
---        show
+--        enhancedString2String
+        show
         $ createEParserForClass startRule g s
 
 createEParser::Grammar->EParser
-createEParser g = createEParserForClass (main fixedG) fixedG
-    where fixedG = fixG g
+createEParser g = createEParserForClass (main g) g
 
 createParser::Grammar->Parser
 --createParser g = show . createEParser g

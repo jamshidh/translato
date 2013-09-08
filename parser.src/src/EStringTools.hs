@@ -74,7 +74,7 @@ fillInFutureItems (FutureItem (Just ls):rest) = addLocationString ls futureItem 
 fillInFutureItems (c:rest) = c:fillInFutureItems rest
 fillInFutureItems [] = []
 
-checkForVarConsistency::[Map String (String, LS.LString)]->EString->EString
+checkForVarConsistency::[Map String (Maybe String, LS.LString)]->EString->EString
 checkForVarConsistency vStack (e@(EStart _ _):rest) = e:checkForVarConsistency (empty:vStack) rest
 checkForVarConsistency (_:vStackRest) (e@(EEnd _):rest) = e:checkForVarConsistency vStackRest rest
 checkForVarConsistency (vars:vStackRest) (e@(VAssign name val s):rest) =
@@ -85,11 +85,15 @@ checkForVarConsistency (vars:vStackRest) (e@(VAssign name val s):rest) =
                 then []
                 else [Fail $ MatchError
                                 name
-                                [rangeAt s2 (length val2), rangeAt s (length val)]
-                                val2
-                                val
-                                ])
+                                [rangeAt s2 (maybeLength val2), rangeAt s (maybeLength val)]
+                                (formatMaybe val2)
+                                (formatMaybe val)
+                                ] ++ checkForVarConsistency (vars:vStackRest) rest)
             ++ checkForVarConsistency (vars:vStackRest) rest
+    where
+        maybeLength::Maybe String->Int
+        maybeLength (Just val) = length val
+        maybeLength Nothing = 0
 checkForVarConsistency vStack (c:rest) = c:checkForVarConsistency vStack rest
 checkForVarConsistency _ [] = []
 
@@ -99,10 +103,11 @@ fillInVariableAssignments (VStart name (Just s):rest) =
     VAssign name value s:fillInVariableAssignments restWithoutVariableValue
     where
         (value, restWithoutVariableValue) = splitVariableValue rest
-        splitVariableValue (c@VEnd:rest) = ("", rest)
-        splitVariableValue (Ch c:rest) = (c:value, rest2)
-            where (value, rest2) = splitVariableValue rest
-        splitVariableValue (Fail err:rest) = ("[Unknown]", [])
+        splitVariableValue::EString->(Maybe String, EString)
+        splitVariableValue (c@VEnd:rest) = (Just "", rest)
+        splitVariableValue (Ch c:rest) = (Just (c:value), rest2)
+            where (Just value, rest2) = splitVariableValue rest
+        splitVariableValue (Fail err:rest) = (Nothing, [])
         splitVariableValue (EStart _ _:rest) = splitVariableValue rest
         splitVariableValue (EEnd _:rest) = splitVariableValue rest
         splitVariableValue x = error ("Missing case in splitVariableValue: " ++ show x)
@@ -114,7 +119,7 @@ fillInAttributes (EStart name atts:rest) =
     FilledInEStart name attributesWithValues:fillInAttributes restWithoutValues
     where
         (attributesWithValues, restWithoutValues) = splitAtts 0 rest atts
-        splitAtts::Int->EString->[String]->([(String, String)], EString)
+        splitAtts::Int->EString->[String]->([(String, Maybe String)], EString)
         splitAtts _ rest [] = ([], rest)
         splitAtts 0 (VAssign name value _:rest) neededAtts | name `elem` neededAtts = ((name, value):atts, rest2)
             where (atts, rest2) = splitAtts 0 rest (filter (/= name) neededAtts)
@@ -123,7 +128,7 @@ fillInAttributes (EStart name atts:rest) =
         splitAtts count (c@(EEnd _):rest) neededAtts = fmap (c:) (splitAtts (count-1) rest neededAtts)
         splitAtts count (c@(EStart _ _):rest) neededAtts = fmap (c:) (splitAtts (count+1) rest neededAtts)
         splitAtts count (c@(Fail _):rest) neededAtts =
-            ((\x -> (x, "[Unknown]")) <$> neededAtts, [c])
+            ((\x -> (x, Nothing)) <$> neededAtts, [c])
         splitAtts count (c:rest) neededAtts = fmap (c:) (splitAtts count rest neededAtts)
         splitAtts count s neededAtts = error ("Missing case in splitAtts: " ++ show count ++ ", " ++ show s ++ ", " ++ show neededAtts)
 fillInAttributes (c:rest) = c:fillInAttributes rest

@@ -20,6 +20,7 @@ module EnhancedString (
     e,
     chs2String,
     enhancedString2String,
+    formatMaybe,
     truncateString
 ) where
 
@@ -39,7 +40,8 @@ data InfixOp = InfixOp{opName::String, opPriority::Int, opAssociativity::Associa
 
 data EChar = Ch Char
     | EStart String [String]
-    | FilledInEStart String [(String, String)]
+    | FilledInEStart String [(String, Maybe String)]
+        --The Maybe is for error reporting, value should be a string unless something has gone wrong
     | EEnd String
     | NestedItem EString
     | FutureItem (Maybe LS.LString)
@@ -49,7 +51,9 @@ data EChar = Ch Char
     | VOut String
     | VStart String (Maybe LS.LString) --The LString is only added for error reporting, to know the location of the string
     | VEnd
-    | VAssign String String LS.LString --The LString is only added for error reporting, to know the location of the string
+    | VAssign String (Maybe String) LS.LString
+        --The LString is only added for error reporting, to know the location of the string
+        --The Maybe is also for error reporting, value should be a string unless something has gone wrong
     | TabRight String
     | TabLeft
     | Unknown --used when error occurs before ItemInfo is given
@@ -65,7 +69,7 @@ instance Show EChar where
     show (Ch '\n') = "\\n"
     show (Ch c) = [c]
     show (EStart name attributes) = cyan ("<" ++ name ++ concat (map (" " ++) attributes) ++ ">")
-    show (FilledInEStart name atts) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ val ++ "'") <$> atts) ++ ">")
+    show (FilledInEStart name atts) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">")
     show (FutureItem _) = cyan ("<??>")
     show (ItemInfo eString) = cyan ("{itemInfo=" ++ show eString ++ "}")
     show (EEnd name) = cyan ("</" ++ name ++ ">")
@@ -75,7 +79,7 @@ instance Show EChar where
     show (VOut name) = green ("[" ++ name ++ "]")
     show (VStart name _) = green ("{" ++ name ++ "=")
     show (VEnd) = green "}"
-    show (VAssign name val s) = green ("assign{" ++ name ++ "=" ++ LS.formatLString (LS.take (length val) s) ++ "}")
+    show (VAssign name maybeVal s) = green ("assign{" ++ name ++ "=" ++ formatMaybe maybeVal ++ "}")
     show (TabLeft) = magenta "<=="
     show (TabRight tabString) = magenta ("==>(" ++ tabString ++ ")")
     show Unknown = red "Unknown"
@@ -91,6 +95,10 @@ e::String->EString
 e (x:rest) = Ch x:(e rest)
 e [] = []
 
+formatMaybe::Maybe String->String
+formatMaybe (Just x) = x
+formatMaybe Nothing = "[Unknown]"
+
 chs2String::EString->String
 chs2String (Ch x:rest) = x:chs2String rest
 chs2String (Fail err:rest) = red (format err) ++ chs2String rest
@@ -100,10 +108,10 @@ chs2String (VOut name:rest) = green ("[" ++ name ++ "]") ++ chs2String rest
 chs2String (VStart name _:rest) = "{" ++ name ++ "=" ++ chs2String rest
 chs2String (VEnd:rest) = "}" ++ chs2String rest
 chs2String (EStart name atts:rest) = "<" ++ name ++ concat ((" "++) <$> atts) ++ ">" ++ chs2String rest
-chs2String (FilledInEStart name atts:rest) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ val ++ "'") <$> atts) ++ ">") ++ chs2String rest
+chs2String (FilledInEStart name atts:rest) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">") ++ chs2String rest
 chs2String (EEnd name:rest) = "</" ++ name ++ ">" ++ chs2String rest
 chs2String (NestedItem s:rest) = yellow "<<<" ++ show s ++ yellow ">>>" ++ chs2String rest
-chs2String (VAssign name val s:rest) = green ("assign{" ++ name ++ "=" ++ LS.formatLString (LS.take (length val) s) ++ "}") ++ chs2String rest
+chs2String (VAssign name maybeVal s:rest) = green ("assign{" ++ name ++ "=" ++ formatMaybe maybeVal ++ "}") ++ chs2String rest
 chs2String (FutureItem _:rest) = blue "<??>" ++ chs2String rest
 chs2String (ItemInfo eString:rest) = blue ("{itemInfo=" ++ show eString ++ "}") ++ chs2String rest
 chs2String (TabRight _:_) = error "There shouldn't be a tabright in chs2String"
@@ -182,6 +190,6 @@ expandElements [] = []
 expandAtts::[String]->EString
 expandAtts atts = atts >>= (\name -> e (" " ++ name ++ "='") ++ [VOut ("@" ++ name)] ++ e "'")
 
-expandAttsWithVals::[(String, String)]->String
-expandAttsWithVals atts = concat ((\(name, value) -> " " ++ name ++ "='" ++ value ++ "'") <$> atts)
+expandAttsWithVals::[(String, Maybe String)]->String
+expandAttsWithVals atts = concat ((\(name, value) -> " " ++ name ++ "='" ++ formatMaybe value ++ "'") <$> atts)
 

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 -----------------------------------------------------------------------------
 --
 -- Module      :  EnhancedString
@@ -26,13 +27,12 @@ module EnhancedString (
 
 import Data.Char
 import Data.Functor
-import Data.List as DL
 
 import Colors
 import qualified LString as LS
 import ParseError
 
-import JDebug
+--import JDebug
 
 data Associativity = LeftAssoc | RightAssoc | UseEndCap deriving (Eq, Ord, Show)
 
@@ -46,8 +46,6 @@ data EChar = Ch Char
     | NestedItem EString
     | FutureItem (Maybe LS.LString)
     | ItemInfo EString
-    | VPush
-    | VPop
     | VOut String
     | VStart String (Maybe LS.LString) --The LString is only added for error reporting, to know the location of the string
     | VEnd
@@ -68,26 +66,24 @@ data EChar = Ch Char
 instance Show EChar where
     show (Ch '\n') = "\\n"
     show (Ch c) = [c]
-    show (EStart name attributes) = cyan ("<" ++ name ++ concat (map (" " ++) attributes) ++ ">")
-    show (FilledInEStart name atts) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">")
+    show (EStart tagName attributes) = cyan ("<" ++ tagName ++ concat (map (" " ++) attributes) ++ ">")
+    show (FilledInEStart tagName atts) = cyan ("<" ++ tagName ++ concat ((" " ++) <$> (\(tagName', val) -> tagName' ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">")
     show (FutureItem _) = cyan ("<??>")
     show (ItemInfo eString) = cyan ("{itemInfo=" ++ show eString ++ "}")
-    show (EEnd name) = cyan ("</" ++ name ++ ">")
+    show (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
     show (NestedItem s) = yellow "<<<" ++ show s ++ yellow ">>>"
-    show VPush = magenta ">>VPush>>"
-    show VPop = magenta "<<VPop<<"
-    show (VOut name) = green ("[" ++ name ++ "]")
-    show (VStart name _) = green ("{" ++ name ++ "=")
+    show (VOut attrName) = green ("[" ++ attrName ++ "]")
+    show (VStart attrName _) = green ("{" ++ attrName ++ "=")
     show (VEnd) = green "}"
-    show (VAssign name maybeVal s) = green ("assign{" ++ name ++ "=" ++ formatMaybe maybeVal ++ "}")
+    show (VAssign attrName maybeVal _) = green ("assign{" ++ attrName ++ "=" ++ formatMaybe maybeVal ++ "}")
     show (TabLeft) = magenta "<=="
     show (TabRight tabString) = magenta ("==>(" ++ tabString ++ ")")
     show Unknown = red "Unknown"
     show StartBlock = red "["
     show EndBlock = red "]"
-    show (InfixTag InfixOp{opPriority=p, opName=name}) = cyan ("<-" ++ name ++ ":" ++ show p ++ "->")
-    show (EndCap name) = yellow ("EndCap(" ++ name ++ ")")
-    show (Fail error) = red ("Fail: " ++ message error)
+    show (InfixTag InfixOp{opPriority=p, opName=opName'}) = cyan ("<-" ++ opName' ++ ":" ++ show p ++ "->")
+    show (EndCap endCapName) = yellow ("EndCap(" ++ endCapName ++ ")")
+    show (Fail err) = red ("Fail: " ++ message err)
 
 type EString = [EChar]
 
@@ -102,24 +98,23 @@ formatMaybe Nothing = "[Unknown]"
 chs2String::EString->String
 chs2String (Ch x:rest) = x:chs2String rest
 chs2String (Fail err:rest) = red (format err) ++ chs2String rest
-chs2String (VPush:rest) = magenta ">>VPush" ++ chs2String rest
-chs2String (VPop:rest) = magenta "<<VPop<<" ++ chs2String rest
-chs2String (VOut name:rest) = green ("[" ++ name ++ "]") ++ chs2String rest
-chs2String (VStart name _:rest) = "{" ++ name ++ "=" ++ chs2String rest
+chs2String (VOut attrName:rest) = green ("[" ++ attrName ++ "]") ++ chs2String rest
+chs2String (VStart attrName _:rest) = "{" ++ attrName ++ "=" ++ chs2String rest
 chs2String (VEnd:rest) = "}" ++ chs2String rest
-chs2String (EStart name atts:rest) = "<" ++ name ++ concat ((" "++) <$> atts) ++ ">" ++ chs2String rest
-chs2String (FilledInEStart name atts:rest) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">") ++ chs2String rest
-chs2String (EEnd name:rest) = "</" ++ name ++ ">" ++ chs2String rest
+chs2String (EStart tagName atts:rest) = "<" ++ tagName ++ concat ((" "++) <$> atts) ++ ">" ++ chs2String rest
+chs2String (FilledInEStart tagName atts:rest) = cyan ("<" ++ tagName ++ concat ((" " ++) <$> (\(tagName', val) -> tagName' ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">") ++ chs2String rest
+chs2String (EEnd tagName:rest) = "</" ++ tagName ++ ">" ++ chs2String rest
 chs2String (NestedItem s:rest) = yellow "<<<" ++ show s ++ yellow ">>>" ++ chs2String rest
-chs2String (VAssign name maybeVal s:rest) = green ("assign{" ++ name ++ "=" ++ formatMaybe maybeVal ++ "}") ++ chs2String rest
+chs2String (VAssign attrName maybeVal _:rest) = green ("assign{" ++ attrName ++ "=" ++ formatMaybe maybeVal ++ "}") ++ chs2String rest
 chs2String (FutureItem _:rest) = blue "<??>" ++ chs2String rest
 chs2String (ItemInfo eString:rest) = blue ("{itemInfo=" ++ show eString ++ "}") ++ chs2String rest
 chs2String (TabRight _:_) = error "There shouldn't be a tabright in chs2String"
 chs2String (TabLeft:_) = error "There shouldn't be a tableft in chs2String"
+chs2String (Unknown:rest) = red "Unknown" ++ chs2String rest
 chs2String (StartBlock:rest) = red "[" ++ chs2String rest
 chs2String (EndBlock:rest) = red "]" ++ chs2String rest
-chs2String (InfixTag (InfixOp{opPriority=p, opName=name}):rest) = "Op(" ++ show p ++ "," ++ name ++ ")" ++ chs2String rest
-chs2String (EndCap name:rest) = yellow ("EndCap(" ++ name ++ ")") ++ chs2String rest
+chs2String (InfixTag (InfixOp{opPriority=p, opName=opName'}):rest) = "Op(" ++ show p ++ "," ++ opName' ++ ")" ++ chs2String rest
+chs2String (EndCap endCapName:rest) = yellow ("EndCap(" ++ endCapName ++ ")") ++ chs2String rest
 chs2String [] = []
 --chs2String x = error ("missing case in chs2String: " ++ show x)
 
@@ -140,7 +135,7 @@ expandTabs (_:tabs) (TabLeft:rest) = expandTabs tabs rest
 expandTabs tabs (TabLeft:_) = error ("TabLeft missed in expandTabs: " ++ show tabs)
 expandTabs tab (Ch '\n':rest) = Ch '\n':(e (concat tab) ++ expandTabs tab rest)
 expandTabs tab (x:rest) = x:(expandTabs tab rest)
-expandTabs tab [] = []
+expandTabs _ [] = []
 
 expandWhitespace::EString->EString
 expandWhitespace (Ch x:Ch '_':Ch y:rest) | isAlphaNum x && isAlphaNum y = Ch x:Ch ' ':Ch y:(expandWhitespace rest)
@@ -152,44 +147,44 @@ truncateString::Int->String->String
 truncateString newLength s | length s <= newLength = s
 truncateString newLength s = take newLength s ++ "...."
 
-debugOutput::EString->String
+{-debugOutput::EString->String
 debugOutput (TabLeft:rest) = "<==" ++ debugOutput rest
 debugOutput (TabRight tabString:rest) = "==>(" ++ tabString ++ ")" ++ debugOutput rest
 debugOutput (Ch c:rest) = c:debugOutput rest
 debugOutput (c:rest) = show c ++ debugOutput rest
-debugOutput [] = []
+debugOutput [] = []-}
 
 addLineBreaks::[Bool]->EString->EString
 addLineBreaks (needsBreak:breakRest) (e1@(FilledInEStart _ _):e2@(FilledInEStart _ _):rest) = --jtrace ("1" ++ show (needsBreak:breakRest)) $
     (if needsBreak then [Ch '\n'] else [])
         ++ e1:TabRight " ":addLineBreaks (True:needsBreak:breakRest) (e2:rest)
-addLineBreaks (needsBreak:breakRest) (e@(FilledInEStart _ _):rest) =  --jtrace ("2" ++ show (needsBreak:breakRest)) $
+addLineBreaks (needsBreak:breakRest) (expr@(FilledInEStart _ _):rest) =
     (if needsBreak then [Ch '\n'] else [])
-        ++ e:addLineBreaks (False:needsBreak:breakRest) rest
-addLineBreaks (needsBreak:breakRest) (e@(EEnd _):rest) = --jtrace "EEnd" $
+        ++ expr:addLineBreaks (False:needsBreak:breakRest) rest
+addLineBreaks (needsBreak:breakRest) (expr@(EEnd _):rest) = --jtrace "EEnd" $
     (if needsBreak then [TabLeft, Ch '\n'] else [])
-        ++ e:addLineBreaks breakRest rest
-addLineBreaks [] (e@(EEnd _):rest) = error "shouldn't call addLIneBreaks for EEnd with empty breakStack"
-addLineBreaks breakStack (c:rest) = --jtrace ("Other: " ++ show c) $
+        ++ expr:addLineBreaks breakRest rest
+addLineBreaks [] (EEnd _:_) = error "shouldn't call addLIneBreaks for EEnd with empty breakStack"
+addLineBreaks breakStack (c:rest) =
     c:addLineBreaks breakStack rest
 addLineBreaks _ [] = [Ch '\n']
 
 
 
 expandElements::EString->EString
-expandElements (EStart name atts:rest) = e ("<" ++ name) ++ (expandAtts atts) ++ e(">") ++ expandElements rest
+expandElements (EStart tagName atts:rest) = e ("<" ++ tagName) ++ (expandAtts atts) ++ e(">") ++ expandElements rest
 expandElements (FilledInEStart name1 atts:EEnd name2:rest) | name1 == name2 =
         e ("<" ++ name1 ++ expandAttsWithVals atts ++ "/>") ++ expandElements rest
-expandElements (FilledInEStart name atts:rest) = e ("<" ++ name ++ expandAttsWithVals atts ++ ">") ++ expandElements rest
+expandElements (FilledInEStart tagName atts:rest) = e ("<" ++ tagName ++ expandAttsWithVals atts ++ ">") ++ expandElements rest
 expandElements (FutureItem _:rest) = e ("<??>") ++ expandElements rest
 expandElements (ItemInfo eString:rest) = e "{itemInfo=" ++ eString ++ e ("}") ++ expandElements rest
-expandElements (EEnd name:rest) = e("</" ++ name ++ ">") ++ expandElements rest
+expandElements (EEnd tagName:rest) = e("</" ++ tagName ++ ">") ++ expandElements rest
 expandElements (c:rest) = c:expandElements rest
 expandElements [] = []
 
 expandAtts::[String]->EString
-expandAtts atts = atts >>= (\name -> e (" " ++ name ++ "='") ++ [VOut ("@" ++ name)] ++ e "'")
+expandAtts atts = atts >>= (\attrName -> e (" " ++ attrName ++ "='") ++ [VOut ("@" ++ attrName)] ++ e "'")
 
 expandAttsWithVals::[(String, Maybe String)]->String
-expandAttsWithVals atts = concat ((\(name, value) -> " " ++ name ++ "='" ++ formatMaybe value ++ "'") <$> atts)
+expandAttsWithVals atts = concat ((\(attrName, value) -> " " ++ attrName ++ "='" ++ formatMaybe value ++ "'") <$> atts)
 

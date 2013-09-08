@@ -42,7 +42,7 @@ data EChar = Ch Char
     | FilledInEStart String [(String, String)]
     | EEnd String
     | NestedItem EString
-    | FutureItem
+    | FutureItem (Maybe LS.LString)
     | ItemInfo EString
     | VPush
     | VPop
@@ -58,8 +58,6 @@ data EChar = Ch Char
     | InfixTag InfixOp
     | EndCap String
     | Fail ParseError
---    | ExpectationError [String] LS.LString
---    | Error String LS.LString
     deriving (Eq, Ord)
 
 
@@ -68,7 +66,7 @@ instance Show EChar where
     show (Ch c) = [c]
     show (EStart name attributes) = cyan ("<" ++ name ++ concat (map (" " ++) attributes) ++ ">")
     show (FilledInEStart name atts) = cyan ("<" ++ name ++ concat ((" " ++) <$> (\(name, val) -> name ++ "='" ++ val ++ "'") <$> atts) ++ ">")
-    show (FutureItem) = cyan ("<??>")
+    show (FutureItem _) = cyan ("<??>")
     show (ItemInfo eString) = cyan ("{itemInfo=" ++ show eString ++ "}")
     show (EEnd name) = cyan ("</" ++ name ++ ">")
     show (NestedItem s) = yellow "<<<" ++ show s ++ yellow ">>>"
@@ -80,12 +78,11 @@ instance Show EChar where
     show (VAssign name val s) = green ("assign{" ++ name ++ "=" ++ LS.formatLString (LS.take (length val) s) ++ "}")
     show (TabLeft) = magenta "<=="
     show (TabRight tabString) = magenta ("==>(" ++ tabString ++ ")")
+    show Unknown = red "Unknown"
     show StartBlock = red "["
     show EndBlock = red "]"
     show (InfixTag InfixOp{opPriority=p, opName=name}) = cyan ("<-" ++ name ++ ":" ++ show p ++ "->")
     show (EndCap name) = yellow ("EndCap(" ++ name ++ ")")
---    show (ExpectationError expected s) = red ("{ExpectationError: " ++ show expected ++ "}")
---    show (Error message s) = red ("{Error: " ++ message ++ "}")
     show (Fail error) = red ("Fail: " ++ message error)
 
 type EString = [EChar]
@@ -107,7 +104,7 @@ chs2String (FilledInEStart name atts:rest) = cyan ("<" ++ name ++ concat ((" " +
 chs2String (EEnd name:rest) = "</" ++ name ++ ">" ++ chs2String rest
 chs2String (NestedItem s:rest) = yellow "<<<" ++ show s ++ yellow ">>>" ++ chs2String rest
 chs2String (VAssign name val s:rest) = green ("assign{" ++ name ++ "=" ++ LS.formatLString (LS.take (length val) s) ++ "}") ++ chs2String rest
-chs2String (FutureItem:rest) = blue "<??>" ++ chs2String rest
+chs2String (FutureItem _:rest) = blue "<??>" ++ chs2String rest
 chs2String (ItemInfo eString:rest) = blue ("{itemInfo=" ++ show eString ++ "}") ++ chs2String rest
 chs2String (TabRight _:_) = error "There shouldn't be a tabright in chs2String"
 chs2String (TabLeft:_) = error "There shouldn't be a tableft in chs2String"
@@ -176,7 +173,7 @@ expandElements (EStart name atts:rest) = e ("<" ++ name) ++ (expandAtts atts) ++
 expandElements (FilledInEStart name1 atts:EEnd name2:rest) | name1 == name2 =
         e ("<" ++ name1 ++ expandAttsWithVals atts ++ "/>") ++ expandElements rest
 expandElements (FilledInEStart name atts:rest) = e ("<" ++ name ++ expandAttsWithVals atts ++ ">") ++ expandElements rest
-expandElements (FutureItem:rest) = e ("<??>") ++ expandElements rest
+expandElements (FutureItem _:rest) = e ("<??>") ++ expandElements rest
 expandElements (ItemInfo eString:rest) = e "{itemInfo=" ++ eString ++ e ("}") ++ expandElements rest
 expandElements (EEnd name:rest) = e("</" ++ name ++ ">") ++ expandElements rest
 expandElements (c:rest) = c:expandElements rest

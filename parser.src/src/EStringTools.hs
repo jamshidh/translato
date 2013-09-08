@@ -57,13 +57,18 @@ cleanEString input@(Ch c:rest) = show (map (\(Ch c) -> c) chars):cleanEString re
 cleanEString (first:rest) = show first:cleanEString rest
 cleanEString [] = []
 
+addLocationString::LS.LString->EString->EString
+addLocationString _ [] = []
+addLocationString ls (VStart name _:rest) = VStart name (Just ls):addLocationString ls rest
+addLocationString ls (c:rest) = c:addLocationString ls rest
+
 fillInFutureItems::EString->EString
-fillInFutureItems (FutureItem:rest) = futureItem ++ fillInFutureItems restWithoutFutureItem
+fillInFutureItems (FutureItem (Just ls):rest) = addLocationString ls futureItem ++ fillInFutureItems restWithoutFutureItem
     where
         (futureItem, restWithoutFutureItem) = splitFutureItem rest
-        splitFutureItem s@(FutureItem:rest) = splitFutureItem $ fillInFutureItems s
+        splitFutureItem seq@(FutureItem s2:rest) = splitFutureItem $ fillInFutureItems seq
         splitFutureItem (ItemInfo eString:rest) = (eString, rest)
-        splitFutureItem s@(Fail _:rest) = ([Unknown], s)
+        splitFutureItem seq@(Fail _:rest) = ([Unknown], seq)
         splitFutureItem (c:rest) = fmap (c:) (splitFutureItem rest)
         splitFutureItem x = error ("Missing case in splitFutureItem: " ++ show x)
 fillInFutureItems (c:rest) = c:fillInFutureItems rest
@@ -89,7 +94,7 @@ checkForVarConsistency vStack (c:rest) = c:checkForVarConsistency vStack rest
 checkForVarConsistency _ [] = []
 
 fillInVariableAssignments::EString->EString
-fillInVariableAssignments (VStart name Nothing:rest) = error "fillInVariableAssignments called without LString"
+fillInVariableAssignments (VStart name Nothing:rest) = error ("fillInVariableAssignments called without LString for '" ++ name ++ "'")
 fillInVariableAssignments (VStart name (Just s):rest) =
     VAssign name value s:fillInVariableAssignments restWithoutVariableValue
     where

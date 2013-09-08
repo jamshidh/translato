@@ -21,6 +21,7 @@ module LeftFactoring (
 import Prelude hiding (lookup)
 
 import Data.Functor
+import Data.Function
 import Data.List hiding (lookup)
 import Data.Map hiding (map, null, foldl')
 import Data.Maybe
@@ -55,7 +56,7 @@ leftFactor' (Or items:rest) = --jtrace ("Left factoring: " ++ intercalate "\n  "
         theMap = toList (fromListWith (++) (fmap (replicate 1) <$> splitFirstTok <$> items))
         makeSeq::(Maybe Sequence, [Sequence])->Sequence
 --        makeSeq (Just [EmptyEStart, exp], [EInfo name atts:oneSeq]) = EStart name atts:exp:oneSeq
-        makeSeq (Just [Out [FutureItem], exp], seqs) | length firstItems == 1 =
+        makeSeq (Just [Out [FutureItem Nothing], exp], seqs) | length firstItems == 1 =
             case firstItems of
                 [Out [ItemInfo eString]] ->
                     Out eString `prepend` (exp `prepend` (concatOuts $ leftFactor' [Or (tail <$> seqs)]))
@@ -69,7 +70,7 @@ leftFactor' [] = []
 prepareForLeftFactor::SequenceMap->Sequence->Sequence
 prepareForLeftFactor sMap [Or seqs] = orIfy $ expandEStart <$> expandToToken <$> seqs
     where
-        expandToToken seq@(Link name:rest) | isToken sMap name = seq
+        expandToToken (c:rest) | c `elem` stopList = c:rest
         expandToToken (Link name:rest) =
                 case lookup name sMap of
                     Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ name)
@@ -81,6 +82,7 @@ prepareForLeftFactor sMap [Or seqs] = orIfy $ expandEStart <$> expandToToken <$>
         expandEStart (Out eString:Or seqs:rest) = orIfy ((Out eString `prepend`) <$> seqs) +++ rest
         expandEStart (Or seqs:rest) = orIfy (expandEStart <$> seqs) +++ rest
         expandEStart x = x
+        stopList = getStopList seqs
 prepareForLeftFactor sMap seq = seq
 
 concatOuts::Sequence->Sequence
@@ -102,7 +104,7 @@ splitFirstTok (WhiteSpace _:rest) = (Just [WhiteSpace " "], rest)
 splitFirstTok (Out eString1:Out eString2:rest) = splitFirstTok (Out (eString1 ++ eString2):rest)
 splitFirstTok (Out [ItemInfo eString]:rest) = (nextTok, Out [ItemInfo eString]:nextSeq)
     where (nextTok, nextSeq) = splitFirstTok rest
-splitFirstTok (Out eString:rest) = (nextTok >>= Just . (Out [FutureItem]:), Out [ItemInfo eString]:nextSeq)
+splitFirstTok (Out eString:rest) = (nextTok >>= Just . (Out [FutureItem Nothing]:), Out [ItemInfo eString]:nextSeq)
     where (nextTok, nextSeq) = splitFirstTok rest
 splitFirstTok [] = (Nothing, [])
 splitFirstTok seq = error ("Missing case in splitFirstTok: " ++ formatSequence seq)
@@ -138,6 +140,33 @@ getTokens sMap (Link name:rest) =
 getTokens sMap (Or seqs:rest) = nub (concat $ getTokens sMap <$> seqs)
 getTokens sMap (Out _:rest) = getTokens sMap rest
 getTokens _ seq = error ("Missing case in getTokens: " ++ formatSequence seq)
+
+getFirst::Sequence->Expression
+getFirst (e@(Link _):_) = e
+getFirst (e@(TextMatch _):_) = e
+getFirst (e@(Character _):_) = e
+getFirst (_:rest) = getFirst rest
+
+getChainOfFirsts::SequenceMap->Sequence->[Expression]
+getChainOfFirsts sm seq =
+    case first of
+        Link name->case lookup name sm of
+            Just seq'->first:getChainOfFirsts sm seq'
+            Nothing->error ("Unknown link name in getChainOfFirsts: " ++ name)
+        _->[first]
+    where first = getFirst seq
+
+getStopList::Ord a=>[[a]]->[a]
+getStopList lists = last <$> getPrefixes lists
+
+getPrefixes::(Eq a, Ord a)=>[[a]]->[[a]]
+getPrefixes = getLongestPrefix . groupBy ((==) `on` head) . sortBy (compare `on` head)
+
+getLongestPrefix::Eq a=>[[a]]->[a]
+getLongestPrefix lists =
+    case nub $ listToMaybe <$> lists of
+        [Just x]->x:getLongestPrefix (tail <$> lists)
+        _->[]
 
 leftTest::Grammar->IO ()
 leftTest g =

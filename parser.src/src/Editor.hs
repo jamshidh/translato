@@ -236,9 +236,7 @@ updatePositionLabel positionLabel textBuffer=do
 
 validate::Grammar->Image->TextView->ListStore ParseError->TreeStore String->TreeView->IO()
 validate g validImage textView errorStore parseStore parseView = do
-    --let initialText = T.pack "qqqq"
     buff <- textViewGetBuffer textView
-    --textBufferSetByteString buff (encodeUtf8 initialText)
     start <- textBufferGetStartIter buff
     end <- textBufferGetEndIter buff
     bufferString <- textBufferGetByteString buff start end False
@@ -250,24 +248,16 @@ validate g validImage textView errorStore parseStore parseView = do
     treeStoreClear parseStore
     textBufferRemoveAllTags buff start end
     mapM_ (\error -> listStoreAppend errorStore error) errorList
-
     mapM_ (treeStoreInsertTree parseStore [] 0) (fst $ result2Forest res)
-
     treeViewExpandAll parseView
-
-
     mapM_ (highlightError buff) errorList
     where
---        eString2Error::ParseError->Error
---        eString2Error (E.Error message input) = Error (LS.line input) (LS.col input) (mk message)
---        eString2Error (E.ExpectationError expected input) = Error (LS.line input) (LS.col input) (mk ("Expected: " ++ show expected))
-
         result2Forest::E.EString->(Forest String, E.EString)
         result2Forest [] = ([], [])
         result2Forest (E.FilledInEStart tagName attributes:rest) =
             (Node{rootLabel=
-                    "<span background='light blue'>" ++ tagName ++ "</span>"
-                    ++ concat ((\(name, value) -> " <span background='light grey'>" ++ name ++ "=" ++ value ++ "</span>") <$> attributes), subForest=res}:result2, rest3)
+                    "<span background='light blue'>" ++ escape tagName ++ "</span>"
+                    ++ concat ((\(name, value) -> " <span background='light grey'>" ++ escape name ++ "=" ++ escape value ++ "</span>") <$> attributes), subForest=res}:result2, rest3)
                 where
                     (res, rest2) = result2Forest rest
                     (result2, rest3) = result2Forest rest2
@@ -279,8 +269,17 @@ validate g validImage textView errorStore parseStore parseView = do
                 notCh (E.Ch _) = False
                 notCh _ = True
                 (nextRes, rest3) = result2Forest rest2
-        result2Forest (E.Fail e:rest) = ([Node{rootLabel="<span background='red'>error</span>", subForest=[]}], [])
-        result2Forest x = error ("Missing case in result2Tree: " ++ show x)
+        result2Forest (E.Fail e:_) = ([Node{rootLabel="<span background='red'>error</span>", subForest=[]}], [])
+        result2Forest (E.Unknown:_) = ([Node{rootLabel="<span background='red'>Unknown</span>", subForest=[]}], [])
+        result2Forest x = error ("Missing case in result2Forest: " ++ show x)
+        escape::String->String
+        escape [] = []
+        escape ('<':rest) = "&lt;" ++ escape rest
+        escape ('>':rest) = "&gt;" ++ escape rest
+        escape ('&':rest) = "&amp;" ++ escape rest
+        escape (x:rest) = x:escape rest
+
+
 {-data EChar = Ch Char
     | EStart String [String]
     | EEnd String

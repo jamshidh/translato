@@ -83,6 +83,8 @@ rawParse [Node{rootLabel=TextMatch matchString, subForest=_}] s = expectErr s ma
 
 rawParse [Node{rootLabel=Out (VStart name _:eStringRest), subForest=rest}] s =
     VStart name (Just s):rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s
+rawParse [Node{rootLabel=Out (FutureItem _:eStringRest), subForest=rest}] s =
+    FutureItem (Just s):rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s
 rawParse [Node{rootLabel=Out (first:eStringRest), subForest=rest}] s =
     first:rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s
 rawParse [Node{rootLabel=Out [], subForest=rest}] s = rawParse rest s
@@ -132,6 +134,7 @@ createEParser g = createEParserForClass (main fixedG) fixedG
     where fixedG = fixG g
 
 createParser::Grammar->Parser
+--createParser g = show . createEParser g
 createParser g = enhancedString2String . createEParser g
 
 createEParserWithErrors::Grammar->String->(EString, [ParseError])

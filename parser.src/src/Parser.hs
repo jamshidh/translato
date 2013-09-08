@@ -119,7 +119,7 @@ rawParse items s = case chooseOne items s of
 ------------------------
 
 parseTree::Grammar->String->Forest Expression
-parseTree g startRule=seq2ParseTree (leftFactorSequenceMap $ sequenceMap $ removeOption $ removeSepBy g) [Link startRule]
+parseTree g startRule=seq2ParseTree (leftFactorSequenceMap $ sequenceMap $ addTagsToGrammar $ removeOption $ removeSepBy g) [Link startRule]
 
 createEParserForClass::String->Grammar->EParser
 createEParserForClass startRule g s =

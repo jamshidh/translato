@@ -15,6 +15,7 @@
 module SequenceMap (
     SequenceMap,
     sequenceMap,
+    addTagsToGrammar,
     formatSequenceMap,
     removeOption,
     removeSepBy
@@ -42,7 +43,7 @@ sequenceMap::Grammar->SequenceMap
 sequenceMap g =
     union
         (fromList (fmap (classSequence g) <$> (M.toList $ classes g)))
-        (fmap orIfy (fromListWith (++) ((\rule -> (name rule, [fullSequence rule])) <$> allRules)))
+        (fmap orIfy (fromListWith (++) ((\rule -> (name rule, [rawSequence rule])) <$> allRules)))
             where
                 allRules = elems (classes g) >>= rules
 
@@ -55,22 +56,27 @@ classSequence g cl =
         classIsBlocking = isBlockClass g cl
         prefix = orIfy (nonSelfRule ++ selfRule)
         selfRule::[Sequence]
-        selfRule = fullSequence <$> filter ((== className cl) . name) (rules cl)
+        selfRule = rawSequence <$> filter ((== className cl) . name) (rules cl)
         nonSelfRule::[Sequence]
         nonSelfRule = replicate 1 <$> Link <$>
                             ((filter (/= className cl) (nub $ name <$> rules cl)) ++ (parentNames cl))
         suffix = orIfy (suffixSeqs cl)
 
-fullSequence::Rule->Sequence
-fullSequence rule =
-    Out [EStart (name rule) (nub (seq2AttNames (rawSequence rule)))]
-    `prepend`
-    rawSequence rule ++ [Out [EEnd (name rule)]]
+----------------------------
+
+addTagToRule::Rule->Rule
+addTagToRule rule =
+    rule{ rawSequence=Out [EStart (name rule) (nub (seq2AttNames (rawSequence rule)))]
+                `prepend`
+                rawSequence rule ++ [Out [EEnd (name rule)]] }
         where
             seq2AttNames::Sequence->[String]
             seq2AttNames (Out [VStart name Nothing]:rest) = name:seq2AttNames rest
             seq2AttNames (_:rest) = seq2AttNames rest
             seq2AttNames [] = []
+
+addTagsToGrammar::Grammar->Grammar
+addTagsToGrammar g = g{classes=fmap (\cl -> cl{rules=addTagToRule <$> rules cl}) (classes g)}
 
 ----------------------------
 

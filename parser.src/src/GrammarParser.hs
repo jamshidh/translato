@@ -107,7 +107,7 @@ parseFullClass =
                 suffixSeqs=[],
                 operators=concat [operators|OperatorsItem operators<-itemsWithPriority],
                 separator=case [separator|SeparatorItem separator<-itemsWithPriority] of
-                    [] -> [TextMatch " "]
+                    [] -> [TextMatch " " Nothing]
                     [x] -> x
                     _ -> error "Only one separator allowed for a class",
                 left=case [left|LeftItem left<-itemsWithPriority] of
@@ -220,7 +220,7 @@ string2Sequence [] = []
 string2Sequence ('_':rest) = WhiteSpace "":string2Sequence rest
 string2Sequence s | isSpace (head s) = WhiteSpace first:string2Sequence rest
     where (first, rest) = break (not . isSpaceOrUnderscore) s
-string2Sequence s = TextMatch first:string2Sequence rest
+string2Sequence s = TextMatch first Nothing:string2Sequence rest
     where (first, rest) = break isSpaceOrUnderscore s
 
 isSpaceOrUnderscore::Char->Bool
@@ -259,13 +259,13 @@ matchSequenceItem =
             ("", TextItem text) -> string2Sequence text
             ("*", ExpressionItem exp) -> [SepBy 0 [exp]]
             ("*", SequenceItem seq) -> [SepBy 0 seq]
-            ("*", TextItem text) -> string2Sequence (init text) ++ [SepBy 0 [TextMatch [last text]]]
+            ("*", TextItem text) -> string2Sequence (init text) ++ [SepBy 0 [TextMatch [last text] Nothing]]
             ("+", ExpressionItem exp) -> [SepBy 1 [exp]]
             ("+", SequenceItem seq) -> [SepBy 1 seq]
-            ("+", TextItem text) -> string2Sequence (init text) ++ [SepBy 1 [TextMatch [last text]]]
+            ("+", TextItem text) -> string2Sequence (init text) ++ [SepBy 1 [TextMatch [last text] Nothing]]
             ("?", ExpressionItem exp) -> [Option [exp]]
             ("?", SequenceItem seq) -> [Option seq]
-            ("?", TextItem text) -> string2Sequence (init text) ++ [Option [TextMatch [last text]]])
+            ("?", TextItem text) -> string2Sequence (init text) ++ [Option [TextMatch [last text] Nothing]])
 
 
 
@@ -301,7 +301,7 @@ matchCharset =
         isInverse <- option False (char '^' >> return True)
         charTypes <- many (matchEscapedChar <|> try matchCharsetRange <|> matchCharsetChar)
         char ']'
-        return (Character (CharSet isInverse charTypes))
+        return (Character (CharSet isInverse charTypes) Nothing)
 
 matchEscapedChar =
     do
@@ -328,7 +328,7 @@ matchSimpleCharsetChar =
             <|> try (string "\\d" >> return Digit)
             <|> try (string "\\w" >> return WordChar)
             )
-        return (Character (CharSet False [chartype]))
+        return (Character (CharSet False [chartype]) Nothing)
 
 matchLink =
     do

@@ -41,24 +41,24 @@ data TreeInfo = TreeInfo { tree::Tree Expression, firstMatchers::[Expression], a
 
 getTreeInfos::Tree Expression->[TreeInfo]
 getTreeInfos t@
-    Node{rootLabel=TextMatch text1,
+    Node{rootLabel=TextMatch text1 name,
         subForest=[Node{rootLabel=WhiteSpace _,
-            subForest=[Node{rootLabel=TextMatch text2}]}]} =
+            subForest=[Node{rootLabel=TextMatch text2 _}]}]} =
     [TreeInfo {
         tree=t,
-        firstMatchers=[TextMatch (text1++" "++text2)],
+        firstMatchers=[TextMatch (text1++" "++text2) name],
         allowsWhiteSpace=False, isFallBack=False
     }]
-getTreeInfos t@Node{rootLabel=TextMatch text} =
+getTreeInfos t@Node{rootLabel=TextMatch text name} =
     [TreeInfo {
         tree=t,
-        firstMatchers=[TextMatch text],
+        firstMatchers=[TextMatch text name],
         allowsWhiteSpace=False, isFallBack=False
     }]
-getTreeInfos t@Node{rootLabel=Character charset} =
+getTreeInfos t@Node{rootLabel=Character charset name} =
     [TreeInfo {
         tree=t,
-        firstMatchers=[Character charset],
+        firstMatchers=[Character charset name],
         allowsWhiteSpace=False, isFallBack=False
     }]
 getTreeInfos t@Node{rootLabel=EOF} =
@@ -87,9 +87,9 @@ isPrefixTextMatch [] (c2:rest2) = True
 
 
 eCheck::LString->Expression->Bool
-eCheck s (TextMatch text) = text `isPrefixTextMatch` LS.string s
-eCheck s (Character charset) | LS.null s = False
-eCheck s (Character charset) = LS.head s `isIn` charset
+eCheck s (TextMatch text _) = text `isPrefixTextMatch` LS.string s
+eCheck s (Character charset _) | LS.null s = False
+eCheck s (Character charset _) = LS.head s `isIn` charset
 eCheck s EOF = LS.null s
 eCheck _ e =
     error ("Missing case in function 'eCheck': " ++ formatExpression e ++ ", ")
@@ -154,7 +154,7 @@ removeTextMatchSize = snd
 
 
 textMatchMatchSize::LS.LString->Expression->Int
-textMatchMatchSize s (TextMatch text) | text `isPrefixTextMatch` LS.string s = length text
+textMatchMatchSize s (TextMatch text _) | text `isPrefixTextMatch` LS.string s = length text
 textMatchMatchSize _ _ = 0
 
 

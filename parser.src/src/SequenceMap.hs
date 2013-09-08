@@ -115,24 +115,24 @@ seq2Separator::Grammar->Sequence->Sequence
 seq2Separator g [Link name] = case M.lookup name (classes g) of
     Nothing -> error ("Missing link name in seq2Separator: " ++ name)
     Just cl -> separator cl
-seq2Separator g [Character charset] = []
-seq2Separator g [TextMatch _] = []
+seq2Separator g [Character charset _] = []
+seq2Separator g [TextMatch _ _] = []
 seq2Separator _ seq = error ("Missing case in seq2Separator: " ++ formatSequence seq)
 
 seq2Left::Grammar->Sequence->Sequence
 seq2Left g [Link name] = case M.lookup name (classes g) of
     Nothing -> error ("Missing link name in seq2Left: " ++ name)
     Just cl -> left cl
-seq2Left g [Character charset] = []
-seq2Left g [TextMatch _] = []
+seq2Left g [Character charset _] = []
+seq2Left g [TextMatch _ _] = []
 seq2Left _ seq = error ("Missing case in seq2Left: " ++ show seq)
 
 seq2Right::Grammar->Sequence->Sequence
 seq2Right g [Link name] = case M.lookup name (classes g) of
     Nothing -> error ("Missing link name in seq2Right: " ++ name)
     Just cl -> right cl
-seq2Right g [Character _] = []
-seq2Right g [TextMatch _] = []
+seq2Right g [Character _ _] = []
+seq2Right g [TextMatch _ _] = []
 seq2Right _ seq = error ("Missing case in seq2Separator: " ++ formatSequence seq)
 
 -------------------------------

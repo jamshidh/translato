@@ -62,7 +62,7 @@ op2Name (TextMatch s:rest) = rawOp2Name s ++ (op2Name rest)
 op2Name (x:rest) = op2Name rest--}
 
 symbol2Name::Sequence->String
-symbol2Name (TextMatch text:rest) = op2Name text ++ symbol2Name rest
+symbol2Name (TextMatch text _:rest) = op2Name text ++ symbol2Name rest
 symbol2Name (WhiteSpace _:rest) = symbol2Name rest
 symbol2Name [] = []
 

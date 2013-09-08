@@ -56,11 +56,17 @@ expectErr s expectation =
 
 -------------------------------
 
+addName::String->Sequence->Sequence
+addName name (TextMatch text _:rest) = TextMatch text (Just name):rest
+addName name (Character charset _:rest) = Character charset (Just name):rest
+addName name (c:rest) = c:addName name rest
+addName _ seq = error ("Missing case in addName: " ++ formatSequence seq)
+
 seq2ParseTree::SequenceMap->Sequence->Forest Expression
 seq2ParseTree sMap (Link name:rest) =
     case lookup name sMap of
         Nothing -> error ("The grammar links to a non-existant rule named '" ++ name ++ "'")
-        Just seq -> seq2ParseTree sMap (seq ++ rest)
+        Just seq -> seq2ParseTree sMap (addName name (seq ++ rest))
 seq2ParseTree sMap (List 0 seq:rest) =
     seq2ParseTree sMap [Or [seq ++ [List 0 seq] ++ rest, FallBack:rest]]
 seq2ParseTree sMap (List count seq:rest) =
@@ -77,9 +83,10 @@ rawParse [Node{rootLabel=EOF, subForest=rest}] s | string s == [] = rawParse res
 rawParse [Node{rootLabel=EOF, subForest=rest}] s = expectErr s "EOF"
 rawParse [] s = []
 
-rawParse [Node{rootLabel=TextMatch matchString, subForest=rest}] s | LS.isPrefixOf matchString s =
+rawParse [Node{rootLabel=TextMatch matchString _, subForest=rest}] s | LS.isPrefixOf matchString s =
         rawParse rest (LS.drop (length matchString) s)
-rawParse [Node{rootLabel=TextMatch matchString, subForest=_}] s = expectErr s matchString
+rawParse [Node{rootLabel=TextMatch matchString (Just name), subForest=_}] s = expectErr s name
+rawParse [Node{rootLabel=TextMatch matchString _, subForest=_}] s = expectErr s matchString
 
 rawParse [Node{rootLabel=Out (VStart name _:eStringRest), subForest=rest}] s =
     VStart name (Just s):rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s
@@ -96,12 +103,12 @@ rawParse forest@[Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.h
     rawParse forest (LS.tail s)
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
 
-rawParse [Node{rootLabel=Character charset, subForest=rest}] s | LS.null s =
-    expectErr s (formatCharSet charset)
-rawParse forest@[Node{rootLabel=Character charset, subForest=rest}] s | LS.head s `isIn` charset =
+rawParse [Node{rootLabel=Character charset name, subForest=rest}] s | LS.null s =
+    expectErr s (case name of Nothing->formatCharSet charset; Just name->name)
+rawParse forest@[Node{rootLabel=Character charset _, subForest=rest}] s | LS.head s `isIn` charset =
     Ch (LS.head s):rawParse rest (LS.tail s)
-rawParse [Node{rootLabel=Character charset, subForest=rest}] s =
-    expectErr s (formatCharSet charset)
+rawParse [Node{rootLabel=Character charset name, subForest=rest}] s =
+    expectErr s (case name of Nothing->formatCharSet charset; Just name->name)
 
 rawParse [x] _ = error ("Missing case in rawParse: " ++ safeDrawTree (fmap show x))
 

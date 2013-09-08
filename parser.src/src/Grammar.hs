@@ -66,9 +66,9 @@ formatOperator op = show (priority op) ++ ":" ++ formatSequence (symbol op)
 type Sequence = [Expression]
 
 data Expression =
-    TextMatch String
+    TextMatch String (Maybe String) --The 'Maybe String' is only used for error reporting
     | WhiteSpace String
-    | Character CharSet
+    | Character CharSet (Maybe String) --The 'Maybe String' is only used for error reporting
     | EOF
     | Or [Sequence]
     | List Int Sequence
@@ -90,7 +90,7 @@ formatSequence' level seq = intercalate " " ((formatExpression' level) <$> seq)
 formatExpression = formatExpression' 0
 
 formatExpression'::Int->Expression->String
-formatExpression' level (Character charset) = formatCharSet charset
+formatExpression' level (Character charset _) = formatCharSet charset
 formatExpression' level EOF = "EOF"
 formatExpression' level FallBack = "FallBack"
 formatExpression' level (List min e) = "list" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence' level e ++ ")"
@@ -102,7 +102,7 @@ formatExpression' level (Or sequences) =
 formatExpression' level (Out estring) = blue "Out(" ++ show estring ++ blue ")"
 formatExpression' level (SepBy min e) = "SepBy" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence' level e ++ ")"
 formatExpression' level (Option e) = "Option" ++ "(" ++ formatSequence' level e ++ ")"
-formatExpression' level (TextMatch text) = show text
+formatExpression' level (TextMatch text _) = show text
 formatExpression' level (WhiteSpace defaultValue) = "_"
 
 safeDrawETree::Tree Expression->String

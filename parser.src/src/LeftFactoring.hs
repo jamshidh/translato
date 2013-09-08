@@ -94,8 +94,8 @@ concatOuts [] = []
 
 splitFirstTok::Sequence->(Maybe Sequence, Sequence)
 splitFirstTok (Link name:rest) = (Just [Link name], rest)
-splitFirstTok (TextMatch text:rest) = (Just [TextMatch text], rest)
-splitFirstTok (Character charset:rest) = (Just [Character charset], rest)
+splitFirstTok (TextMatch text name:rest) = (Just [TextMatch text name], rest)
+splitFirstTok (Character charset name:rest) = (Just [Character charset name], rest)
 splitFirstTok (List count seq:rest) = (Just [List count seq], rest)
 --splitFirstTok (Out estring:rest) = (Just [Out estring], rest)
 splitFirstTok (Or seqs:rest) = (Just [Or seqs], rest)
@@ -143,8 +143,8 @@ getTokens _ seq = error ("Missing case in getTokens: " ++ formatSequence seq)
 
 getFirst::Sequence->Expression
 getFirst (e@(Link _):_) = e
-getFirst (e@(TextMatch _):_) = e
-getFirst (e@(Character _):_) = e
+getFirst (e@(TextMatch _ _):_) = e
+getFirst (e@(Character _ _):_) = e
 getFirst (_:rest) = getFirst rest
 
 getChainOfFirsts::SequenceMap->Sequence->[Expression]

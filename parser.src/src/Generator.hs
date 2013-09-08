@@ -159,7 +159,7 @@ exp2String sMap (Out [VStart name _]) c remainingChildren =
         Just value -> Right (e value, remainingChildren)
         Nothing -> Left $ GenError ("Missing attribute '" ++ name ++ "' in xml snippet \n    " ++ show c)
 
-exp2String sMap (TextMatch text) c remainingChildren = Right (e text, remainingChildren)
+exp2String sMap (TextMatch text _) c remainingChildren = Right (e text, remainingChildren)
 exp2String sMap (WhiteSpace defaultValue) c remainingChildren = Right (e defaultValue, remainingChildren)
 exp2String sMap (Out [TabRight tabString]) c remainingChildren = Right ([TabRight tabString], remainingChildren)
 exp2String sMap (Out [TabLeft]) c remainingChildren = Right ([TabLeft], remainingChildren)

@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 -----------------------------------------------------------------------------
 --
 -- Module      :  Grammar
@@ -15,21 +16,16 @@
 module Grammar (
     Sequence,
     Expression(..),
-    CharSet (..),
-    CharType (..),
-    Associativity(..),
     Operator(..),
-    Class (..),
+    Class(..),
     parents,
-    allRules,
     RuleName,
     Name,
-    Rule (..),
-    Grammar (..),
+    Rule(..),
+    Grammar(..),
     formatExpression,
     formatSequence,
     formatGrammar,
-    ParseType (..),
     Separator,
     safeDrawEForest,
     safeDrawETree
@@ -45,13 +41,10 @@ import Data.Tree
 
 import CharSet
 import Colors
-import EnhancedString hiding (VEnd, InfixTag, EStart, EmptyEStart, EInfo, EEnd)
+import EnhancedString
 import TreeTools
-import XPath
 
-import JDebug
-
-data Associativity = LeftAssoc | RightAssoc | UseEndCap deriving (Eq, Show)
+--import JDebug
 
 data Operator =
     Operator {
@@ -72,7 +65,8 @@ data Expression =
     | EOF
     | Or [Sequence]
     | List Int Sequence
-    | SepBy Int Sequence
+    | SepBy Int Sequence Sequence
+    | EQuote Int Sequence
     | Option Sequence
     | Link String
     | FallBack
@@ -85,25 +79,27 @@ formatSequence::Sequence->String
 formatSequence = formatSequence' 0
 
 formatSequence'::Int->Sequence->String
-formatSequence' level seq = intercalate " " ((formatExpression' level) <$> seq)
+formatSequence' level sq = intercalate " " ((formatExpression' level) <$> sq)
 
+formatExpression::Expression->String
 formatExpression = formatExpression' 0
 
 formatExpression'::Int->Expression->String
-formatExpression' level (Character charset _) = formatCharSet charset
-formatExpression' level EOF = "EOF"
-formatExpression' level FallBack = "FallBack"
-formatExpression' level (List min e) = "list" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence' level e ++ ")"
-formatExpression' level (Link name) = underline $ magenta name
+formatExpression' _ (Character charset _) = formatCharSet charset
+formatExpression' _ EOF = "EOF"
+formatExpression' _ FallBack = "FallBack"
+formatExpression' level (List minCount expr) = "list" ++ (if (minCount > 0) then show minCount else "") ++ "(" ++ formatSequence' level expr ++ ")"
+formatExpression' _ (Link linkName) = underline $ magenta linkName
 formatExpression' level (Or sequences) =
     case level of
         0 -> "{\n    " ++ intercalate "\n    |\n    " (formatSequence' (level+1) <$> sequences) ++ "\n}"
         _ -> "{" ++ intercalate " | " (formatSequence' (level+1) <$> sequences) ++ "}"
-formatExpression' level (Out estring) = blue "Out(" ++ show estring ++ blue ")"
-formatExpression' level (SepBy min e) = "SepBy" ++ (if (min > 0) then show min else "") ++ "(" ++ formatSequence' level e ++ ")"
-formatExpression' level (Option e) = "Option" ++ "(" ++ formatSequence' level e ++ ")"
-formatExpression' level (TextMatch text _) = show text
-formatExpression' level (WhiteSpace defaultValue) = "_"
+formatExpression' _ (Out estring) = blue "Out(" ++ show estring ++ blue ")"
+formatExpression' level (SepBy minCount expr sep) = "SepBy" ++ (if (minCount > 0) then show minCount else "") ++ "(" ++ formatSequence' level expr ++ "," ++ formatSequence' level sep ++ ")"
+formatExpression' level (EQuote minCount expr) = "EQuote" ++ (if (minCount > 0) then show minCount else "") ++ "(" ++ formatSequence' level expr ++ ")"
+formatExpression' level (Option expr) = "Option" ++ "(" ++ formatSequence' level expr ++ ")"
+formatExpression' _ (TextMatch text _) = show text
+formatExpression' _ (WhiteSpace _) = "_"
 
 safeDrawETree::Tree Expression->String
 safeDrawETree = safeDrawTree . (fmap formatExpression)
@@ -122,7 +118,7 @@ data Rule = Rule {
 
 
 formatRule::Rule->String
-formatRule Rule{name=name,rawSequence=sequence,rulePriority=p} = show p ++ ":" ++ blue (name) ++ " => " ++ formatSequence sequence ++ "\n"
+formatRule Rule{name=ruleName,rawSequence=sq,rulePriority=p} = show p ++ ":" ++ blue (ruleName) ++ " => " ++ formatSequence sq ++ "\n"
 
 type ClassName=String
 
@@ -132,8 +128,7 @@ type Separator = Sequence
 
 data Class = Class {
     rules::[Rule],
-    suffixSeqs::[Sequence],
-    --extensions::[Sequence],
+    suffixSeqs::[Sequence], --Left recursion is removed from a grammar, and replaced with suffix sequences. IE- exp->exp '+' exp can be rewritten as suffix ('+' exp)*
     operators::[Operator],
     separator::Separator,
     className::ClassName,
@@ -142,6 +137,7 @@ data Class = Class {
     parentNames::[String]
     } deriving (Eq, Show)
 
+formatClass::Class->String
 formatClass c = "====[" ++ className c
         ++ (if null (parentNames c) then "" else ":" ++ intercalate "," (parentNames c))
         ++ "]====\n  "
@@ -157,13 +153,10 @@ formatClass c = "====[" ++ className c
 parents::Grammar->Class->[Class]
 parents g cl = fromJust <$> (`lookup` (classes g)) <$> parentNames cl
 
-allRules::Grammar->Class->[Rule]
-allRules g cl = nub (rules cl ++ ((parents g cl) >>= allRules g))
-
-
 data Grammar = Grammar { main::String,
                         classes::Map ClassName Class } deriving (Show)
 
+formatGrammar::Grammar->String
 formatGrammar g =
         "-----------" ++ replicate (length $ main g) '-' ++ "\n"
         ++ "| main = " ++ main g ++ " |\n"

@@ -109,7 +109,7 @@ optionDefs::[OptDescr Options]
 optionDefs = []
 
 args2Grammar::[String]->IO Grammar
-args2Grammar args = loadGrammar filename
+args2Grammar args = loadGrammarAndSimplifyForParse filename
     where (options, filename) =
             case getOpt Permute optionDefs args of
                 ([o], [f], _) -> (o, f)

@@ -35,8 +35,8 @@ deflt = Options { specFileName = "file.spec", ruleName=Nothing }
 showSequenceMapMain'::Bool->[String]->IO ()
 showSequenceMapMain' simplify args = do
     let options = $(arg2Opts ''Options ["specFileName"]) args deflt
-    grammar<-loadGrammar (specFileName options)
-    let rawSequenceMap = sequenceMap $ addTagsToGrammar $ removeOption $ removeSepBy grammar
+    grammar<-loadGrammarAndSimplifyForParse (specFileName options)
+    let rawSequenceMap = sequenceMap grammar
     let sequenceMap = if simplify
                         then leftFactorSequenceMap rawSequenceMap
                         else rawSequenceMap

@@ -35,6 +35,7 @@ commands::M.Map String ([String]->IO())
 commands = M.fromList
     [
         ("outputGrammar", showGrammarMain),
+        ("outputSimplifiedGrammar", showSimplifiedGrammarMain),
         ("outputSequenceMap", showSequenceMapMain),
         ("outputSimplifiedSequenceMap", showSimplifiedSequenceMapMain),
         ("outputParseTree", showParseTreeMain),

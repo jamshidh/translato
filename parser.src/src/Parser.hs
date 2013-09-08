@@ -39,7 +39,7 @@ import ParseError
 import SequenceMap
 import TreeTools
 
-import JDebug
+--import JDebug
 
 type Attribute = (String, String)
 
@@ -101,7 +101,7 @@ rawParse [Node{rootLabel=FallBack, subForest=rest}] s = rawParse rest s
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | LS.null s = rawParse rest s
 rawParse forest@[Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.head s) =
     rawParse forest (LS.tail s)
-rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
+rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s =  rawParse rest s
 
 rawParse [Node{rootLabel=Character charset name, subForest=rest}] s | LS.null s =
     expectErr s (case name of Nothing->formatCharSet charset; Just name->name)
@@ -119,7 +119,9 @@ rawParse items s = case chooseOne items s of
 ------------------------
 
 parseTree::Grammar->String->Forest Expression
-parseTree g startRule=seq2ParseTree (leftFactorSequenceMap $ sequenceMap $ addTagsToGrammar $ removeOption $ removeSepBy g) [Link startRule]
+parseTree g startRule=seq2ParseTree (cleanSMap g) [Link startRule]
+    where
+        cleanSMap = leftFactorSequenceMap . sequenceMap
 
 createEParserForClass::String->Grammar->EParser
 createEParserForClass startRule g s =
@@ -176,7 +178,7 @@ parseMain args = do
                                         Just [x] -> x
                                         _ -> error "You need to supply the spec filename when the inputFileName doesn't have an extension"
                 Just x -> x
-    grammar<-loadGrammar specFileName'
+    grammar<-loadGrammarAndSimplifyForParse specFileName'
     case inputFileName options of
         Just fileName -> do
                 fileHandle <- openFile fileName ReadMode

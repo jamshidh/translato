@@ -257,12 +257,12 @@ matchSequenceItem =
             ("", ExpressionItem exp) -> [exp]
             ("", SequenceItem seq) -> seq
             ("", TextItem text) -> string2Sequence text
-            ("*", ExpressionItem exp) -> [SepBy 0 [exp]]
-            ("*", SequenceItem seq) -> [SepBy 0 seq]
-            ("*", TextItem text) -> string2Sequence (init text) ++ [SepBy 0 [TextMatch [last text] Nothing]]
-            ("+", ExpressionItem exp) -> [SepBy 1 [exp]]
-            ("+", SequenceItem seq) -> [SepBy 1 seq]
-            ("+", TextItem text) -> string2Sequence (init text) ++ [SepBy 1 [TextMatch [last text] Nothing]]
+            ("*", ExpressionItem exp) -> [EQuote 0 [exp]]
+            ("*", SequenceItem seq) -> [EQuote 0 seq]
+            ("*", TextItem text) -> string2Sequence (init text) ++ [EQuote 0 [TextMatch [last text] Nothing]]
+            ("+", ExpressionItem exp) -> [EQuote 1 [exp]]
+            ("+", SequenceItem seq) -> [EQuote 1 seq]
+            ("+", TextItem text) -> string2Sequence (init text) ++ [EQuote 1 [TextMatch [last text] Nothing]]
             ("?", ExpressionItem exp) -> [Option [exp]]
             ("?", SequenceItem seq) -> [Option seq]
             ("?", TextItem text) -> string2Sequence (init text) ++ [Option [TextMatch [last text] Nothing]])

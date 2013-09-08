@@ -163,7 +163,7 @@ expandOperatorsInBlock (n@(NestedItem _):t@(InfixTag _):FilledInEStart name atts
     where
         (blockString, rest2) = getNestedItem rest
 
-expandOperatorsInBlock (NestedItem item:InfixTag InfixOp{opName=name,opAssociativity=InfixUseEndCap}:rest) =
+expandOperatorsInBlock (NestedItem item:InfixTag InfixOp{opName=name,opAssociativity=UseEndCap}:rest) =
     expandOperatorsInBlock
         ([FilledInEStart name []] ++ item ++ expandOperatorsInBlock inside ++ [EEnd name] ++ outside)
         where (inside, outside) = splitByEndCap rest
@@ -195,7 +195,7 @@ simplifyOpPair left op1 right op2@InfixOp{opPriority=p2} rest
     expandOperatorsInBlock
         (left ++ [InfixTag op1] ++ expandOperatorsInBlock (NestedItem right:InfixTag op2:rest))
 
-simplifyOpPair left op1@InfixOp{opName=name,opAssociativity=InfixLeftAssoc,opPriority=p1} right op2 rest
+simplifyOpPair left op1@InfixOp{opName=name,opAssociativity=LeftAssoc,opPriority=p1} right op2 rest
     | op1 == op2 =
     expandOperatorsInBlock (NestedItem ([FilledInEStart name []] ++ left ++ right ++ [EEnd name]):InfixTag op2:rest)
 
@@ -206,7 +206,7 @@ simplifyOpPair left op1@InfixOp{opName=name,opPriority=p1} right op2 rest
 
 splitByEndCap::EString->(EString, EString)
 splitByEndCap (EndCap name:rest) = ([], rest)
-splitByEndCap (e@(InfixTag InfixOp{opAssociativity=InfixUseEndCap, opName=name}):rest) = (e:inside1 ++ [EndCap name] ++ inside2, outside2)
+splitByEndCap (e@(InfixTag InfixOp{opAssociativity=UseEndCap, opName=name}):rest) = (e:inside1 ++ [EndCap name] ++ inside2, outside2)
     where
         (inside1, outside1) = splitByEndCap rest
         (inside2, outside2) = splitByEndCap outside1

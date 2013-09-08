@@ -15,7 +15,7 @@
 module EnhancedString (
     EChar (..),
     EString,
-    InfixAssociativity(..),
+    Associativity(..),
     InfixOp(..),
     e,
     chs2String,
@@ -33,9 +33,9 @@ import ParseError
 
 import JDebug
 
-data InfixAssociativity = InfixLeftAssoc | InfixRightAssoc | InfixUseEndCap deriving (Eq, Ord, Show)
+data Associativity = LeftAssoc | RightAssoc | UseEndCap deriving (Eq, Ord, Show)
 
-data InfixOp = InfixOp{opName::String, opPriority::Int, opAssociativity::InfixAssociativity} deriving (Eq, Ord)
+data InfixOp = InfixOp{opName::String, opPriority::Int, opAssociativity::Associativity} deriving (Eq, Ord)
 
 data EChar = Ch Char
     | EStart String [String]

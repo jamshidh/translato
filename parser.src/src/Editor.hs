@@ -437,7 +437,7 @@ editMain args = do
     let options =
             fixOptions
                 ($(arg2Opts ''Options ["fileName"]) args deflt)
-    grammar <- loadGrammar (fromJust $ specFileName options)
+    grammar <- loadGrammarAndSimplifyForParse (fromJust $ specFileName options)
     Editor.edit grammar (fileName options)
 
 

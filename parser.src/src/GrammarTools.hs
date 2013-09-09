@@ -340,11 +340,9 @@ loadGrammarAndSimplifyForGenerate fileName = do
     return (
         adjustPrioritiesByClassHiarchy
         $ addEOFToGrammar
-        $ stripWhitespaceFromGrammar
-        $ addTagsToGrammar
         $ rewriteLeftRecursionInGrammar
+        $ stripWhitespaceFromGrammar
         $ removeOption
-        $ removeSepBy
         $ removeEQuote g)
 
 

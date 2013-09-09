@@ -74,7 +74,7 @@ expand (x:rest, y)=(x, y):(expand (rest, y))
 
 
 generate::Grammar->Cursor->String
-generate g c = cursor2String (sequenceMap fixedG) [Link (main fixedG)] (head (child c >>= anyElement))
+generate g c = cursor2String (leftFactorSequenceMap $ sequenceMap fixedG) [Link (main fixedG)] (head (child c >>= anyElement))
     where fixedG = g
 
 

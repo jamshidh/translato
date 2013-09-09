@@ -23,8 +23,8 @@ module GrammarTools (
     removeSepBy,
     loadUnsimplifiedGrammar,
     loadGrammarAndSimplifyForParse,
-    loadGrammarAndSimplifyForGenerate,
-    fixG
+    loadGrammarAndSimplifyForGenerate
+--    fixG
 ) where
 
 import Data.Functor
@@ -44,7 +44,7 @@ import OperatorNames
 
 stripWhitespaceFromGrammar::Grammar->Grammar
 stripWhitespaceFromGrammar g = g{
-        classes = applyIf stripWhitespaceFromClass ((== main g) . className) <$> classes g
+        classes = applyIf stripWhitespaceFromClass ((/= main g) . className) <$> classes g
     }
     where
         applyIf::(a->a)->(a->Bool)->a->a
@@ -326,10 +326,10 @@ loadGrammarAndSimplifyForParse fileName = do
     g <- loadUnsimplifiedGrammar fileName
     return (
         adjustPrioritiesByClassHiarchy
-        $ rewriteLeftRecursionInGrammar
         $ addEOFToGrammar
-        $ stripWhitespaceFromGrammar
         $ addTagsToGrammar
+        $ rewriteLeftRecursionInGrammar
+        $ stripWhitespaceFromGrammar
         $ removeOption
         $ removeSepBy
         $ removeEQuote g)
@@ -339,16 +339,16 @@ loadGrammarAndSimplifyForGenerate fileName = do
     g <- loadUnsimplifiedGrammar fileName
     return (
         adjustPrioritiesByClassHiarchy
-        $ rewriteLeftRecursionInGrammar
         $ addEOFToGrammar
         $ stripWhitespaceFromGrammar
         $ addTagsToGrammar
+        $ rewriteLeftRecursionInGrammar
         $ removeOption
         $ removeSepBy
         $ removeEQuote g)
 
 
-fixG::Grammar->Grammar
-fixG = adjustPrioritiesByClassHiarchy . rewriteLeftRecursionInGrammar . addEOFToGrammar . stripWhitespaceFromGrammar
+--fixG::Grammar->Grammar
+--fixG = adjustPrioritiesByClassHiarchy . rewriteLeftRecursionInGrammar . addEOFToGrammar . stripWhitespaceFromGrammar
 
 

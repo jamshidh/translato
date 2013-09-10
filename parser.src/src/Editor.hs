@@ -43,7 +43,7 @@ import Parser
 import ParseError
 import ToolBar
 
---import JDebug
+import JDebug
 
 --data Error = Error { line::Int, column::Int, message::CI String } deriving (Show)
 
@@ -177,6 +177,7 @@ edit g fileNameString = do
     --validImage <- imageNewFromStock stockYes IconSizeMenu
 
     after textView moveCursor (onCursorMoved positionLabel textBuffer)
+    on textView keyPressEvent onKeyPressed
     after textBuffer bufferChanged (onBuffChanged positionLabel textBuffer validateFn)
 
     boxPackStart statusBarBox statusBarButton PackNatural 0
@@ -216,7 +217,14 @@ edit g fileNameString = do
     mainGUI
 
 onCursorMoved::Label->TextBuffer->MovementStep->Int->Bool->IO()
-onCursorMoved positionLabel textBuffer _ _ _=updatePositionLabel positionLabel textBuffer
+onCursorMoved positionLabel textBuffer _ _ _ = updatePositionLabel positionLabel textBuffer
+
+onKeyPressed::EventM EKey Bool
+onKeyPressed = do
+    key <- eventKeyName
+    if key == "Tab"
+        then return (jtrace (show key) $ True)
+        else return False
 
 onBuffChanged::Label->TextBuffer->(IO())->IO()
 onBuffChanged positionLabel textBuffer doValidate=do

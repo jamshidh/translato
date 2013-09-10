@@ -44,7 +44,7 @@ leftFactor'::Sequence->Sequence
 leftFactor' (Or []:rest) = concatOuts $ leftFactor' rest
 leftFactor' (Or [sq]:rest) = concatOuts $ leftFactor' (sq ++ rest)
 leftFactor' (Or items:rest) = --jtrace ("Left factoring: " ++ intercalate "\n  " (map show items)) $
-    (orIfy (makeSeq <$> theMap)) ++ leftFactor' rest
+    orIfy (makeSeq <$> theMap) ++ leftFactor' rest
     where
         theMap = toList (fromListWith (++) (fmap (replicate 1) <$> splitFirstTok <$> items))
         makeSeq::(Maybe Sequence, [Sequence])->Sequence
@@ -61,7 +61,12 @@ leftFactor' (x:rest) = x:(concatOuts $ leftFactor' rest)
 leftFactor' [] = []
 
 prepareForLeftFactor::SequenceMap->Sequence->Sequence
-prepareForLeftFactor sMap [Or sequences] = orIfy $ expandEStart <$> expandToToken <$> sequences
+prepareForLeftFactor sMap [Or sequences] =
+    jtrace ("stopList: " ++ show stopList ++ "\n\n") $
+    jtrace ("sequences: " ++ show sequences ++ "\n\n") $
+    jtrace (show (getChainOfFirsts sMap <$> sequences) ++ "\n\n") $
+    jtrace ("group sort: " ++ show (getLongestPrefix <$> (groupBy ((==) `on` head) $ sortBy (compare `on` head) $ (getChainOfFirsts sMap <$> sequences))) ++ "\n\n") $
+    orIfy $ expandEStart <$> expandToToken <$> sequences
     where
         expandToToken (c:rest) | c `elem` stopList = c:rest
         expandToToken (Link linkName:rest) =
@@ -75,7 +80,7 @@ prepareForLeftFactor sMap [Or sequences] = orIfy $ expandEStart <$> expandToToke
         expandEStart (Out eString:Or seqs:rest) = orIfy ((Out eString `prepend`) <$> seqs) +++ rest
         expandEStart (Or seqs:rest) = orIfy (expandEStart <$> seqs) +++ rest
         expandEStart x = x
-        stopList = getStopList sequences
+        stopList = getStopList (getChainOfFirsts sMap <$> sequences)
 prepareForLeftFactor _ sq = sq
 
 concatOuts::Sequence->Sequence
@@ -94,7 +99,7 @@ splitFirstTok (SepBy count sq sep:rest) = (Just [SepBy count sq sep], rest)
 --splitFirstTok (Out estring:rest) = (Just [Out estring], rest)
 splitFirstTok (Or seqs:rest) = (Just [Or seqs], rest)
 splitFirstTok (FallBack:rest) = (Just [FallBack], rest)
-splitFirstTok (WhiteSpace deflt:rest) = (Just [WhiteSpace " "], rest)
+splitFirstTok (WhiteSpace _:rest) = (Just [WhiteSpace " "], rest)
 splitFirstTok (Out eString1:Out eString2:rest) = splitFirstTok (Out (eString1 ++ eString2):rest)
 splitFirstTok (Out [ItemInfo eString]:rest) = (nextTok, Out [ItemInfo eString]:nextSeq)
     where (nextTok, nextSeq) = splitFirstTok rest
@@ -111,27 +116,32 @@ leftFactorSequenceMap sm = fmap (leftFactor sm) sm
 
 
 getFirst::Sequence->Expression
+getFirst [] = error "getFirst called on empty list"
+getFirst s@(Or _:_) = error ("getFirst called on an Or: " ++ formatSequence s)
 getFirst (expr@(Link _):_) = expr
 getFirst (expr@(TextMatch _ _):_) = expr
 getFirst (expr@(Character _ _):_) = expr
-getFirst (_:rest) = getFirst rest
+getFirst s@(_:rest) = jtrace (show s) $ getFirst rest
 
 getChainOfFirsts::SequenceMap->Sequence->[Expression]
 getChainOfFirsts sm sq =
     case first of
         Link linkName->case lookup linkName sm of
-            Just seq'->first:getChainOfFirsts sm seq'
+            Just seq'->getChainOfFirsts sm seq' ++ [first]
             Nothing->error ("Unknown link name in getChainOfFirsts: " ++ linkName)
         _->[first]
     where first = getFirst sq
 
-getStopList::Ord a=>[[a]]->[a]
+getStopList::[Sequence]->[Expression]
+--getStopList::Ord a=>[[a]]->[a]
 getStopList lists = last <$> getPrefixes lists
 
-getPrefixes::(Eq a, Ord a)=>[[a]]->[[a]]
-getPrefixes = getLongestPrefix . groupBy ((==) `on` head) . sortBy (compare `on` head)
+getPrefixes::[Sequence]->[Sequence]
+--getPrefixes::(Eq a, Ord a)=>[[a]]->[[a]]
+getPrefixes seqs = getLongestPrefix <$> (groupBy ((==) `on` head) $ sortBy (compare `on` head) seqs)
 
-getLongestPrefix::Eq a=>[[a]]->[a]
+getLongestPrefix::[Sequence]->Sequence
+--getLongestPrefix::Eq a=>[[a]]->[a]
 getLongestPrefix lists =
     case nub $ listToMaybe <$> lists of
         [Just x]->x:getLongestPrefix (tail <$> lists)

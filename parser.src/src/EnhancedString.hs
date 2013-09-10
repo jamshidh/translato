@@ -1,4 +1,5 @@
 {-# OPTIONS_GHC -Wall #-}
+
 -----------------------------------------------------------------------------
 --
 -- Module      :  EnhancedString
@@ -29,6 +30,7 @@ import Data.Char
 import Data.Functor
 
 import Colors
+import Format
 import qualified LString as LS
 import ParseError
 
@@ -38,7 +40,8 @@ data Associativity = LeftAssoc | RightAssoc | UseEndCap deriving (Eq, Ord, Show)
 
 data InfixOp = InfixOp{opName::String, opPriority::Int, opAssociativity::Associativity} deriving (Eq, Ord)
 
-data EChar = Ch Char
+data EChar =
+    Ch Char
     | EStart String [String]
     | FilledInEStart String [(String, Maybe String)]
         --The Maybe is for error reporting, value should be a string unless something has gone wrong
@@ -61,7 +64,6 @@ data EChar = Ch Char
     | EndCap String
     | Fail ParseError
     deriving (Eq, Ord)
-
 
 instance Show EChar where
     show (Ch '\n') = "\\n"

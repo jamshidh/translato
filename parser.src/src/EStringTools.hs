@@ -30,6 +30,7 @@ import Data.Map hiding (map, filter)
 import Data.Tree
 
 import EnhancedString
+import Format
 import qualified LString as LS
 import ParseError
 import TreeTools

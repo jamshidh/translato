@@ -14,6 +14,7 @@
 -----------------------------------------------------------------------------
 
 module GrammarTools (
+    isA,
     orIfy,
     prepend,
     (+++),
@@ -41,6 +42,30 @@ import GrammarParser
 import OperatorNames
 
 --import JDebug
+
+isA::Grammar->String->String->Bool
+isA _ className1 className2 | className1 == className2 = True
+isA g className1 className2 | className1 `elem` (name <$> (rules $ className2Class g className2)) = True
+isA g className1 className2 =
+    or ((\cn -> isA g cn className2) <$> className2ParentNames g className1)
+
+className2ParentNames::Grammar->String->[String]
+className2ParentNames g tagName =
+    case M.lookup tagName (classes g) of
+        Just cl -> parentNames cl
+        Nothing ->
+            case Prelude.lookup tagName ruleName2ClassName of
+                Just clsName -> [clsName]
+                Nothing -> error ("'" ++ tagName ++ "' is not a className or ruleName.")
+    where
+        ruleName2ClassName::[(String, String)]
+        ruleName2ClassName = concat ((\cl -> ((\rule ->(name rule, className cl)) <$> rules cl)) <$> (snd <$> (toList $ classes g)))
+
+className2Class::Grammar->String->Class
+className2Class g clsName =
+    case M.lookup clsName (classes g) of
+        Just cl -> cl
+        Nothing -> error ("ClassName '" ++ clsName ++ "' doesn't exist.")
 
 stripWhitespaceFromGrammar::Grammar->Grammar
 stripWhitespaceFromGrammar g = g{
@@ -115,7 +140,6 @@ isLRecursive clName Rule{name=ruleName, rawSequence=Link linkName:_}
     | (linkName == ruleName) || (linkName == clName)
     = True
 isLRecursive _ _ = False
-
 
 ---------------------
 addEOFToGrammar::Grammar->Grammar

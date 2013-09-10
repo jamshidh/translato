@@ -31,7 +31,7 @@ import Grammar
 import GrammarTools
 import SequenceMap
 
---import JDebug
+import JDebug
 
 leftFactor::SequenceMap->Sequence->Sequence
 leftFactor sm =
@@ -94,7 +94,7 @@ splitFirstTok (SepBy count sq sep:rest) = (Just [SepBy count sq sep], rest)
 --splitFirstTok (Out estring:rest) = (Just [Out estring], rest)
 splitFirstTok (Or seqs:rest) = (Just [Or seqs], rest)
 splitFirstTok (FallBack:rest) = (Just [FallBack], rest)
-splitFirstTok (WhiteSpace _:rest) = (Just [WhiteSpace " "], rest)
+splitFirstTok (WhiteSpace deflt:rest) = (Just [WhiteSpace " "], rest)
 splitFirstTok (Out eString1:Out eString2:rest) = splitFirstTok (Out (eString1 ++ eString2):rest)
 splitFirstTok (Out [ItemInfo eString]:rest) = (nextTok, Out [ItemInfo eString]:nextSeq)
     where (nextTok, nextSeq) = splitFirstTok rest

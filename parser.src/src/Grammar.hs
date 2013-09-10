@@ -151,7 +151,7 @@ formatClass c = "====[" ++ className c
         ++ "====[/" ++ className c ++ "]===="
 
 parents::Grammar->Class->[Class]
-parents g cl = fromJust <$> (`lookup` (classes g)) <$> parentNames cl
+parents g cl = fromJust <$> (`lookup` classes g) <$> parentNames cl
 
 data Grammar = Grammar { main::String,
                         classes::Map ClassName Class } deriving (Show)

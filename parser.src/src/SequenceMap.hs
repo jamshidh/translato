@@ -59,5 +59,3 @@ classSequence g cl =
         nonSelfRule = replicate 1 <$> Link <$>
                             ((filter (/= className cl) (nub $ name <$> rules cl)) ++ (parentNames cl))
         suffix = orIfy (suffixSeqs cl)
-
-----------------------------

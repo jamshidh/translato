@@ -45,9 +45,10 @@ import OperatorNames
 
 isA::Grammar->String->String->Bool
 isA _ className1 className2 | className1 == className2 = True
-isA g className1 className2 | className1 `elem` (name <$> (rules $ className2Class g className2)) = True
-isA g className1 className2 =
-    or ((\cn -> isA g cn className2) <$> className2ParentNames g className1)
+isA g className1 className2
+    | className1 `elem` (name <$> (rules $ className2Class g className2)) = True
+--isA g className1 className2 | className1 `elem` (symbol2Name <$> symbol <$> (operators $ className2Class g className2)) = True
+isA g className1 className2 = or (isA g className1 <$> className2ParentNames g className2)
 
 className2ParentNames::Grammar->String->[String]
 className2ParentNames g tagName =
@@ -119,6 +120,7 @@ operator2SuffixSeq g theClass op =
     symbol op ++[Out [op2Infix op], Or (replicate 1 <$> Link <$> nonRecursiveRuleNames theClass)]
     where nonRecursiveRuleNames cl' = (name <$> filter (not . isLRecursive (className cl')) (rules cl'))
                                         ++ (className <$> parents g cl')
+
 recursiveRule2SuffixSeq::Rule->Sequence --TODO Unitary operators
 recursiveRule2SuffixSeq rule = (Out [InfixTag infixOp]:) $ tail $ rawSequence rule ++ [Out [EndCap (name rule)]]
     where
@@ -140,6 +142,28 @@ isLRecursive clName Rule{name=ruleName, rawSequence=Link linkName:_}
     | (linkName == ruleName) || (linkName == clName)
     = True
 isLRecursive _ _ = False
+
+---------------------
+
+rewriteOperatorsAsLeftRecursion::Grammar->Grammar
+rewriteOperatorsAsLeftRecursion g =
+    g{ classes = rewriteOperatorsAsLeftRecursionInClass <$> classes g }
+
+rewriteOperatorsAsLeftRecursionInClass::Class->Class
+rewriteOperatorsAsLeftRecursionInClass cls =
+    cls{
+        operators=[],
+        rules = rules cls ++ (operator2LeftRecursiveRule <$> operators cls)
+    }
+    where
+        operator2LeftRecursiveRule::Operator->Rule
+        operator2LeftRecursiveRule o =
+            Rule{
+                name=symbol2Name (symbol o),
+                rulePriority=priority o,
+                rawSequence=[Link (className cls)] ++ symbol o ++ [Link (className cls)]
+            }
+
 
 ---------------------
 addEOFToGrammar::Grammar->Grammar
@@ -366,13 +390,8 @@ loadGrammarAndSimplifyForGenerate fileName = do
     return (
         adjustPrioritiesByClassHiarchy
         $ addEOFToGrammar
-        $ rewriteLeftRecursionInGrammar
+        $ rewriteOperatorsAsLeftRecursion
         $ stripWhitespaceFromGrammar
         $ removeOption
         $ removeEQuote g)
-
-
---fixG::Grammar->Grammar
---fixG = adjustPrioritiesByClassHiarchy . rewriteLeftRecursionInGrammar . addEOFToGrammar . stripWhitespaceFromGrammar
-
 

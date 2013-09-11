@@ -16,6 +16,7 @@
 module Shower (
     showGrammarMain,
     showSimplifiedGrammarMain,
+    showGeneratorGrammarMain,
     showParseTreeMain
 ) where
 
@@ -39,6 +40,12 @@ showSimplifiedGrammarMain::[String]->IO ()
 showSimplifiedGrammarMain args=do
     let options = $(arg2Opts ''Options ["specFileName"]) args deflt
     grammar<-loadGrammarAndSimplifyForParse (specFileName options)
+    putStrLn $ formatGrammar grammar
+
+showGeneratorGrammarMain::[String]->IO ()
+showGeneratorGrammarMain args=do
+    let options = $(arg2Opts ''Options ["specFileName"]) args deflt
+    grammar<-loadGrammarAndSimplifyForGenerate (specFileName options)
     putStrLn $ formatGrammar grammar
 
 showParseTreeMain::[String]->IO ()

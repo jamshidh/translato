@@ -31,7 +31,7 @@ import Grammar
 import GrammarTools
 import SequenceMap
 
-import JDebug
+--import JDebug
 
 leftFactor::SequenceMap->Sequence->Sequence
 leftFactor sm sq = --jtrace ("\n=======\nfactoring:" ++ formatSequence sq ++ "\n=============\n") $
@@ -62,9 +62,6 @@ leftFactor' [] = []
 
 prepareForLeftFactor::SequenceMap->Sequence->Sequence
 prepareForLeftFactor sMap [Or sequences] =
-    jtrace ("1 " ++ show sequences ++ "\n\n") $
-    jtrace ("2" ++ show (getChainOfFirsts sMap =<< sequences) ++ "\n\n") $
-    jtrace ("3" ++ show (getPrefixes (getChainOfFirsts sMap =<< sequences)) ++ "\n\n") $
     orIfy $ expandEStart <$> expandToToken <$> sequences
     where
         expandToToken::Sequence->Sequence

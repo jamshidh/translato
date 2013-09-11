@@ -1,4 +1,4 @@
--------------------------------------
+{-# OPTIONS_GHC -Wall #-}
 ----------------------------------------
 --
 -- Module      :  Main
@@ -21,7 +21,6 @@ import Data.Functor
 import qualified Data.Map as M
 import System.Environment
 
-import Colors
 import Generator
 import qualified Editor
 import Parser
@@ -29,13 +28,14 @@ import ParseElements
 import Shower
 import SMShower
 
-import JDebug
+--import JDebug
 
 commands::M.Map String ([String]->IO())
 commands = M.fromList
     [
         ("outputGrammar", showGrammarMain),
         ("outputSimplifiedGrammar", showSimplifiedGrammarMain),
+        ("outputGeneratorGrammar", showGeneratorGrammarMain),
         ("outputSequenceMap", showSequenceMapMain),
         ("outputSimplifiedSequenceMap", showSimplifiedSequenceMapMain),
         ("outputParseTree", showParseTreeMain),
@@ -50,6 +50,7 @@ usage = "parser COMMAND [option]\n"
     ++ "Options:\n"
     ++ (concat $ ("\t" ++) <$> (++ "\n") <$> fst <$> M.toList commands)
 
+main::IO()
 main = do
     args <- getArgs
     case args of

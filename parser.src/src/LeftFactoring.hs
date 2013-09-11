@@ -34,11 +34,11 @@ import SequenceMap
 import JDebug
 
 leftFactor::SequenceMap->Sequence->Sequence
-leftFactor sm =
+leftFactor sm sq = --jtrace ("\n=======\nfactoring:" ++ formatSequence sq ++ "\n=============\n") $
 {--    jtrace ("--------" ++ (formatSequence $ concatOuts (fromJust $ lookup "command" sm))) $
     jtrace ("--------" ++ (formatSequence $ concatOuts $ prepareForLeftFactor sm $ concatOuts (fromJust $ lookup "command" sm))) $
     jtrace ("--------" ++ (formatSequence $ prepareForLeftFactor sm $ concatOuts $ prepareForLeftFactor sm $ concatOuts (fromJust $ lookup "command" sm))) $--}
-    leftFactor' . concatOuts . prepareForLeftFactor sm . concatOuts . prepareForLeftFactor sm
+    (leftFactor' . concatOuts . prepareForLeftFactor sm . concatOuts . prepareForLeftFactor sm) sq
 
 leftFactor'::Sequence->Sequence
 leftFactor' (Or []:rest) = concatOuts $ leftFactor' rest
@@ -62,12 +62,12 @@ leftFactor' [] = []
 
 prepareForLeftFactor::SequenceMap->Sequence->Sequence
 prepareForLeftFactor sMap [Or sequences] =
-    jtrace ("stopList: " ++ show stopList ++ "\n\n") $
-    jtrace ("sequences: " ++ show sequences ++ "\n\n") $
-    jtrace (show (getChainOfFirsts sMap <$> sequences) ++ "\n\n") $
-    jtrace ("group sort: " ++ show (getLongestPrefix <$> (groupBy ((==) `on` head) $ sortBy (compare `on` head) $ (getChainOfFirsts sMap <$> sequences))) ++ "\n\n") $
+    jtrace ("1 " ++ show sequences ++ "\n\n") $
+    jtrace ("2" ++ show (getChainOfFirsts sMap =<< sequences) ++ "\n\n") $
+    jtrace ("3" ++ show (getPrefixes (getChainOfFirsts sMap =<< sequences)) ++ "\n\n") $
     orIfy $ expandEStart <$> expandToToken <$> sequences
     where
+        expandToToken::Sequence->Sequence
         expandToToken (c:rest) | c `elem` stopList = c:rest
         expandToToken (Link linkName:rest) =
                 case lookup linkName sMap of
@@ -76,11 +76,13 @@ prepareForLeftFactor sMap [Or sequences] =
         expandToToken (Out eString:rest) = Out eString `prepend` expandToToken rest
         expandToToken (Or seqs:rest) = orIfy (expandToToken <$> seqs) +++ rest
         expandToToken sq = sq
+
         expandEStart::Sequence->Sequence
         expandEStart (Out eString:Or seqs:rest) = orIfy ((Out eString `prepend`) <$> seqs) +++ rest
         expandEStart (Or seqs:rest) = orIfy (expandEStart <$> seqs) +++ rest
         expandEStart x = x
-        stopList = getStopList (getChainOfFirsts sMap <$> sequences)
+
+        stopList = getStopList (getChainOfFirsts sMap =<< sequences)
 prepareForLeftFactor _ sq = sq
 
 concatOuts::Sequence->Sequence
@@ -115,26 +117,40 @@ leftFactorSequenceMap sm = fmap (leftFactor sm) sm
 
 
 
-getFirst::Sequence->Expression
+getFirst::Sequence->[Expression]
 getFirst [] = error "getFirst called on empty list"
-getFirst s@(Or _:_) = error ("getFirst called on an Or: " ++ formatSequence s)
-getFirst (expr@(Link _):_) = expr
-getFirst (expr@(TextMatch _ _):_) = expr
-getFirst (expr@(Character _ _):_) = expr
-getFirst s@(_:rest) = jtrace (show s) $ getFirst rest
+getFirst (Or seqs:_) = getFirst =<< seqs
+getFirst (expr@(Link _):_) = [expr]
+getFirst (expr@(TextMatch _ _):_) = [expr]
+getFirst (expr@(Character _ _):_) = [expr]
+getFirst (_:rest) = getFirst rest
 
-getChainOfFirsts::SequenceMap->Sequence->[Expression]
-getChainOfFirsts sm sq =
-    case first of
-        Link linkName->case lookup linkName sm of
-            Just seq'->getChainOfFirsts sm seq' ++ [first]
+getChainOfFirsts::SequenceMap->Sequence->[[Expression]]
+getChainOfFirsts sm sq = expr2ChainOfFirsts =<< firsts
+    where
+        expr2ChainOfFirsts::Expression->[[Expression]]
+        expr2ChainOfFirsts expr@(Link linkName) =
+            (++ [expr]) <$> getChainOfFirsts sm (linkName2Seq sm linkName)
+        expr2ChainOfFirsts expr = [[expr]]
+        firsts = getFirst sq
+
+linkName2Seq::SequenceMap->String->Sequence
+linkName2Seq sm linkName = case lookup linkName sm of
+            Just sq->sq
             Nothing->error ("Unknown link name in getChainOfFirsts: " ++ linkName)
-        _->[first]
-    where first = getFirst sq
+
+removeDuplicateTails::[Sequence]->[Sequence]
+removeDuplicateTails seqs =
+    removeDuplicateTailsOnGroup =<< (groupBy ((==) `on` last) $ sortBy (compare `on` last) seqs)
+    where
+        removeDuplicateTailsOnGroup::[Sequence]->[Sequence]
+        removeDuplicateTailsOnGroup [x] = [x]
+        removeDuplicateTailsOnGroup seqs' = init <$> seqs'
+
 
 getStopList::[Sequence]->[Expression]
 --getStopList::Ord a=>[[a]]->[a]
-getStopList lists = last <$> getPrefixes lists
+getStopList lists = last <$> removeDuplicateTails $ getPrefixes lists
 
 getPrefixes::[Sequence]->[Sequence]
 --getPrefixes::(Eq a, Ord a)=>[[a]]->[[a]]

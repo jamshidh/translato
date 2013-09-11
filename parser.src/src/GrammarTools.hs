@@ -249,7 +249,8 @@ removeEQuoteFromSeq _ [] = []
 
 seq2Separator::Grammar->Sequence->Sequence
 seq2Separator g [Link linkName] = case M.lookup linkName (classes g) of
-    Nothing -> error ("Missing link name in seq2Separator: " ++ linkName)
+    Nothing -> [] --If linkName isn't a class, then it is a ruleName (or it could also be
+                    --a type, but it will be caught elsewhere)
     Just cl -> separator cl
 seq2Separator _ [Character _ _] = []
 seq2Separator _ [TextMatch _ _] = []
@@ -289,7 +290,8 @@ repeatWithSeparator g minCount sq sep =
 
 seq2Left::Grammar->Sequence->Sequence
 seq2Left g [Link linkName] = case M.lookup linkName (classes g) of
-    Nothing -> error ("Missing link name in seq2Left: " ++ linkName)
+    Nothing -> [] --If linkName isn't a class, then it is a ruleName (or it could also be
+                    --a type, but it will be caught elsewhere)
     Just cl -> left cl
 seq2Left _ [Character _ _] = []
 seq2Left _ [TextMatch _ _] = []
@@ -297,7 +299,7 @@ seq2Left _ sq = error ("Missing case in seq2Left: " ++ show sq)
 
 seq2Right::Grammar->Sequence->Sequence
 seq2Right g [Link linkName] = case M.lookup linkName (classes g) of
-    Nothing -> error ("Missing link name in seq2Right: " ++ linkName)
+    Nothing -> []
     Just cl -> right cl
 seq2Right _ [Character _ _] = []
 seq2Right _ [TextMatch _ _] = []

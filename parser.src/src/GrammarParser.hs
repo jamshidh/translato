@@ -107,7 +107,7 @@ parseFullClass =
                 suffixSeqs=[],
                 operators=concat [operators|OperatorsItem operators<-itemsWithPriority],
                 separator=case [separator|SeparatorItem separator<-itemsWithPriority] of
-                    [] -> [TextMatch " " Nothing]
+                    [] -> [WhiteSpace " "]
                     [x] -> x
                     _ -> error "Only one separator allowed for a class",
                 left=case [left|LeftItem left<-itemsWithPriority] of

@@ -129,7 +129,9 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
                                 ++ "\ns = " ++ LS.string s)
                                 $ Left AmbiguityError{ ranges=[singleCharacterRangeAt s] }
         [(_, item)] -> Right (tree item)
-        items -> jtrace ("multiple TextMatches matched in chooseOne:"
+        items -> case (check s) `filter` ((not . isFallBack) `filter` (snd <$> items)) of
+                    [item] -> Right (tree item)
+                    _ -> jtrace ("multiple TextMatches matched in chooseOne:"
                             ++ safeDrawEForest ((tree . removeTextMatchSize) <$> items)
                             ++ "\ns = " ++ LS.string s)
                             $ Left AmbiguityError{ ranges=[singleCharacterRangeAt s] }

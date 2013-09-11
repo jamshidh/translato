@@ -106,9 +106,11 @@ fillInVariableAssignments (VStart name (Just s):rest) =
         (value, restWithoutVariableValue) = splitVariableValue rest
         splitVariableValue::EString->(Maybe String, EString)
         splitVariableValue (c@VEnd:rest) = (Just "", rest)
-        splitVariableValue (Ch c:rest) = (Just (c:value), rest2)
-            where (Just value, rest2) = splitVariableValue rest
-        splitVariableValue (Fail err:rest) = (Nothing, [])
+        splitVariableValue (Ch c:rest) =
+            case splitVariableValue rest of
+                (Just value, rest2) -> (Just (c:value), rest2)
+                (Nothing, _) -> (Nothing, [])
+        splitVariableValue (Fail err:rest) = (Nothing, [Fail err])
         splitVariableValue (EStart _ _:rest) = splitVariableValue rest
         splitVariableValue (EEnd _:rest) = splitVariableValue rest
         splitVariableValue x = error ("Missing case in splitVariableValue: " ++ show x)
@@ -143,6 +145,7 @@ expandOperators (StartBlock:rest) = case fullBlock rest of
     Left e -> [e]
     where
         fullBlock::EString->Either EChar (EString, EString)
+        fullBlock [] = error "Fullblock hit the end without an EndBlock"
         fullBlock (EndBlock:rest) = Right ([], rest)
         fullBlock (c@(Fail _):rest) = Left c
         fullBlock (StartBlock:rest) = --Nested Blocks

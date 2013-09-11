@@ -72,7 +72,11 @@ data ParseError =
 
 message::ParseError->String
 message Error{description=description} = description
-message ExpectationError{expected=expected} = "Expected " ++ intercalate ", or " expected
+message ExpectationError{expected=expected} =
+    "Expected "
+    ++ if length expected == 0
+        then "[Empty list]"
+        else intercalate ", or " (show <$> expected)
 message MatchError{name=name, first=first, second=second} =
     show name ++ "s don't match: " ++ show first ++ " != " ++ show second
 message AmbiguityError{} = "Ambiguity Error"
@@ -81,7 +85,9 @@ instance Format ParseError where
     format (Error ranges description) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"
         ++ description
     format (ExpectationError ranges expected) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --Expected: "
-        ++ intercalate ", " expected
+        ++ if length expected == 0
+            then "[Empty list]"
+            else intercalate ", " expected
     format (MatchError name ranges first second) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"
         ++ name ++ " didn't match: first=" ++ first ++ ", second=" ++ second
     format (AmbiguityError ranges) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"

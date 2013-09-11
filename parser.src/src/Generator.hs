@@ -117,7 +117,7 @@ seq2EString g sMap (Or (sq:otherSq):rest) c children =
 
 seq2EString _ sMap (Link name:rest) c [] =
     [Fail $ Error dummyRanges ("Looking for element with tagname '" ++ name ++ "', but there are no more elements")]
-seq2EString g sMap (Link name:rest) c (child:otherChildren) | tagName child == name =
+seq2EString g sMap (Link name:rest) c (child:otherChildren) | isA g (tagName child) name =
     cursor2String g sMap child ++ seq2EString g sMap rest c otherChildren
 seq2EString _ sMap (Link name:rest) c _ =
         [Fail $ Error dummyRanges ("Expecting element with tagname '" ++ name ++ "', found " ++ showCursor c)]

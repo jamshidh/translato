@@ -15,7 +15,10 @@
 
 module SMShower (
     showSequenceMapMain,
-    showSimplifiedSequenceMapMain
+    showSimplifiedSequenceMapMain,
+    showSimplifiedGeneratorSequenceMapMain,
+    showGeneratorSequenceMapMain
+
 ) where
 
 import Data.Map as M
@@ -32,8 +35,22 @@ import SequenceMap
 data Options = Options { specFileName::String, ruleName::Maybe String }
 deflt = Options { specFileName = "file.spec", ruleName=Nothing }
 
-showSequenceMapMain'::Bool->[String]->IO ()
-showSequenceMapMain' simplify args = do
+showGeneratorSequenceMap::Bool->[String]->IO ()
+showGeneratorSequenceMap simplify args = do
+    let options = $(arg2Opts ''Options ["specFileName"]) args deflt
+    grammar<-loadGrammarAndSimplifyForGenerate (specFileName options)
+    let rawSequenceMap = sequenceMap grammar
+    let sequenceMap = if simplify
+                        then leftFactorSequenceMap rawSequenceMap
+                        else rawSequenceMap
+    case ruleName options of
+        Nothing->putStrLn $ formatSequenceMap sequenceMap
+        Just ruleName'->case M.lookup ruleName' sequenceMap of
+                            Just sequence -> putStrLn $ formatSequence sequence
+                            Nothing -> error ("Error: '" ++ ruleName' ++ "' isn't in the sequenceMap")
+
+showSequenceMap::Bool->[String]->IO ()
+showSequenceMap simplify args = do
     let options = $(arg2Opts ''Options ["specFileName"]) args deflt
     grammar<-loadGrammarAndSimplifyForParse (specFileName options)
     let rawSequenceMap = sequenceMap grammar
@@ -47,7 +64,13 @@ showSequenceMapMain' simplify args = do
                             Nothing -> error ("Error: '" ++ ruleName' ++ "' isn't in the sequenceMap")
 
 showSimplifiedSequenceMapMain::[String]->IO ()
-showSimplifiedSequenceMapMain = showSequenceMapMain' True
+showSimplifiedSequenceMapMain = showSequenceMap True
 
 showSequenceMapMain::[String]->IO ()
-showSequenceMapMain = showSequenceMapMain' False
+showSequenceMapMain = showSequenceMap False
+
+showSimplifiedGeneratorSequenceMapMain::[String]->IO ()
+showSimplifiedGeneratorSequenceMapMain = showSequenceMap True
+
+showGeneratorSequenceMapMain::[String]->IO ()
+showGeneratorSequenceMapMain = showSequenceMap False

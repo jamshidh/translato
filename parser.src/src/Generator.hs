@@ -40,7 +40,7 @@ import LeftFactoring
 import ParseError
 import SequenceMap
 
-import JDebug
+--import JDebug
 
 ------------------------------
 
@@ -106,7 +106,7 @@ dummyRanges::[Range]
 dummyRanges = [(Position 0 0 "", Position 0 0 "")]
 
 seq2EString::Grammar->SequenceMap->Sequence->Cursor->[Cursor]->EString
---seq2EString _ _ _ c children | jtrace (showCursor =<< children) $ False = undefined
+--seq2EString _ _ sq c children | jtrace ((showCursor =<< children) ++ ", [[[[" ++ formatSequence sq ++ "]]]]") $ False = undefined
 
 seq2EString g sMap sq c (firstChild:otherChildren) | isWhitespaceTextNode firstChild =
     seq2EString g sMap sq c otherChildren
@@ -137,7 +137,7 @@ seq2EString g sMap (SepBy minCount sq sep:_) c remainingChildren =
 
 seq2EString _ _ (Or []:_) _ _ = error "No matching alternative in seq2EString Or case"
 seq2EString g sMap (Or (sq:otherSq):rest) c children =
-{-    jtrace (show (length children)) $
+    {-jtrace (show (length children)) $
     jtrace (show (cursorFingerprint c children)) $
     jtrace (formatSequence (sq ++ rest)) $
     jtrace (show (sequenceFingerprint (sq ++ rest))) $-}
@@ -194,35 +194,44 @@ applyTemplates _ _ children _ _ = ([], children)
             case seq2EString sMap (List min exp) c nextRemainingChildren of
                 Right (s2, nextRemainingChildren2) -> Right (s1 ++ s2, nextRemainingChildren2)-}
 
---I will only use the first child node tagName in the fingerprint right now, for performance reasons (ie- can't read the whole file before deciding
---what to do).  Nevertheless, I will keep the type signature general for now.
+--fingerprint format:
+-- cursor fingerprint = (attributes, firstChild tag) = what we actually have
+-- sequence fingerprint = (needed attributes, allowed firstChild tags) = what we need
+--Note- I will only use the first child node tagName in the fingerprint right now, for
+--performance reasons (ie- Listing *all* element tags could require that we read the
+--whole file before deciding what to do).  Nevertheless, I will keep the type signature
+--general for now.
 cursorFingerprint::Cursor->[Cursor]->(Set String, [String])
 cursorFingerprint c (firstChild:_)=(fromList $ cursor2AttNames c, [tagName firstChild])
 cursorFingerprint c []=(fromList $ cursor2AttNames c, [])
 
-sequenceFingerprint::Sequence->(Set String, [String])
-sequenceFingerprint sq = (fromList $ getAttNames sq, getFirstLinkName sq)
+sequenceFingerprint::Sequence->(Set String, [Maybe String])
+sequenceFingerprint sq = (fromList $ getAttNames sq, getAllowedFirstLinkNames sq)
 
 getAttNames::Sequence->[String]
 getAttNames [] = []
 getAttNames (Out [VStart varName _]:rest) = varName:getAttNames rest
 getAttNames (_:rest) = getAttNames rest
 
-getFirstLinkName::Sequence->[String]
-getFirstLinkName [] = []
-getFirstLinkName (Out [VStart _ _]:rest) = getAttNames (dropWhile (/= Out [VEnd]) rest)
-getFirstLinkName (Link linkName:_) = [linkName] --Only return the first name for now (possibly forever)
-getFirstLinkName (SepBy _ [Link linkName] _:_) = [linkName] --Only return the first name for now (possibly forever)
-getFirstLinkName (_:rest) = getFirstLinkName rest
+getAllowedFirstLinkNames::Sequence->[Maybe String] --Returning a Nothing implies that an empty child list is allowed
+getAllowedFirstLinkNames [] = [Nothing]
+getAllowedFirstLinkNames (Out [VStart _ _]:rest) =
+    Just <$> getAttNames (dropWhile (/= Out [VEnd]) rest)
+getAllowedFirstLinkNames (Link linkName:_) =
+    [Just linkName] --Only return the first name for now (possibly forever)
+getAllowedFirstLinkNames (SepBy 0 [Link linkName] _:rest) =
+    Just linkName:getAllowedFirstLinkNames rest --Only return the first name for now (possibly forever)
+getAllowedFirstLinkNames (SepBy _ [Link linkName] _:_) =
+    [Just linkName] --Only return the first name for now (possibly forever)
+getAllowedFirstLinkNames (_:rest) = getAllowedFirstLinkNames rest
 
-fingerprintMatches::Grammar->(Set String, [String])->(Set String, [String])->Bool
+fingerprintMatches::Grammar->(Set String, [String])->(Set String, [Maybe String])->Bool
 fingerprintMatches g (cursorAttNames, cursorTagNames) (seqAttNames, seqLinkNames) =
     (seqAttNames `isSubsetOf` cursorAttNames) &&
-        case (cursorTagNames, seqLinkNames) of
-            ([ctn], [sln]) -> (isA g ctn sln)
-            ([_], []) -> False
-            ([], [_]) -> False
-            ([], []) -> True
+        case cursorTagNames of
+            [] -> Nothing `elem` seqLinkNames
+            [ctn] -> or(isA g ctn <$> [linkName|Just linkName<-seqLinkNames])
+            _ -> error "Huh? cursor fingerprint should only have the *first* tagName"
 
 ----------------
 

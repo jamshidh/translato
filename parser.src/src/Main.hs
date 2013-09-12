@@ -38,6 +38,8 @@ commands = M.fromList
         ("outputGeneratorGrammar", showGeneratorGrammarMain),
         ("outputSequenceMap", showSequenceMapMain),
         ("outputSimplifiedSequenceMap", showSimplifiedSequenceMapMain),
+        ("outputGeneratorSequenceMap", showGeneratorSequenceMapMain),
+        ("outputGeneratorSimplifiedSequenceMap", showSimplifiedGeneratorSequenceMapMain),
         ("outputParseTree", showParseTreeMain),
         ("generate", generatorMain   ),
         ("parseElements", parseElementsMain),

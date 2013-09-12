@@ -103,8 +103,8 @@ chs2String (Fail err:rest) = red (format err) ++ chs2String rest
 chs2String (VOut attrName:rest) = green ("[" ++ attrName ++ "]") ++ chs2String rest
 chs2String (VStart attrName _:rest) = "{" ++ attrName ++ "=" ++ chs2String rest
 chs2String (VEnd:rest) = "}" ++ chs2String rest
-chs2String (EStart tagName atts:rest) = "<" ++ tagName ++ concat ((" "++) <$> atts) ++ ">" ++ chs2String rest
-chs2String (FilledInEStart tagName atts:rest) = cyan ("<" ++ tagName ++ concat ((" " ++) <$> (\(tagName', val) -> tagName' ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">") ++ chs2String rest
+chs2String (EStart tagName atts:rest) = "<" ++ tagName ++ ((" "++) =<< atts) ++ ">" ++ chs2String rest
+chs2String (FilledInEStart tagName atts:rest) = cyan ("<" ++ tagName ++ ((" " ++) =<< expandAttsWithVal <$> atts) ++ ">") ++ chs2String rest
 chs2String (EEnd tagName:rest) = "</" ++ tagName ++ ">" ++ chs2String rest
 chs2String (NestedItem s:rest) = yellow "<<<" ++ show s ++ yellow ">>>" ++ chs2String rest
 chs2String (VAssign attrName maybeVal _:rest) = green ("assign{" ++ attrName ++ "=" ++ formatMaybe maybeVal ++ "}") ++ chs2String rest
@@ -119,6 +119,15 @@ chs2String (InfixTag (InfixOp{opPriority=p, opName=opName'}):rest) = "Op(" ++ sh
 chs2String (EndCap endCapName:rest) = yellow ("EndCap(" ++ endCapName ++ ")") ++ chs2String rest
 chs2String [] = []
 --chs2String x = error ("missing case in chs2String: " ++ show x)
+
+ampEscape::String->String
+ampEscape [] = []
+ampEscape ('"':rest) = "&quot;" ++ ampEscape rest
+ampEscape ('\'':rest) = "&apos;" ++ ampEscape rest
+ampEscape ('<':rest) = "&lt;" ++ ampEscape rest
+ampEscape ('>':rest) = "&gt;" ++ ampEscape rest
+ampEscape ('&':rest) = "&amp;" ++ ampEscape rest
+ampEscape (c:rest) = c:ampEscape rest
 
 enhancedString2String::EString->String
 enhancedString2String es =
@@ -176,8 +185,8 @@ addLineBreaks _ [] = [Ch '\n']
 expandElements::EString->EString
 expandElements (EStart tagName atts:rest) = e ("<" ++ tagName) ++ (expandAtts atts) ++ e(">") ++ expandElements rest
 expandElements (FilledInEStart name1 atts:EEnd name2:rest) | name1 == name2 =
-        e ("<" ++ name1 ++ expandAttsWithVals atts ++ "/>") ++ expandElements rest
-expandElements (FilledInEStart tagName atts:rest) = e ("<" ++ tagName ++ expandAttsWithVals atts ++ ">") ++ expandElements rest
+        e ("<" ++ name1 ++ ((" "++) =<< expandAttsWithVal <$> atts) ++ "/>") ++ expandElements rest
+expandElements (FilledInEStart tagName atts:rest) = e ("<" ++ tagName ++ ((" "++) =<< expandAttsWithVal <$> atts) ++ ">") ++ expandElements rest
 expandElements (FutureItem _:rest) = e ("<??>") ++ expandElements rest
 expandElements (ItemInfo eString:rest) = e "{itemInfo=" ++ eString ++ e ("}") ++ expandElements rest
 expandElements (EEnd tagName:rest) = e("</" ++ tagName ++ ">") ++ expandElements rest
@@ -187,6 +196,6 @@ expandElements [] = []
 expandAtts::[String]->EString
 expandAtts atts = atts >>= (\attrName -> e (" " ++ attrName ++ "='") ++ [VOut ("@" ++ attrName)] ++ e "'")
 
-expandAttsWithVals::[(String, Maybe String)]->String
-expandAttsWithVals atts = concat ((\(attrName, value) -> " " ++ attrName ++ "='" ++ formatMaybe value ++ "'") <$> atts)
+expandAttsWithVal::(String, Maybe String)->String
+expandAttsWithVal (attrName, val) = attrName ++ "='" ++ ampEscape (formatMaybe val) ++ "'"
 

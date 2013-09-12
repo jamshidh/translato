@@ -45,6 +45,7 @@ import OperatorNames
 
 isA::Grammar->String->String->Bool
 isA _ className1 className2 | className1 == className2 = True
+isA g _ tagName | not (tagName `elem` (keys $ classes g)) = False -- If name2 doesn't refer to a class, then they must match exactly
 isA g className1 className2
     | className1 `elem` (name <$> (rules $ className2Class g className2)) = True
 --isA g className1 className2 | className1 `elem` (symbol2Name <$> symbol <$> (operators $ className2Class g className2)) = True

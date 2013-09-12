@@ -20,6 +20,7 @@ module Generator (
 
 import Prelude hiding (lookup)
 
+import Data.Char
 import Data.Functor
 import Data.List hiding (lookup)
 import Data.Map hiding (map, foldl, fromList, null)
@@ -30,6 +31,7 @@ import Text.XML
 import Text.XML.Cursor
 
 import ArgOpts
+import CharSet
 import Colors
 import Grammar hiding (Name)
 import GrammarTools
@@ -58,8 +60,19 @@ showCursor c = case node c of
             ++ (intercalate " "
                     (map (\(attrName, text) -> name2String attrName ++ "=\"" ++ unpack text ++ "\"")
                     ((toList . elementAttributes) el))) ++ ">"
-    NodeContent text -> "Text:'" ++ unpack text
+    NodeContent text -> "Text: " ++ show text
     x -> error ("Missing case in showCursor: " ++ show x)
+
+isTextNode::Cursor->Bool
+isTextNode c = case node c of
+    NodeContent text -> True
+    _ -> False
+
+getTextContent::Cursor->String
+getTextContent c = case node c of
+    NodeContent text -> unpack text
+    _ -> error ("getTextContent was called on a non text node")
+
 
 cursor2AttNames::Cursor->[String]
 cursor2AttNames c = case node c of
@@ -86,13 +99,29 @@ generate g c = enhancedString2String (cursor2String g sMap c)
 cursor2String::Grammar->SequenceMap->Cursor->EString
 cursor2String g sMap c =
     case lookup (tagName c) sMap of
-        Just sq -> seq2EString g sMap sq c (child c >>= anyElement)
+        Just sq -> seq2EString g sMap sq c (child c)
         Nothing -> error ("Link '" ++ tagName c ++ "' doesn't exist in the grammar")
 
 dummyRanges::[Range]
 dummyRanges = [(Position 0 0 "", Position 0 0 "")]
 
 seq2EString::Grammar->SequenceMap->Sequence->Cursor->[Cursor]->EString
+--seq2EString _ _ _ c children | jtrace (showCursor =<< children) $ False = undefined
+
+seq2EString g sMap sq c (firstChild:otherChildren) | isWhitespaceTextNode firstChild =
+    seq2EString g sMap sq c otherChildren
+        where
+            isWhitespaceTextNode x = isTextNode x && and(isSpace <$> getTextContent x)
+seq2EString g sMap sq c (firstChild:otherChildren) | isTextNode firstChild =
+    e s ++ seq2EString g sMap (useTextNode s sq) c otherChildren
+    where
+        s = getTextContent firstChild
+        remainingSeq = useTextNode
+
+seq2EString _ _ (Character _ _:_) _ _ = error ("expected Character, found a node")
+
+
+
 seq2EString _ _ [] _ [] = []
 seq2EString g sMap (Out [VStart attrName _]:rest) c remainingChildren =
         (e $ cursor2AttValue c attrName) ++ seq2EString g sMap rest2 c remainingChildren
@@ -120,8 +149,8 @@ seq2EString _ _ (Link linkName:_) _ [] =
     [Fail $ Error dummyRanges ("Looking for element with tagname '" ++ linkName ++ "', but there are no more elements")]
 seq2EString g sMap (Link linkName:rest) c (firstChild:otherChildren) | isA g (tagName firstChild) linkName =
         cursor2String g sMap firstChild ++ seq2EString g sMap rest c otherChildren
-seq2EString _ _ (Link linkName:_) c _ =
-        [Fail $ Error dummyRanges ("Expecting element with tagname '" ++ linkName ++ "', found " ++ showCursor c)]
+seq2EString _ _ (Link linkName:_) _ (firstChild:_) =
+        [Fail $ Error dummyRanges ("Expecting element with tagname '" ++ linkName ++ "', found " ++ showCursor firstChild)]
 
 seq2EString g sMap (TextMatch text _:rest) c children = e text ++ seq2EString g sMap rest c children
 seq2EString g sMap (WhiteSpace defltWS:rest) c children = e defltWS  ++ seq2EString g sMap rest c children
@@ -130,10 +159,24 @@ seq2EString g sMap (Out [TabLeft]:rest) c children = TabLeft:seq2EString g sMap 
 seq2EString _ _ (EOF:_) c [] | null $ following c = []
 seq2EString _ _ (EOF:_) c _ | null $ following c = error "Expected EOF, but there are still children"
 seq2EString _ _ (EOF:_) _ _ = error "Expected EOF, but there is stuff after"
+
+
 seq2EString _ _ [] c children =
         error ("Error in tag '" ++ tagName c ++ "': Sequence is finished, but children remain.\n    children = " ++ intercalate "\n" (showCursor <$> children))
 seq2EString _ _ sq c children =
-        error ("Error:\n    tag = " ++ tagName c ++ ",\n    sequence = " ++ formatSequence sq  ++ ",\n    children = " ++ intercalate "\n" (showCursor <$> children))
+        error ("Missing case in seq2EString:\n    tag = " ++ tagName c ++ ",\n    sequence = " ++ formatSequence sq  ++ ",\n    children = " ++ intercalate "\n" (showCursor <$> children))
+
+useTextNode::String->Sequence->Sequence
+useTextNode [] (SepBy 0 [Character charset _] sep:rest) = rest
+useTextNode [] sq = sq
+useTextNode (c:cs) (Character charset _:rest) | c `isIn` charset =
+    useTextNode cs rest
+useTextNode (c:cs) sq@(SepBy 0 [Character charset _] sep:rest) | c `isIn` charset =
+    useTextNode cs sq --Just keep consuming the string until the next character doesn't match
+useTextNode s (SepBy minCount sq sep:rest) =
+    useTextNode s (sq ++ SepBy (minCount-1) sq sep:rest)
+useTextNode (c:cs) sq =  error ("Missing case in useTextNode: " ++ formatSequence sq)
+
 
 applyTemplates::Grammar->SequenceMap->[Cursor]->String->Sequence->(EString, [Cursor])
 applyTemplates g sMap (xmlNode:rest) linkName _ | isA g (tagName xmlNode) linkName =

@@ -40,7 +40,7 @@ import LeftFactoring
 import ParseError
 import SequenceMap
 
---import JDebug
+import JDebug
 
 ------------------------------
 
@@ -177,10 +177,17 @@ useTextNode s (SepBy minCount sq sep:rest) =
     useTextNode s (sq ++ SepBy (minCount-1) sq sep:rest)
 useTextNode (c:cs) sq =  error ("Missing case in useTextNode: " ++ formatSequence sq)
 
-
+--TODO add the separator between elements
 applyTemplates::Grammar->SequenceMap->[Cursor]->String->Sequence->(EString, [Cursor])
-applyTemplates g sMap (xmlNode:rest) linkName _ | isA g (tagName xmlNode) linkName =
-    (cursor2String g sMap xmlNode, rest)
+--applyTemplates _ _ (xmlNode:_) _ _ | jtrace (tagName xmlNode) $ False = undefined
+applyTemplates g sMap (firstChild:otherChildren) s sep | isWhitespaceTextNode firstChild =
+    applyTemplates g sMap otherChildren s sep
+        where
+            isWhitespaceTextNode x = isTextNode x && and(isSpace <$> getTextContent x)
+applyTemplates g sMap (xmlNode:rest) linkName sep | isA g (tagName xmlNode) linkName =
+    (cursor2String g sMap xmlNode ++ ret, rest2)
+    where
+        (ret, rest2) = applyTemplates g sMap rest linkName sep
 applyTemplates _ _ children _ _ = ([], children)
 {-    case seq2EString sMap exp c remainingChildren of
         Right (s1, nextRemainingChildren) ->

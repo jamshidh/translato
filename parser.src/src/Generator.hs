@@ -130,7 +130,7 @@ seq2EString g sMap (Out [VStart attrName _]:rest) c remainingChildren =
 
 seq2EString g sMap (SepBy 0 [Link linkName] sep:rest) c children = result ++ seq2EString g sMap rest c otherChildren
     where
-        (result, otherChildren) = applyTemplates g sMap children linkName sep
+        (result, otherChildren) = applyTemplates g sMap children linkName sep True
 
 seq2EString g sMap (SepBy minCount sq sep:_) c remainingChildren =
     seq2EString g sMap (sq ++ sep ++ [SepBy (minCount - 1) sq sep]) c remainingChildren
@@ -178,21 +178,27 @@ useTextNode s (SepBy minCount sq sep:rest) =
 useTextNode (c:cs) sq =  error ("Missing case in useTextNode: " ++ formatSequence sq)
 
 --TODO add the separator between elements
-applyTemplates::Grammar->SequenceMap->[Cursor]->String->Sequence->(EString, [Cursor])
+applyTemplates::Grammar->SequenceMap->[Cursor]->String->Sequence->Bool->(EString, [Cursor])
 --applyTemplates _ _ (xmlNode:_) _ _ | jtrace (tagName xmlNode) $ False = undefined
-applyTemplates g sMap (firstChild:otherChildren) s sep | isWhitespaceTextNode firstChild =
-    applyTemplates g sMap otherChildren s sep
+applyTemplates g sMap (firstChild:otherChildren) s sep isFirst | isWhitespaceTextNode firstChild =
+    applyTemplates g sMap otherChildren s sep isFirst
         where
             isWhitespaceTextNode x = isTextNode x && and(isSpace <$> getTextContent x)
-applyTemplates g sMap (xmlNode:rest) linkName sep | isA g (tagName xmlNode) linkName =
-    (cursor2String g sMap xmlNode ++ ret, rest2)
+applyTemplates g sMap (xmlNode:rest) linkName sep isFirst | isA g (tagName xmlNode) linkName =
+    (sepString ++ cursor2String g sMap xmlNode ++ ret, rest2)
     where
-        (ret, rest2) = applyTemplates g sMap rest linkName sep
-applyTemplates _ _ children _ _ = ([], children)
+        sepString = if isFirst then e "" else sep2String sep
+        (ret, rest2) = applyTemplates g sMap rest linkName sep False
+applyTemplates _ _ children _ _ _ = ([], children)
 {-    case seq2EString sMap exp c remainingChildren of
         Right (s1, nextRemainingChildren) ->
             case seq2EString sMap (List min exp) c nextRemainingChildren of
                 Right (s2, nextRemainingChildren2) -> Right (s1 ++ s2, nextRemainingChildren2)-}
+
+sep2String::Sequence->EString
+sep2String [] = []
+sep2String (TextMatch s _:rest) = e s ++ sep2String rest
+sep2String (WhiteSpace defltWS:rest) = e defltWS ++ sep2String rest
 
 --fingerprint format:
 -- cursor fingerprint = (attributes, firstChild tag) = what we actually have

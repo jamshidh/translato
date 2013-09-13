@@ -341,10 +341,14 @@ saveBuffer fileNameRef tv =
 saveBufferAs::IORef String->TextView->Window->IO ()
 saveBufferAs fileNameRef tv window =
     do
-        Just filename <- openOpenFileDialog FileChooserActionSave window
-        windowSetTitle window filename
-        writeIORef fileNameRef filename
-        saveBuffer fileNameRef tv
+        defaultFileName <- readIORef fileNameRef
+        response <- openOpenFileDialog FileChooserActionSave window (Just defaultFileName)
+        case response of
+            Just fileName -> do
+                windowSetTitle window fileName
+                writeIORef fileNameRef fileName
+                saveBuffer fileNameRef tv
+            Nothing -> return ()
 
 loadBuffer::String->TextView->IO ()
 loadBuffer filename tv =
@@ -364,7 +368,7 @@ loadBuffer filename tv =
 promptAndLoadBuffer::TextView->Window->IO ()
 promptAndLoadBuffer tv window =
     do
-        maybeFileName <- openOpenFileDialog FileChooserActionOpen window
+        maybeFileName <- openOpenFileDialog FileChooserActionOpen window Nothing
         case maybeFileName of
             Just fileName -> do
                 loadBuffer fileName tv
@@ -401,17 +405,21 @@ showAboutDialog = do
     dialogRun aboutDialog
     widgetHide aboutDialog
 
-openOpenFileDialog::FileChooserAction->Window->IO (Maybe String)
-openOpenFileDialog action parentWindow = do
+openOpenFileDialog::FileChooserAction->Window->Maybe String->IO (Maybe String)
+openOpenFileDialog action parentWindow maybeDefaultFileName = do
     let openButton = case action of
                         FileChooserActionOpen -> "gtk-open"
                         _ -> "gtk-save"
     dialog <- fileChooserDialogNew
-                (Just "Select coding file")
+                (Just "Select filename")
                 (Just parentWindow)
                 action
                 [(openButton   , ResponseAccept)
                     ,("gtk-cancel" , ResponseCancel)]
+
+    case maybeDefaultFileName of
+        Just defaultFileName -> fileChooserSetFilename dialog defaultFileName
+        Nothing -> return False
 
     widgetShow dialog
     response <- dialogRun dialog

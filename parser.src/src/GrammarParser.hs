@@ -19,6 +19,7 @@ module GrammarParser (
     Sequence
 ) where
 
+import Control.Arrow hiding (left, right)
 import Data.Char hiding (Space)
 import Data.Functor
 import Data.List
@@ -48,11 +49,16 @@ parseGrammar =
         classList<-endBy parseClass spaces
         spaces
         eof
-        return Grammar {
-                            main = (assert (length classList > 0) "Grammar contains no classes")
-                                (className $ head classList),
-                            classes = M.fromList ((\cl -> (className cl, cl)) <$> classList)
-                        }
+
+        let mainClassName =
+                case classList of
+                    (cl:_) -> className cl
+                    _ -> error "Grammar contains no classes"
+
+        return (Grammar
+                    mainClassName
+                    (M.fromList ((className&&&id) <$> classList)))
+
 
 parseClass = parseFullClass <|> parseSimpleClass
 

@@ -28,6 +28,7 @@ module GrammarTools (
 --    fixG
 ) where
 
+import Control.Lens
 import Data.Functor
 import Data.List
 import Data.Map as M hiding (filter, null)
@@ -45,7 +46,7 @@ import OperatorNames
 
 isA::Grammar->String->String->Bool
 isA _ className1 className2 | className1 == className2 = True
-isA g _ tagName | not (tagName `elem` (keys $ classes g)) = False -- If name2 doesn't refer to a class, then they must match exactly
+isA g _ tagName | not (tagName `elem` (keys $ g^.classes)) = False -- If name2 doesn't refer to a class, then they must match exactly
 isA g className1 className2
     | className1 `elem` (name <$> (rules $ className2Class g className2)) = True
 --isA g className1 className2 | className1 `elem` (symbol2Name <$> symbol <$> (operators $ className2Class g className2)) = True
@@ -53,7 +54,7 @@ isA g className1 className2 = or (isA g className1 <$> className2ParentNames g c
 
 className2ParentNames::Grammar->String->[String]
 className2ParentNames g tagName =
-    case M.lookup tagName (classes g) of
+    case M.lookup tagName (g^.classes) of
         Just cl -> parentNames cl
         Nothing ->
             case Prelude.lookup tagName ruleName2ClassName of
@@ -61,18 +62,17 @@ className2ParentNames g tagName =
                 Nothing -> error ("'" ++ tagName ++ "' is not a className or ruleName.")
     where
         ruleName2ClassName::[(String, String)]
-        ruleName2ClassName = concat ((\cl -> ((\rule ->(name rule, className cl)) <$> rules cl)) <$> (snd <$> (toList $ classes g)))
+        ruleName2ClassName = concat ((\cl -> ((\rule ->(name rule, className cl)) <$> rules cl)) <$> (snd <$> (toList $ g^.classes)))
 
 className2Class::Grammar->String->Class
 className2Class g clsName =
-    case M.lookup clsName (classes g) of
+    case M.lookup clsName (g^.classes) of
         Just cl -> cl
         Nothing -> error ("ClassName '" ++ clsName ++ "' doesn't exist.")
 
 stripWhitespaceFromGrammar::Grammar->Grammar
-stripWhitespaceFromGrammar g = g{
-        classes = applyIf stripWhitespaceFromClass ((/= main g) . className) <$> classes g
-    }
+stripWhitespaceFromGrammar g =
+    classes %~ (applyIf stripWhitespaceFromClass ((/= g^.main) . className) <$>) $ g
     where
         applyIf::(a->a)->(a->Bool)->a->a
         applyIf f condition x = if condition x then f x else x
@@ -96,9 +96,7 @@ removeLastWhitespace [] = []
 
 rewriteLeftRecursionInGrammar::Grammar->Grammar
 rewriteLeftRecursionInGrammar g =
-    g {
-        classes = fmap (rewriteLeftRecursionInClass g) (classes g)
-    }
+        classes %~ (rewriteLeftRecursionInClass g <$>) $ g
 
 rewriteLeftRecursionInClass::Grammar->Class->Class
 rewriteLeftRecursionInClass g cl =
@@ -109,16 +107,16 @@ rewriteLeftRecursionInClass g cl =
     }
 
 op2Infix::Operator->EChar
-op2Infix op = InfixTag
+op2Infix oprtr = InfixTag
     InfixOp{
-        opPriority=priority op,
-        opName=symbol2Name (symbol op),
-        opAssociativity=associativity op
+        opPriority=priority oprtr,
+        opName=symbol2Name (symbol oprtr),
+        opAssociativity=associativity oprtr
     }
 
 operator2SuffixSeq::Grammar->Class->Operator->Sequence
-operator2SuffixSeq g theClass op =
-    symbol op ++[Out [op2Infix op], Or (replicate 1 <$> Link <$> nonRecursiveRuleNames theClass)]
+operator2SuffixSeq g theClass oprtr =
+    symbol oprtr ++[Out [op2Infix oprtr], Or (replicate 1 <$> Link <$> nonRecursiveRuleNames theClass)]
     where nonRecursiveRuleNames cl' = (name <$> filter (not . isLRecursive (className cl')) (rules cl'))
                                         ++ (className <$> parents g cl')
 
@@ -148,7 +146,7 @@ isLRecursive _ _ = False
 
 rewriteOperatorsAsLeftRecursion::Grammar->Grammar
 rewriteOperatorsAsLeftRecursion g =
-    g{ classes = rewriteOperatorsAsLeftRecursionInClass <$> classes g }
+    classes %~ (rewriteOperatorsAsLeftRecursionInClass <$>) $ g
 
 rewriteOperatorsAsLeftRecursionInClass::Class->Class
 rewriteOperatorsAsLeftRecursionInClass cls =
@@ -168,11 +166,7 @@ rewriteOperatorsAsLeftRecursionInClass cls =
 
 ---------------------
 addEOFToGrammar::Grammar->Grammar
-addEOFToGrammar g = g {
-        classes =
-            (\c -> if (className c == main g) then addEOFToClass c else c) <$>
-                (classes g)
-    }
+addEOFToGrammar g = classes %~ ((\c -> if (className c == g^.main) then addEOFToClass c else c) <$>) $ g
 
 addEOFToClass::Class->Class
 addEOFToClass c = c { rules=(\rule->rule{rawSequence=rawSequence rule ++ [EOF]}) <$> (rules c)}
@@ -209,7 +203,7 @@ addToRulePriorities::Int->Rule->Rule
 addToRulePriorities p rule = rule{rulePriority=p+rulePriority rule}
 
 addToOperatorPriorities::Int->Operator->Operator
-addToOperatorPriorities p op = op{priority=p+priority op}
+addToOperatorPriorities p oprtr = oprtr{priority=p+priority oprtr}
 
 maxPriority::Class->Int
 maxPriority cl = maximum ((rulePriority <$> rules cl) ++ (priority <$> operators cl))
@@ -222,9 +216,7 @@ adjustClass g cl = addToClassPriorities (classToPriorityOffset g cl) cl
 
 adjustPrioritiesByClassHiarchy::Grammar->Grammar
 adjustPrioritiesByClassHiarchy g =
-    g {
-        classes = fmap (adjustClass g) (classes g)
-    }
+        classes %~ (adjustClass g <$>) $ g
 
 ---------------------------
 
@@ -240,15 +232,12 @@ addTagToRule rule =
             seq2AttNames [] = []
 
 addTagsToGrammar::Grammar->Grammar
-addTagsToGrammar g = g{classes=fmap (\cl -> cl{rules=addTagToRule <$> rules cl}) (classes g)}
+addTagsToGrammar g = classes %~ ((\cl -> cl{rules=addTagToRule <$> rules cl}) <$>) $ g
 
 ----------------------------
 
 removeEQuote::Grammar->Grammar
-removeEQuote g =
-    g {
-        classes= fmap (removeEQuoteFromClass g) (classes g)
-    }
+removeEQuote g = classes %~ (removeEQuoteFromClass g <$>) $ g
 
 removeEQuoteFromClass::Grammar->Class->Class
 removeEQuoteFromClass g cl =
@@ -273,7 +262,7 @@ removeEQuoteFromSeq g (x:rest) = x:removeEQuoteFromSeq g rest
 removeEQuoteFromSeq _ [] = []
 
 seq2Separator::Grammar->Sequence->Sequence
-seq2Separator g [Link linkName] = case M.lookup linkName (classes g) of
+seq2Separator g [Link linkName] = case M.lookup linkName (g^.classes) of
     Nothing -> [] --If linkName isn't a class, then it is a ruleName (or it could also be
                     --a type, but it will be caught elsewhere)
     Just cl -> separator cl
@@ -284,10 +273,7 @@ seq2Separator _ sq = error ("Missing case in seq2Separator: " ++ formatSequence 
 -------------------------------
 
 removeSepBy::Grammar->Grammar
-removeSepBy g =
-    g {
-        classes= fmap (removeSepByFromClass g) (classes g)
-    }
+removeSepBy g = classes %~ (removeSepByFromClass g <$>) $ g
 
 removeSepByFromClass::Grammar->Class->Class
 removeSepByFromClass g cl =
@@ -314,7 +300,7 @@ repeatWithSeparator g minCount sq sep =
     sq ++ [List (minCount -1) (removeSepByFromSeq g (sep++sq))]
 
 seq2Left::Grammar->Sequence->Sequence
-seq2Left g [Link linkName] = case M.lookup linkName (classes g) of
+seq2Left g [Link linkName] = case M.lookup linkName (g^.classes) of
     Nothing -> [] --If linkName isn't a class, then it is a ruleName (or it could also be
                     --a type, but it will be caught elsewhere)
     Just cl -> left cl
@@ -323,7 +309,7 @@ seq2Left _ [TextMatch _ _] = []
 seq2Left _ sq = error ("Missing case in seq2Left: " ++ show sq)
 
 seq2Right::Grammar->Sequence->Sequence
-seq2Right g [Link linkName] = case M.lookup linkName (classes g) of
+seq2Right g [Link linkName] = case M.lookup linkName (g^.classes) of
     Nothing -> []
     Just cl -> right cl
 seq2Right _ [Character _ _] = []
@@ -334,9 +320,7 @@ seq2Right _ sq = error ("Missing case in seq2Separator: " ++ formatSequence sq)
 
 removeOption::Grammar->Grammar
 removeOption g =
-    g {
-        classes= fmap (removeOptionFromClass g) (classes g)
-    }
+        classes %~ (removeOptionFromClass g <$>) $ g
 
 removeOptionFromClass::Grammar->Class->Class
 removeOptionFromClass g cl =

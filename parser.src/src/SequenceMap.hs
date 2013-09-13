@@ -19,6 +19,7 @@ module SequenceMap (
     formatSequenceMap
 ) where
 
+import Control.Lens
 import Data.Functor
 import Data.List hiding (union)
 import Data.Map as M hiding (filter)
@@ -40,10 +41,10 @@ formatSubstitution (ruleName, sq) = ruleName ++ " => " ++ formatSequence sq
 sequenceMap::Grammar->SequenceMap
 sequenceMap g =
     union
-        (fromList (fmap (classSequence g) <$> (M.toList $ classes g)))
+        (fromList (fmap (classSequence g) <$> (M.toList $ g^.classes)))
         (fmap orify (fromListWith (++) ((\rule -> (name rule, [rawSequence rule])) <$> allRules)))
             where
-                allRules = elems (classes g) >>= rules
+                allRules = elems (g^.classes) >>= rules
 
 classSequence::Grammar->Class->Sequence
 classSequence g cl =

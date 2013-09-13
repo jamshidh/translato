@@ -13,6 +13,8 @@ module Parser (
 ) where
 
 import Prelude hiding (lookup)
+
+import Control.Lens
 import Data.Char hiding (Space)
 import Data.Functor
 import Data.Graph.Inductive.Query.Monad
@@ -147,7 +149,7 @@ createParserForClass startRule g s =
         $ createEParserForClass startRule g s
 
 createEParser::Grammar->EParser
-createEParser g = createEParserForClass (main g) g
+createEParser g = createEParserForClass (g^.main) g
 
 createParser::Grammar->Parser
 --createParser g = show . createEParser g

@@ -1,3 +1,4 @@
+{-# LANGUAGE TemplateHaskell #-}
 {-# OPTIONS_GHC -Wall #-}
 -----------------------------------------------------------------------------
 --
@@ -22,7 +23,9 @@ module Grammar (
     RuleName,
     Name,
     Rule(..),
-    Grammar(..),
+    Grammar(Grammar),
+    main,
+    classes,
     formatExpression,
     formatSequence,
     formatGrammar,
@@ -33,6 +36,7 @@ module Grammar (
 
 import Prelude hiding (lookup)
 
+import Control.Lens
 import Data.Functor
 import Data.List hiding (lookup)
 import Data.Map hiding (filter, map, null, union)
@@ -54,7 +58,7 @@ data Operator =
     } deriving (Eq, Show)
 
 formatOperator::Operator->String
-formatOperator op = show (priority op) ++ ":" ++ formatSequence (symbol op)
+formatOperator opr = show (priority opr) ++ ":" ++ formatSequence (symbol opr)
 
 type Sequence = [Expression]
 
@@ -151,17 +155,24 @@ formatClass c = "====[" ++ className c
             then "  operators: " ++ intercalate ", " (formatOperator <$> operators c) ++ "\n" else "")
         ++ "====[/" ++ className c ++ "]===="
 
-parents::Grammar->Class->[Class]
-parents g cl = fromJust <$> (`lookup` classes g) <$> parentNames cl
 
-data Grammar = Grammar { main::String,
-                        classes::Map ClassName Class } deriving (Show)
+--classes = 1 --lens _classes (\g v -> g { _classes = v })
+
+data Grammar = Grammar { _main::String
+                       , _classes::Map ClassName Class
+                       } deriving (Show)
+
+$(makeLenses ''Grammar)
+
+parents::Grammar->Class->[Class]
+parents g cl = fromJust <$> (`lookup` (g^.classes)) <$> parentNames cl
+
 
 formatGrammar::Grammar->String
 formatGrammar g =
-        "-----------" ++ replicate (length $ main g) '-' ++ "\n"
-        ++ "| main = " ++ main g ++ " |\n"
-        ++ "-----------" ++ replicate (length $ main g) '-' ++ "\n\n"
-        ++ (intercalate "\n\n" ((formatClass . snd) <$> (toList (classes g)))) ++ "\n\n"
+        "-----------" ++ replicate (length $ g^.main) '-' ++ "\n"
+        ++ "| main = " ++ g^.main ++ " |\n"
+        ++ "-----------" ++ replicate (length $ g^.main) '-' ++ "\n\n"
+        ++ (intercalate "\n\n" ((formatClass . snd) <$> (toList (g^.classes)))) ++ "\n\n"
 
 data ParseType = Block | Stream deriving (Eq)

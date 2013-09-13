@@ -20,6 +20,8 @@ module Shower (
     showParseTreeMain
 ) where
 
+import Control.Lens
+
 import ArgOpts
 import Grammar
 import GrammarTools
@@ -52,4 +54,4 @@ showParseTreeMain::[String]->IO ()
 showParseTreeMain args = do
     let options = $(arg2Opts ''Options ["specFileName"]) args deflt
     grammar<-loadGrammarAndSimplifyForParse (specFileName options)
-    putStrLn $ safeDrawEForest (parseTree grammar (main grammar))
+    putStrLn $ safeDrawEForest (parseTree grammar (grammar^.main))

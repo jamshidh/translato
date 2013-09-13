@@ -20,7 +20,6 @@ import Data.Maybe
 import Data.Tree
 import Data.List as L hiding (union, lookup, insert)
 import Data.Map hiding (map, foldl, filter)
-import System.Console.GetOpt
 import System.IO
 import Text.Regex
 
@@ -121,7 +120,16 @@ rawParse items s = case chooseOne items s of
 parseTree::Grammar->String->Forest Expression
 parseTree g startRule=seq2ParseTree (cleanSMap g) [Link startRule]
     where
-        cleanSMap = leftFactorSequenceMap . sequenceMap
+        cleanSMap = leftFactorSequenceMap . fmap removeDefaultWS . sequenceMap
+        removeDefaultWS::Sequence->Sequence
+        removeDefaultWS [] = []
+        removeDefaultWS (WhiteSpace _:rest) = WhiteSpace NoDefaultWS:removeDefaultWS rest
+        removeDefaultWS (Or seqs:rest) = Or (removeDefaultWS <$> seqs):removeDefaultWS rest
+        removeDefaultWS (List minCount sq:rest) = List minCount (removeDefaultWS sq):removeDefaultWS rest
+        removeDefaultWS (SepBy minCount sq sep:rest) = SepBy minCount (removeDefaultWS sq) (removeDefaultWS sep):removeDefaultWS rest
+        removeDefaultWS (EQuote minCount sq:rest) = EQuote minCount (removeDefaultWS sq):removeDefaultWS rest
+        removeDefaultWS (Option sq:rest) = Option (removeDefaultWS sq):removeDefaultWS rest
+        removeDefaultWS (expr:rest) = expr:removeDefaultWS rest
 
 createEParserForClass::String->Grammar->EParser
 createEParserForClass startRule g s =
@@ -130,7 +138,7 @@ createEParserForClass startRule g s =
             $ checkForVarConsistency []
             $ fillInVariableAssignments
             $ fillInFutureItems
-            $ (rawParse (parseTree g startRule) (createLString s))
+            $ rawParse (parseTree g startRule) (createLString s)
 
 createParserForClass::String->Grammar->Parser
 createParserForClass startRule g s =

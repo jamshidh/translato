@@ -15,7 +15,7 @@
 
 module GrammarTools (
     isA,
-    orIfy,
+    orify,
     prepend,
     (+++),
     isBlockClass,
@@ -188,10 +188,10 @@ x +++ y@(Out eSequence2:rest2) = case last x of
     _ -> x ++ y
 x +++ y = x ++ y
 
-orIfy::[Sequence]->Sequence
-orIfy [sq] = sq
-orIfy [] = []
-orIfy seqs = [Or (seqs >>= removeOr)]
+orify::[Sequence]->Sequence
+orify [sq] = sq
+orify [] = []
+orify seqs = [Or (seqs >>= removeOr)]
     where
         removeOr (Or sqs:rest) = (++ rest) <$> sqs
         removeOr sq = [sq]

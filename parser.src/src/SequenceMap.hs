@@ -41,7 +41,7 @@ sequenceMap::Grammar->SequenceMap
 sequenceMap g =
     union
         (fromList (fmap (classSequence g) <$> (M.toList $ classes g)))
-        (fmap orIfy (fromListWith (++) ((\rule -> (name rule, [rawSequence rule])) <$> allRules)))
+        (fmap orify (fromListWith (++) ((\rule -> (name rule, [rawSequence rule])) <$> allRules)))
             where
                 allRules = elems (classes g) >>= rules
 
@@ -52,10 +52,10 @@ classSequence g cl =
     ++ (if classIsBlocking then [Out [EndBlock]] else [])
     where
         classIsBlocking = isBlockClass g cl
-        prefix = orIfy (nonSelfRule ++ selfRule)
+        prefix = orify (nonSelfRule ++ selfRule)
         selfRule::[Sequence]
         selfRule = rawSequence <$> filter ((== className cl) . name) (rules cl)
         nonSelfRule::[Sequence]
         nonSelfRule = replicate 1 <$> Link <$>
                             ((filter (/= className cl) (nub $ name <$> rules cl)) ++ (parentNames cl))
-        suffix = orIfy (suffixSeqs cl)
+        suffix = orify (suffixSeqs cl)

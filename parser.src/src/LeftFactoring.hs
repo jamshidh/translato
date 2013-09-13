@@ -34,35 +34,98 @@ import SequenceMap
 --import JDebug
 
 leftFactor::SequenceMap->Sequence->Sequence
-leftFactor sm sq = --jtrace ("\n=======\nfactoring:" ++ formatSequence sq ++ "\n=============\n") $
-{--    jtrace ("--------" ++ (formatSequence $ concatOuts (fromJust $ lookup "command" sm))) $
-    jtrace ("--------" ++ (formatSequence $ concatOuts $ prepareForLeftFactor sm $ concatOuts (fromJust $ lookup "command" sm))) $
-    jtrace ("--------" ++ (formatSequence $ prepareForLeftFactor sm $ concatOuts $ prepareForLeftFactor sm $ concatOuts (fromJust $ lookup "command" sm))) $--}
-    (leftFactor' . concatOuts . prepareForLeftFactor sm . concatOuts . prepareForLeftFactor sm) sq
+leftFactor sm = leftFactor' . prepareForLeftFactor sm
 
 leftFactor'::Sequence->Sequence
-leftFactor' (Or []:rest) = concatOuts $ leftFactor' rest
-leftFactor' (Or [sq]:rest) = concatOuts $ leftFactor' (sq ++ rest)
-leftFactor' (Or items:rest) = --jtrace ("Left factoring: " ++ intercalate "\n  " (map show items)) $
-    orIfy (makeSeq <$> theMap) ++ leftFactor' rest
+leftFactor' (Or []:rest) = leftFactor' rest
+leftFactor' (Or [sq]:rest) = leftFactor' (sq ++ rest)
+leftFactor' (Or items:rest) =
+    orify (recombine <$> sortAndGroupUsing factorClass (splitFirstTok <$> items)) ++ leftFactor' rest
     where
-        theMap = toList (fromListWith (++) (fmap (replicate 1) <$> splitFirstTok <$> items))
-        makeSeq::(Maybe Sequence, [Sequence])->Sequence
---        makeSeq (Just [EmptyEStart, exp], [EInfo name atts:oneSeq]) = EStart name atts:exp:oneSeq
-        makeSeq (Just [Out [FutureItem Nothing], expr], seqs) | length firstItems == 1 =
-            case firstItems of
-                [Out [ItemInfo eString]] ->
-                    Out eString `prepend` (expr `prepend` (concatOuts $ leftFactor' [Or (tail <$> seqs)]))
-                where
-                    firstItems = nub [exp2|exp2@(Out _):_<-seqs]
-        makeSeq (Just first, rest2) = first +++ (concatOuts $ leftFactor' $ orIfy rest2)
-        makeSeq (Nothing, rest2) = orIfy rest2
-leftFactor' (x:rest) = x:(concatOuts $ leftFactor' rest)
+        factorClass fp = (firstTok fp, null $ outValue fp)  -- Used to fingerprint the token
+
+leftFactor' (x:rest) = x:leftFactor' rest
 leftFactor' [] = []
+
+sortAndGroupUsing::(Eq b, Ord b)=>(a->b)->[a]->[[a]]
+sortAndGroupUsing f = groupBy ((==) `on` f) . sortBy (compare `on` f)
+
+
+
+---------------------------
+
+--This first section is a set of tools to remove the initial 'token' from a sequence, including
+--any whitespace or 'Out' data, then recombine once the factoring is done.
+
+--This represents a Sequence, with its first 'token' split away from the rest.
+--It is kind of like the first element of a list (split away with a 'head'), except it contains
+--extra information held in the first few (non token) items of a sequence, like Out value and default WS.
+--Also, note that the analogy breaks apart, in that theRemainder holds the 'tail' information.
+data FirstParsedSeq =
+    FirstParsedSeq{
+        firstTok::Maybe Expression,
+        outValue::EString,
+        defltWSValue::Maybe DefaultWS,
+        theRemainder::Sequence
+    } deriving (Show)
+
+--This is like 'head' for FirstParsedSeq.
+splitFirstTok::Sequence->FirstParsedSeq
+splitFirstTok (expr@(Link _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
+splitFirstTok (expr@(TextMatch _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
+splitFirstTok (expr@(Character _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
+splitFirstTok (expr@(List _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
+splitFirstTok (expr@(SepBy _ _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
+splitFirstTok (expr@(Or _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
+splitFirstTok (expr@FallBack:rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
+splitFirstTok (Out eString:rest) = fp{outValue=eString ++ outValue fp}
+    where fp = splitFirstTok rest
+splitFirstTok (WhiteSpace defltWS:rest) = FirstParsedSeq (Just $ WhiteSpace FutureWS) (e "") (Just defltWS) rest
+splitFirstTok [] = FirstParsedSeq{
+        firstTok = Nothing,
+        outValue = e "",
+        defltWSValue = Nothing,
+        theRemainder = []
+}
+splitFirstTok sq = error ("Missing case in splitFirstTok: " ++ formatSequence sq)
+
+
+
+recombine::[FirstParsedSeq]->Sequence
+recombine [] = error "Huh, shouldn't be here"
+recombine fps =
+    case (defltWSs, outs) of
+        ([Just defltWS], [outVal]) -> outify outVal ++ [WhiteSpace defltWS]
+            ++ leftFactor' (orify (theRemainder <$> fps))
+        ([Just defltWS], _) -> [Out [FutureItem Nothing], WhiteSpace defltWS]
+            ++ leftFactor' (orify ((\fp -> Out [ItemInfo (outValue fp)]:theRemainder fp) <$> fps))
+        (_, [outVal]) -> outify outVal ++ maybeToList uniqueFirstTok
+            ++ leftFactor' (orify ((\fp -> outify (DelayedWS <$> (maybeToList $ defltWSValue fp)) ++ theRemainder fp) <$> fps))
+        (_, _) -> [Out [FutureItem Nothing]] ++ maybeToList uniqueFirstTok
+            ++ leftFactor' (orify ((\fp -> Out ([ItemInfo (outValue fp)] ++ (DelayedWS <$> (maybeToList $ defltWSValue fp))):theRemainder fp) <$> fps))
+    where
+        defltWSs = nub (defltWSValue <$> fps)
+        outs = nub (outValue <$> fps)
+        [uniqueFirstTok] = nub (firstTok <$> fps) -- This must be a single item, or there was a bug
+        outify x = if null x then [] else [Out x]
+
+
+leftFactorSequenceMap::SequenceMap->SequenceMap
+leftFactorSequenceMap sm = leftFactor sm <$> sm
+
+
+
+
+-----------------------------------------------
+
+--This last section is tools to expand as many "Link"s as needed to compare the beginnings of
+--sequences in an Or, and factor them out.
+
+
 
 prepareForLeftFactor::SequenceMap->Sequence->Sequence
 prepareForLeftFactor sMap [Or sequences] =
-    orIfy $ expandEStart <$> expandToToken <$> sequences
+    orify $ expandEStart <$> expandToToken <$> sequences
     where
         expandToToken::Sequence->Sequence
         expandToToken (c:rest) | c `elem` stopList = c:rest
@@ -71,45 +134,16 @@ prepareForLeftFactor sMap [Or sequences] =
                     Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ linkName)
                     Just sq -> expandToToken (sq +++ rest)
         expandToToken (Out eString:rest) = Out eString `prepend` expandToToken rest
-        expandToToken (Or seqs:rest) = orIfy (expandToToken <$> seqs) +++ rest
+        expandToToken (Or seqs:rest) = orify (expandToToken <$> seqs) +++ rest
         expandToToken sq = sq
 
         expandEStart::Sequence->Sequence
-        expandEStart (Out eString:Or seqs:rest) = orIfy ((Out eString `prepend`) <$> seqs) +++ rest
-        expandEStart (Or seqs:rest) = orIfy (expandEStart <$> seqs) +++ rest
+        expandEStart (Out eString:Or seqs:rest) = orify ((Out eString `prepend`) <$> seqs) +++ rest
+        expandEStart (Or seqs:rest) = orify (expandEStart <$> seqs) +++ rest
         expandEStart x = x
 
         stopList = getStopList (getChainOfFirsts sMap =<< sequences)
 prepareForLeftFactor _ sq = sq
-
-concatOuts::Sequence->Sequence
-concatOuts (Out eString1:Out eString2:rest) = concatOuts (Out (eString1 ++ eString2):rest)
-concatOuts (Or seqs:rest) = (orIfy $ concatOuts <$> seqs) ++ concatOuts rest
-concatOuts (expr:rest) = expr:concatOuts rest
-concatOuts [] = []
---concatOuts seq = error ("Missing case in concatOuts: " ++ show seq)
-
-splitFirstTok::Sequence->(Maybe Sequence, Sequence)
-splitFirstTok (Link linkName:rest) = (Just [Link linkName], rest)
-splitFirstTok (TextMatch text itemName:rest) = (Just [TextMatch text itemName], rest)
-splitFirstTok (Character charset itemName:rest) = (Just [Character charset itemName], rest)
-splitFirstTok (List count sq:rest) = (Just [List count sq], rest)
-splitFirstTok (SepBy count sq sep:rest) = (Just [SepBy count sq sep], rest)
---splitFirstTok (Out estring:rest) = (Just [Out estring], rest)
-splitFirstTok (Or seqs:rest) = (Just [Or seqs], rest)
-splitFirstTok (FallBack:rest) = (Just [FallBack], rest)
-splitFirstTok (WhiteSpace _:rest) = (Just [WhiteSpace " "], rest)
-splitFirstTok (Out eString1:Out eString2:rest) = splitFirstTok (Out (eString1 ++ eString2):rest)
-splitFirstTok (Out [ItemInfo eString]:rest) = (nextTok, Out [ItemInfo eString]:nextSeq)
-    where (nextTok, nextSeq) = splitFirstTok rest
-splitFirstTok (Out eString:rest) = (nextTok >>= Just . (Out [FutureItem Nothing]:), Out [ItemInfo eString]:nextSeq)
-    where (nextTok, nextSeq) = splitFirstTok rest
-splitFirstTok [] = (Nothing, [])
-splitFirstTok sq = error ("Missing case in splitFirstTok: " ++ formatSequence sq)
-
-leftFactorSequenceMap::SequenceMap->SequenceMap
-leftFactorSequenceMap sm = fmap (leftFactor sm) sm
-
 
 
 

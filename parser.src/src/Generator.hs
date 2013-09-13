@@ -153,9 +153,11 @@ seq2EString _ _ (Link linkName:_) _ (firstChild:_) =
         [Fail $ Error dummyRanges ("Expecting element with tagname '" ++ linkName ++ "', found " ++ showCursor firstChild)]
 
 seq2EString g sMap (TextMatch text _:rest) c children = e text ++ seq2EString g sMap rest c children
-seq2EString g sMap (WhiteSpace defltWS:rest) c children = e defltWS  ++ seq2EString g sMap rest c children
+seq2EString g sMap (WhiteSpace defltWS:rest) c children = WSItem defltWS:seq2EString g sMap rest c children
+--seq2EString g sMap (WhiteSpace (WSString defltWS):rest) c children = e defltWS  ++ seq2EString g sMap rest c children
 seq2EString g sMap (Out [TabRight tabString]:rest) c children = TabRight tabString:seq2EString g sMap rest c children
 seq2EString g sMap (Out [TabLeft]:rest) c children = TabLeft:seq2EString g sMap rest c children
+seq2EString g sMap (Out [DelayedWS defltWS]:rest) c children = DelayedWS defltWS:seq2EString g sMap rest c children
 seq2EString _ _ (EOF:_) c [] | null $ following c = []
 seq2EString _ _ (EOF:_) c _ | null $ following c = error "Expected EOF, but there are still children"
 seq2EString _ _ (EOF:_) _ _ = error "Expected EOF, but there is stuff after"
@@ -175,7 +177,8 @@ useTextNode (c:cs) sq@(SepBy 0 [Character charset _] sep:rest) | c `isIn` charse
     useTextNode cs sq --Just keep consuming the string until the next character doesn't match
 useTextNode s (SepBy minCount sq sep:rest) =
     useTextNode s (sq ++ SepBy (minCount-1) sq sep:rest)
-useTextNode (c:cs) sq =  error ("Missing case in useTextNode: " ++ formatSequence sq)
+useTextNode s sq =
+    error ("Missing case in useTextNode:\n    string=" ++ show s ++ "\n    sequence=" ++ formatSequence sq)
 
 --TODO add the separator between elements
 applyTemplates::Grammar->SequenceMap->[Cursor]->String->Sequence->Bool->(EString, [Cursor])
@@ -198,7 +201,7 @@ applyTemplates _ _ children _ _ _ = ([], children)
 sep2String::Sequence->EString
 sep2String [] = []
 sep2String (TextMatch s _:rest) = e s ++ sep2String rest
-sep2String (WhiteSpace defltWS:rest) = e defltWS ++ sep2String rest
+sep2String (WhiteSpace (WSString defltWS):rest) = e defltWS ++ sep2String rest
 
 --fingerprint format:
 -- cursor fingerprint = (attributes, firstChild tag) = what we actually have

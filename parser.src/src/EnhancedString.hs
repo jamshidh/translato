@@ -15,6 +15,7 @@
 -----------------------------------------------------------------------------
 
 module EnhancedString (
+    DefaultWS(..),
     EChar (..),
     EString,
     Associativity(..),
@@ -40,6 +41,8 @@ data Associativity = LeftAssoc | RightAssoc | UseEndCap deriving (Eq, Ord, Show)
 
 data InfixOp = InfixOp{opName::String, opPriority::Int, opAssociativity::Associativity} deriving (Eq, Ord)
 
+data DefaultWS = WSString String | FutureWS | EmptyWS | NoDefaultWS deriving (Eq, Ord, Show)
+
 data EChar =
     Ch Char
     | EStart String [String]
@@ -49,6 +52,8 @@ data EChar =
     | NestedItem EString
     | FutureItem (Maybe LS.LString)
     | ItemInfo EString
+    | WSItem DefaultWS
+    | DelayedWS DefaultWS
     | VOut String
     | VStart String (Maybe LS.LString) --The LString is only added for error reporting, to know the location of the string
     | VEnd
@@ -72,6 +77,7 @@ instance Show EChar where
     show (FilledInEStart tagName atts) = cyan ("<" ++ tagName ++ concat ((" " ++) <$> (\(tagName', val) -> tagName' ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">")
     show (FutureItem _) = cyan ("<??>")
     show (ItemInfo eString) = cyan ("{itemInfo=" ++ show eString ++ "}")
+    show (DelayedWS defltWS) = cyan ("{delayedWS=" ++ show defltWS ++ "}")
     show (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
     show (NestedItem s) = yellow "<<<" ++ show s ++ yellow ">>>"
     show (VOut attrName) = green ("[" ++ attrName ++ "]")
@@ -110,6 +116,8 @@ chs2String (NestedItem s:rest) = yellow "<<<" ++ show s ++ yellow ">>>" ++ chs2S
 chs2String (VAssign attrName maybeVal _:rest) = green ("assign{" ++ attrName ++ "=" ++ formatMaybe maybeVal ++ "}") ++ chs2String rest
 chs2String (FutureItem _:rest) = blue "<??>" ++ chs2String rest
 chs2String (ItemInfo eString:rest) = blue ("{itemInfo=" ++ show eString ++ "}") ++ chs2String rest
+chs2String (WSItem defltWS:rest) = blue ("{wsItem=" ++ show defltWS ++ "}") ++ chs2String rest
+chs2String (DelayedWS defltWS:rest) = blue ("{delayedWS=" ++ show defltWS ++ "}") ++ chs2String rest
 chs2String (TabRight _:_) = error "There shouldn't be a tabright in chs2String"
 chs2String (TabLeft:_) = error "There shouldn't be a tableft in chs2String"
 chs2String (Unknown:rest) = red "Unknown" ++ chs2String rest
@@ -149,8 +157,14 @@ expandTabs tab (x:rest) = x:(expandTabs tab rest)
 expandTabs _ [] = []
 
 expandWhitespace::EString->EString
-expandWhitespace (Ch x:Ch '_':Ch y:rest) | isAlphaNum x && isAlphaNum y = Ch x:Ch ' ':Ch y:(expandWhitespace rest)
-expandWhitespace (Ch '_':rest) = expandWhitespace rest
+expandWhitespace (WSItem (WSString defltWS):rest) = e defltWS ++ expandWhitespace rest
+expandWhitespace (WSItem FutureWS:rest) = expandWhitespace (WSItem futureDefltWS:rest2)
+    where
+        (futureDefltWS, rest2) = getFutureDefltWS rest
+        getFutureDefltWS::EString->(DefaultWS, EString)
+        getFutureDefltWS (DelayedWS defltWS:rest) = (defltWS, rest)
+expandWhitespace (Ch x:WSItem EmptyWS:Ch y:rest) | isAlphaNum x && isAlphaNum y = Ch x:Ch ' ':Ch y:(expandWhitespace rest)
+expandWhitespace (WSItem EmptyWS:rest) = expandWhitespace rest
 expandWhitespace (c:rest) = c:(expandWhitespace rest)
 expandWhitespace [] = []
 

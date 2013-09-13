@@ -39,13 +39,13 @@ script =><script_>
 
 script =><script src="@src([^"]*)">_</script>;
 
-element =><@tagName {attribute}* />;
+element =><@tagName_{attribute}*_/>;
 
 element =>{node}*;
 
 text => {word}+;
 
-left: <@tagName {attribute}*_>
+left: <@tagName_{attribute}*_>
 ;
 
 right: _</@tagName>;

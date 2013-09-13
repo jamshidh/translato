@@ -65,7 +65,7 @@ parseSimpleClass =
             rules=[rule],
             suffixSeqs=[],
             operators=[],
-            separator=[WhiteSpace " "],
+            separator=[WhiteSpace (WSString " ")],
             left=[],
             right=[],
             parentNames=[]
@@ -107,7 +107,7 @@ parseFullClass =
                 suffixSeqs=[],
                 operators=concat [operators|OperatorsItem operators<-itemsWithPriority],
                 separator=case [separator|SeparatorItem separator<-itemsWithPriority] of
-                    [] -> [WhiteSpace " "]
+                    [] -> [WhiteSpace (WSString " ")]
                     [x] -> x
                     _ -> error "Only one separator allowed for a class",
                 left=case [left|LeftItem left<-itemsWithPriority] of
@@ -217,8 +217,10 @@ parseQuote =
 
 string2Sequence::String->Sequence
 string2Sequence [] = []
-string2Sequence ('_':rest) = WhiteSpace "":string2Sequence rest
-string2Sequence s | isSpace (head s) = WhiteSpace first:string2Sequence rest
+string2Sequence ('_':rest) = WhiteSpace EmptyWS:string2Sequence rest
+--TODO This allows for default space like " _ " (which doesn't make sense), then
+-- doesn't even treat the _ properly.  This is a minor problem, I won't fix it now.
+string2Sequence s | isSpace (head s) = WhiteSpace (WSString first):string2Sequence rest
     where (first, rest) = break (not . isSpaceOrUnderscore) s
 string2Sequence s = TextMatch first Nothing:string2Sequence rest
     where (first, rest) = break isSpaceOrUnderscore s

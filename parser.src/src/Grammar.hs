@@ -60,7 +60,7 @@ type Sequence = [Expression]
 
 data Expression =
     TextMatch String (Maybe String) --The 'Maybe String' is only used for error reporting
-    | WhiteSpace String
+    | WhiteSpace DefaultWS
     | Character CharSet (Maybe String) --The 'Maybe String' is only used for error reporting
     | EOF
     | Or [Sequence]
@@ -99,6 +99,7 @@ formatExpression' level (SepBy minCount expr sep) = "SepBy" ++ (if (minCount > 0
 formatExpression' level (EQuote minCount expr) = "EQuote" ++ (if (minCount > 0) then show minCount else "") ++ "(" ++ formatSequence' level expr ++ ")"
 formatExpression' level (Option expr) = "Option" ++ "(" ++ formatSequence' level expr ++ ")"
 formatExpression' _ (TextMatch text _) = show text
+formatExpression' _ (WhiteSpace FutureWS) = "_??_"
 formatExpression' _ (WhiteSpace _) = "_"
 
 safeDrawETree::Tree Expression->String

@@ -20,6 +20,7 @@ module GrammarParser (
 ) where
 
 import Control.Arrow hiding (left, right)
+import Control.Lens
 import Data.Char hiding (Space)
 import Data.Functor
 import Data.List
@@ -52,12 +53,12 @@ parseGrammar =
 
         let mainClassName =
                 case classList of
-                    (cl:_) -> className cl
+                    (cl:_) -> cl^.className
                     _ -> error "Grammar contains no classes"
 
         return (Grammar
                     mainClassName
-                    (M.fromList ((className&&&id) <$> classList)))
+                    (M.fromList (((^.className)&&&id) <$> classList)))
 
 
 parseClass = parseFullClass <|> parseSimpleClass
@@ -66,16 +67,7 @@ parseSimpleClass =
     do
         RuleItem rule<-parseRule
         spaces
-        return Class {
-            className=name rule,
-            rules=[rule],
-            suffixSeqs=[],
-            operators=[],
-            separator=[WhiteSpace (WSString " ")],
-            left=[],
-            right=[],
-            parentNames=[]
-        }
+        return (Class [rule] [] [] [WhiteSpace (WSString " ")] (name rule) [] [] [])
 
 data ClassItem =
     RuleItem Rule
@@ -107,26 +99,26 @@ parseFullClass =
         many (char '=')
         return (classWithPriorities items name parents)
         where
-            classWithPriorities items name parents = Class {
-                className=name,
-                rules=[rule|RuleItem rule<-itemsWithPriority],
-                suffixSeqs=[],
-                operators=concat [operators|OperatorsItem operators<-itemsWithPriority],
-                separator=case [separator|SeparatorItem separator<-itemsWithPriority] of
-                    [] -> [WhiteSpace (WSString " ")]
-                    [x] -> x
-                    _ -> error "Only one separator allowed for a class",
-                left=case [left|LeftItem left<-itemsWithPriority] of
-                    [] -> []
-                    [x] -> x
-                    _ -> error "Only one left allowed for a class",
-                right=case [right|RightItem right<-itemsWithPriority] of
-                    [] -> []
-                    [x] -> x
-                    _ -> error "Only one right allowed for a class",
-                parentNames=parents
-                }
-                where itemsWithPriority = addPriorityToItems 0 items
+            classWithPriorities items name parents =
+                (Class
+                        [rule|RuleItem rule<-itemsWithPriority]
+                        []
+                        (concat [operators|OperatorsItem operators<-itemsWithPriority])
+                        (getUnique
+                                "separator"
+                                [WhiteSpace (WSString " ")]
+                                [separator|SeparatorItem separator<-itemsWithPriority])
+                        name
+                        (getUnique "left" [] [left|LeftItem left<-itemsWithPriority])
+                        (getUnique "right" [] [right|RightItem right<-itemsWithPriority])
+                        parents)
+                where
+                    itemsWithPriority = addPriorityToItems 0 items
+                    getUnique::String->Sequence->[Sequence]->Sequence
+                    getUnique name deflt items=case items of
+                        [] -> deflt
+                        [x] -> x
+                        _ -> error ("Only one " ++ name ++ " allowed for a class")
 
             addPriorityToItems::Int->[ClassItem]->[ClassItem]
             addPriorityToItems p (RuleItem rule:rest) = RuleItem (rule{rulePriority=p}):addPriorityToItems (p+1) rest

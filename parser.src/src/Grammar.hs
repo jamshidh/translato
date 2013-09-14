@@ -18,7 +18,8 @@ module Grammar (
     Sequence,
     Expression(..),
     Operator(..),
-    Class(..),
+    Class(Class),
+    HasClass(..),
     parents,
     RuleName,
     Name,
@@ -132,28 +133,29 @@ type Name = String
 type Separator = Sequence
 
 data Class = Class {
-    rules::[Rule],
-    suffixSeqs::[Sequence], --Left recursion is removed from a grammar, and replaced with suffix sequences. IE- exp->exp '+' exp can be rewritten as suffix ('+' exp)*
-    operators::[Operator],
-    separator::Separator,
-    className::ClassName,
-    left::Sequence,
-    right::Sequence,
-    parentNames::[String]
+    _rules::[Rule],
+    _suffixSeqs::[Sequence], --Left recursion is removed from a grammar, and replaced with suffix sequences. IE- exp->exp '+' exp can be rewritten as suffix ('+' exp)*
+    _operators::[Operator],
+    _separator::Separator,
+    _className::ClassName,
+    _left::Sequence,
+    _right::Sequence,
+    _parentNames::[String]
     } deriving (Eq, Show)
+$(makeClassy ''Class)
 
 formatClass::Class->String
-formatClass c = "====[" ++ className c
-        ++ (if null (parentNames c) then "" else ":" ++ intercalate "," (parentNames c))
+formatClass c = "====[" ++ c^.className
+        ++ (if null (c^.parentNames) then "" else ":" ++ intercalate "," (c^.parentNames))
         ++ "]====\n  "
-        ++ intercalate "  " (formatRule <$> rules c)
-        ++ concat (("\n  suffix: " ++) <$>  (map formatSequence (suffixSeqs c)))
-        ++ "  separator: " ++ formatSequence (separator c) ++ "\n"
-        ++ "  left: " ++ formatSequence (left c) ++ "\n"
-        ++ "  right: " ++ formatSequence (right c) ++ "\n"
-        ++ (if (length (operators c) > 0)
-            then "  operators: " ++ intercalate ", " (formatOperator <$> operators c) ++ "\n" else "")
-        ++ "====[/" ++ className c ++ "]===="
+        ++ intercalate "  " (formatRule <$> c^.rules)
+        ++ concat (("\n  suffix: " ++) <$>  (formatSequence <$> c^.suffixSeqs))
+        ++ "  separator: " ++ formatSequence (c^.separator) ++ "\n"
+        ++ "  left: " ++ formatSequence (c^.left) ++ "\n"
+        ++ "  right: " ++ formatSequence (c^.right) ++ "\n"
+        ++ (if (length (c^.operators) > 0)
+            then "  operators: " ++ intercalate ", " (formatOperator <$> c^.operators) ++ "\n" else "")
+        ++ "====[/" ++ c^.className ++ "]===="
 
 
 --classes = 1 --lens _classes (\g v -> g { _classes = v })
@@ -165,7 +167,7 @@ data Grammar = Grammar { _main::String
 $(makeLenses ''Grammar)
 
 parents::Grammar->Class->[Class]
-parents g cl = fromJust <$> (`lookup` (g^.classes)) <$> parentNames cl
+parents g cl = fromJust <$> (`lookup` (g^.classes)) <$> cl^.parentNames
 
 
 formatGrammar::Grammar->String

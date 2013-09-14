@@ -124,8 +124,7 @@ leftFactorSequenceMap sm = leftFactor sm <$> sm
 
 
 prepareForLeftFactor::SequenceMap->Sequence->Sequence
-prepareForLeftFactor sMap [Or sequences] =
-    orify $ expandEStart <$> expandToToken <$> sequences
+prepareForLeftFactor sMap [Or sequences] = orify $ expandEStart <$> expandToToken <$> sequences
     where
         expandToToken::Sequence->Sequence
         expandToToken (c:rest) | c `elem` stopList = c:rest

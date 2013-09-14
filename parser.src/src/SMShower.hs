@@ -64,7 +64,7 @@ showSequenceMap simplify args = do
                             Nothing -> error ("Error: '" ++ ruleName' ++ "' isn't in the sequenceMap")
 
 showSimplifiedSequenceMapMain::[String]->IO ()
-showSimplifiedSequenceMapMain = showGeneratorSequenceMap True
+showSimplifiedSequenceMapMain = showSequenceMap True
 
 showSequenceMapMain::[String]->IO ()
 showSequenceMapMain = showSequenceMap False

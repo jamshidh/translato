@@ -131,14 +131,14 @@ prepareForLeftFactor sMap [Or sequences] = orify $ expandEStart <$> expandToToke
         expandToToken (Link linkName:rest) =
                 case lookup linkName sMap of
                     Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ linkName)
-                    Just sq -> expandToToken (sq +++ rest)
+                    Just sq -> expandToToken (sq ++ rest)
         expandToToken (Out eString:rest) = Out eString `prepend` expandToToken rest
-        expandToToken (Or seqs:rest) = orify (expandToToken <$> seqs) +++ rest
+        expandToToken (Or seqs:rest) = orify (expandToToken <$> seqs) ++ rest
         expandToToken sq = sq
 
         expandEStart::Sequence->Sequence
-        expandEStart (Out eString:Or seqs:rest) = orify ((Out eString `prepend`) <$> seqs) +++ rest
-        expandEStart (Or seqs:rest) = orify (expandEStart <$> seqs) +++ rest
+        expandEStart (Out eString:Or seqs:rest) = orify ((Out eString `prepend`) <$> seqs) ++ rest
+        expandEStart (Or seqs:rest) = orify (expandEStart <$> seqs) ++ rest
         expandEStart x = x
 
         stopList = getStopList (getChainOfFirsts sMap =<< sequences)

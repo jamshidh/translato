@@ -17,13 +17,15 @@
 module Grammar (
     Sequence,
     Expression(..),
-    Operator(..),
+    Operator(Operator),
+    HasOperator(..),
     Class(Class),
     HasClass(..),
     parents,
     RuleName,
     Name,
-    Rule(..),
+    Rule(Rule),
+    HasRule(..),
     Grammar(Grammar),
     main,
     classes,
@@ -51,15 +53,9 @@ import TreeTools
 
 --import JDebug
 
-data Operator =
-    Operator {
-        symbol::Sequence,
-        priority::Int,
-        associativity::Associativity
-    } deriving (Eq, Show)
 
-formatOperator::Operator->String
-formatOperator opr = show (priority opr) ++ ":" ++ formatSequence (symbol opr)
+
+
 
 type Sequence = [Expression]
 
@@ -113,18 +109,31 @@ safeDrawETree = safeDrawTree . (fmap formatExpression)
 safeDrawEForest::Forest Expression->String
 safeDrawEForest = safeDrawForest. (fmap formatExpression <$>)
 
+data Operator =
+    Operator {
+        _symbol::Sequence,
+        _priority::Int,
+        _associativity::Associativity
+    } deriving (Eq, Show)
+$(makeClassy ''Operator)
+
+formatOperator::Operator->String
+formatOperator opr = show (opr^.priority) ++ ":" ++ formatSequence (opr^.symbol)
+
 type RuleName = String
 
 
-data Rule = Rule {
-    rulePriority::Int,
-    name::String,
-    rawSequence::Sequence
+data Rule = Rule{
+    _rulePriority::Int,
+    _name::String,
+    _rawSequence::Sequence
     } deriving (Eq, Show)
+$(makeClassy ''Rule)
 
 
 formatRule::Rule->String
-formatRule Rule{name=ruleName,rawSequence=sq,rulePriority=p} = show p ++ ":" ++ blue (ruleName) ++ " => " ++ formatSequence sq ++ "\n"
+formatRule r =
+    show (r^.rulePriority) ++ ":" ++ blue (r^.name) ++ " => " ++ formatSequence (r^.rawSequence) ++ "\n"
 
 type ClassName=String
 

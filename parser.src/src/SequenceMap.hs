@@ -19,6 +19,7 @@ module SequenceMap (
     formatSequenceMap
 ) where
 
+import Control.Arrow
 import Control.Lens
 import Data.Functor
 import Data.List hiding (union)
@@ -42,7 +43,7 @@ sequenceMap::Grammar->SequenceMap
 sequenceMap g =
     union
         (fromList (fmap (classSequence g) <$> (M.toList $ g^.classes)))
-        (fmap orify (fromListWith (++) ((\rule -> (name rule, [rawSequence rule])) <$> allRules)))
+        (fmap orify (fromListWith (++) (((^.name)&&&((:[]) . (^.rawSequence))) <$> allRules)))
             where
                 allRules = elems (g^.classes) >>= (^.rules)
 
@@ -55,8 +56,8 @@ classSequence g cl =
         classIsBlocking = isBlockClass g cl
         prefix = orify (nonSelfRule ++ selfRule)
         selfRule::[Sequence]
-        selfRule = rawSequence <$> filter ((== cl^.className ) . name) (cl^.rules)
+        selfRule = (^.rawSequence) <$> filter ((== cl^.className ) . (^.name)) (cl^.rules)
         nonSelfRule::[Sequence]
-        nonSelfRule = replicate 1 <$> Link <$>
-                            ((filter (/= cl^.className) (nub $ name <$> cl^.rules)) ++ cl^.parentNames)
+        nonSelfRule = (:[]) <$> Link <$>
+                            ((filter (/= cl^.className) (nub $ (^.name) <$> cl^.rules)) ++ cl^.parentNames)
         suffix = orify (cl^.suffixSeqs)

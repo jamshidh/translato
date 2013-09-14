@@ -67,7 +67,7 @@ parseSimpleClass =
     do
         RuleItem rule<-parseRule
         spaces
-        return (Class [rule] [] [] [WhiteSpace (WSString " ")] (name rule) [] [] [])
+        return (Class [rule] [] [] [WhiteSpace (WSString " ")] (rule^.name) [] [] [])
 
 data ClassItem =
     RuleItem Rule
@@ -121,11 +121,10 @@ parseFullClass =
                         _ -> error ("Only one " ++ name ++ " allowed for a class")
 
             addPriorityToItems::Int->[ClassItem]->[ClassItem]
-            addPriorityToItems p (RuleItem rule:rest) = RuleItem (rule{rulePriority=p}):addPriorityToItems (p+1) rest
+            addPriorityToItems p (RuleItem rule:rest) = RuleItem ((rulePriority `set` p) rule):addPriorityToItems (p+1) rest
             addPriorityToItems p (Comment:rest) = Comment:addPriorityToItems p rest
             addPriorityToItems p (OperatorsItem ops:rest) =
-                        OperatorsItem (addPriority p <$> ops):addPriorityToItems (p+(length ops)) rest
-                            where addPriority p op = op{priority=p+priority op}
+                        OperatorsItem ((priority %~ (p+)) <$> ops):addPriorityToItems (p+(length ops)) rest
             addPriorityToItems p (SeparatorItem separator:rest) = SeparatorItem separator:addPriorityToItems p rest
             addPriorityToItems p (LeftItem seq:rest) = LeftItem seq:addPriorityToItems p rest
             addPriorityToItems p (RightItem seq:rest) = RightItem seq:addPriorityToItems p rest
@@ -148,14 +147,17 @@ parseRule =
         string ";"
         many (char '-')
         spaces
-        return (RuleItem Rule{name=name, rawSequence=sequence, rulePriority=0}) -- I will reset the rulePriority using the order of rules later
+        return (RuleItem (Rule 0 name sequence)) -- I will reset the rulePriority using the order of rules later
 
+
+--TODO clean this if you can
 parseOperators =
     do
         string "operators:"
         spaces
         operatorSequences <- endBy parseOperator spaces
-        return (OperatorsItem ((\(priority, associativity, symbol) -> Operator{symbol=symbol,priority=priority,associativity=associativity}) <$> addPriority 0 operatorSequences))
+        return (OperatorsItem ((\(priority, associativity, symbol) ->
+            (Operator symbol priority associativity)) <$> addPriority 0 operatorSequences))
     where
         addPriority::Int->[(Associativity, Sequence)]->[(Int, Associativity, Sequence)]
         addPriority p ((assoc, seq):rest) = (p, assoc, seq):addPriority (p+1) rest

@@ -306,11 +306,11 @@ addTabs g = modifySeqsInGrammar addTabsToSeq g
         addTabsToSeq (WhiteSpace (WSString defltWS):expr@(List _ _):rest) =  rebuildIt defltWS expr rest
         addTabsToSeq (expr:rest) = expr:addTabsToSeq rest
 
-        rebuildIt defltWS expr rest | '\n' `elem` defltWS =
-            WhiteSpace (WSString prefixWS):Out [TabRight tabSpaces]:expr:Out [TabLeft]:addTabsToSeq rest
-                where
-                    [[_, prefixWS, tabSpaces]] = defltWS =~ "^(.*\n+)(.*)$"
-        rebuildIt defltWS expr rest = WhiteSpace (WSString defltWS):addTabsToSeq (expr:rest)
+        rebuildIt defltWS expr rest =
+            case defltWS =~ "^(.*\n+)([^\\s]+)$" of
+                [] -> WhiteSpace (WSString defltWS):addTabsToSeq (expr:rest)
+                [[_, prefixWS, tabSpaces]] ->
+                    Out [TabRight tabSpaces]:WhiteSpace (WSString prefixWS):expr:Out [TabLeft]:addTabsToSeq rest
 
 -----------------------
 

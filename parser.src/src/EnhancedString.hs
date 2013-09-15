@@ -142,19 +142,19 @@ enhancedString2String::EString->String
 enhancedString2String es =
     chs2String
 --    show
-        $ expandWhitespace
         $ expandTabs []
+        $ expandWhitespace
         $ expandElements
         $ addLineBreaks [False]
             es
 --enhancedString2String = debugOutput
 
 expandTabs::[String]->EString->EString
-expandTabs tab ((TabRight tabString):rest) = e tabString ++ expandTabs (tabString:tab) rest
+expandTabs tabs ((TabRight tabString):rest) = e tabString ++ expandTabs (tabString:tabs) rest
 expandTabs (_:tabs) (TabLeft:rest) = expandTabs tabs rest
 expandTabs tabs (TabLeft:_) = error ("TabLeft missed in expandTabs: " ++ show tabs)
-expandTabs tab (Ch '\n':rest) = Ch '\n':(e (concat tab) ++ expandTabs tab rest)
-expandTabs tab (x:rest) = x:(expandTabs tab rest)
+expandTabs tabs (Ch '\n':rest) = Ch '\n':(e (concat tabs) ++ expandTabs tabs rest)
+expandTabs tabs (x:rest) = x:expandTabs tabs rest
 expandTabs _ [] = []
 
 expandWhitespace::EString->EString

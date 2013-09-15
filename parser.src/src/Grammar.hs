@@ -101,6 +101,7 @@ formatExpression' level (EQuote minCount expr) = "EQuote" ++ (if (minCount > 0) 
 formatExpression' level (Option expr) = "Option" ++ "(" ++ formatSequence' level expr ++ ")"
 formatExpression' _ (TextMatch text _) = show text
 formatExpression' _ (WhiteSpace FutureWS) = "_??_"
+formatExpression' _ (WhiteSpace (WSString defltWS)) = "__" ++ show defltWS ++ "__" --"_"
 formatExpression' _ (WhiteSpace defltWS) = show defltWS --"_"
 
 safeDrawETree::Tree Expression->String

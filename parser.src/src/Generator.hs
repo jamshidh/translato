@@ -93,6 +93,7 @@ cShow c remainingChildren expr = showCursor c ++ " - [" ++(intercalate ", " (map
 --data GenError = GenError String deriving (Show)
 
 generate::Grammar->Cursor->String
+--generate g c = show (cursor2String g sMap c)
 generate g c = enhancedString2String (cursor2String g sMap c)
     where sMap = leftFactorSequenceMap False $ sequenceMap g
 

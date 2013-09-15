@@ -48,7 +48,8 @@ text => {word}+;
 left: <@tagName_{attribute}*_>
   ;
 
-right: _</@tagName>;
+right: _
+</@tagName>;
 
 separator: '\n'
 

@@ -27,14 +27,17 @@ import Data.Map hiding (map, null, foldl')
 import Data.Maybe
 
 import EnhancedString
+import Format
 import Grammar
 import GrammarTools
 import SequenceMap
 
 --import JDebug
 
-leftFactor::SequenceMap->Sequence->Sequence
-leftFactor sm = leftFactor' . prepareForLeftFactor sm
+leftFactor::Bool->SequenceMap->Sequence->Sequence
+leftFactor shouldExpandLinks sm = leftFactor' . (prepareForLeftFactor sm ? shouldExpandLinks)
+    where
+        f ? condition = if condition then f else id
 
 leftFactor'::Sequence->Sequence
 leftFactor' (Or []:rest) = leftFactor' rest
@@ -87,7 +90,7 @@ splitFirstTok [] = FirstParsedSeq{
         defltWSValue = Nothing,
         theRemainder = []
 }
-splitFirstTok sq = error ("Missing case in splitFirstTok: " ++ formatSequence sq)
+splitFirstTok sq = error ("Missing case in splitFirstTok: " ++ format sq)
 
 
 
@@ -110,8 +113,8 @@ recombine fps =
         outify x = if null x then [] else [Out x]
 
 
-leftFactorSequenceMap::SequenceMap->SequenceMap
-leftFactorSequenceMap sm = leftFactor sm <$> sm
+leftFactorSequenceMap::Bool->SequenceMap->SequenceMap
+leftFactorSequenceMap shouldExpandLinks sm = leftFactor shouldExpandLinks sm <$> sm
 
 
 
@@ -147,22 +150,27 @@ prepareForLeftFactor _ sq = sq
 
 
 
-getFirst::Sequence->[Expression]
-getFirst [] = error "getFirst called on empty list"
-getFirst (Or seqs:_) = getFirst =<< seqs
-getFirst (expr@(Link _):_) = [expr]
-getFirst (expr@(TextMatch _ _):_) = [expr]
-getFirst (expr@(Character _ _):_) = [expr]
+getFirst::Sequence->Maybe [Expression]
+getFirst [] = Nothing
+getFirst (Or seqs:_) = concat <$> sequence (getFirst <$> seqs)
+getFirst (expr@(Link _):_) = Just [expr]
+getFirst (expr@(TextMatch _ _):_) = Just [expr]
+getFirst (expr@(Character _ _):_) = Just [expr]
+getFirst (SepBy 0 _ _:_) = error "getFirst doesn't handle 'SepBy 0' (yet?)."
+getFirst (SepBy minCount sq sep:rest) = getFirst (sq ++ SepBy (minCount-1) sq sep:rest)
 getFirst (_:rest) = getFirst rest
 
 getChainOfFirsts::SequenceMap->Sequence->[[Expression]]
+getChainOfFirsts _ [] = error "getChainOfFirsts called with empty sequence"
 getChainOfFirsts sm sq = expr2ChainOfFirsts =<< firsts
     where
         expr2ChainOfFirsts::Expression->[[Expression]]
         expr2ChainOfFirsts expr@(Link linkName) =
             (++ [expr]) <$> getChainOfFirsts sm (linkName2Seq sm linkName)
         expr2ChainOfFirsts expr = [[expr]]
-        firsts = getFirst sq
+        firsts = case getFirst sq of
+            Nothing -> error ("Error calling getFirst with sq = " ++ format sq)
+            Just x -> x
 
 linkName2Seq::SequenceMap->String->Sequence
 linkName2Seq sm linkName = case lookup linkName sm of

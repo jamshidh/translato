@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances #-}
 {-# OPTIONS_GHC -Wall #-}
 -----------------------------------------------------------------------------
 --
@@ -30,7 +30,6 @@ module Grammar (
     main,
     classes,
     formatExpression,
-    formatSequence,
     formatGrammar,
     Separator,
     safeDrawEForest,
@@ -49,6 +48,7 @@ import Data.Tree
 import CharSet
 import Colors
 import EnhancedString
+import Format
 import TreeTools
 
 --import JDebug
@@ -76,8 +76,8 @@ data Expression =
 
     deriving (Eq, Ord, Show)
 
-formatSequence::Sequence->String
-formatSequence = formatSequence' 0
+instance Format Sequence where
+    format sq = formatSequence' 0 sq
 
 formatSequence'::Int->Sequence->String
 formatSequence' level sq = intercalate " " ((formatExpression' level) <$> sq)
@@ -101,7 +101,7 @@ formatExpression' level (EQuote minCount expr) = "EQuote" ++ (if (minCount > 0) 
 formatExpression' level (Option expr) = "Option" ++ "(" ++ formatSequence' level expr ++ ")"
 formatExpression' _ (TextMatch text _) = show text
 formatExpression' _ (WhiteSpace FutureWS) = "_??_"
-formatExpression' _ (WhiteSpace _) = "_"
+formatExpression' _ (WhiteSpace defltWS) = show defltWS --"_"
 
 safeDrawETree::Tree Expression->String
 safeDrawETree = safeDrawTree . (fmap formatExpression)
@@ -118,7 +118,7 @@ data Operator =
 $(makeClassy ''Operator)
 
 formatOperator::Operator->String
-formatOperator opr = show (opr^.priority) ++ ":" ++ formatSequence (opr^.symbol)
+formatOperator opr = show (opr^.priority) ++ ":" ++ format (opr^.symbol)
 
 type RuleName = String
 
@@ -133,7 +133,7 @@ $(makeClassy ''Rule)
 
 formatRule::Rule->String
 formatRule r =
-    show (r^.rulePriority) ++ ":" ++ blue (r^.name) ++ " => " ++ formatSequence (r^.rawSequence) ++ "\n"
+    show (r^.rulePriority) ++ ":" ++ blue (r^.name) ++ " => " ++ format (r^.rawSequence) ++ "\n"
 
 type ClassName=String
 
@@ -158,10 +158,10 @@ formatClass c = "====[" ++ c^.className
         ++ (if null (c^.parentNames) then "" else ":" ++ intercalate "," (c^.parentNames))
         ++ "]====\n  "
         ++ intercalate "  " (formatRule <$> c^.rules)
-        ++ concat (("\n  suffix: " ++) <$>  (formatSequence <$> c^.suffixSeqs))
-        ++ "  separator: " ++ formatSequence (c^.separator) ++ "\n"
-        ++ "  left: " ++ formatSequence (c^.left) ++ "\n"
-        ++ "  right: " ++ formatSequence (c^.right) ++ "\n"
+        ++ concat (("\n  suffix: " ++) <$>  (format <$> c^.suffixSeqs))
+        ++ "  separator: " ++ format (c^.separator) ++ "\n"
+        ++ "  left: " ++ format (c^.left) ++ "\n"
+        ++ "  right: " ++ format (c^.right) ++ "\n"
         ++ (if (length (c^.operators) > 0)
             then "  operators: " ++ intercalate ", " (formatOperator <$> c^.operators) ++ "\n" else "")
         ++ "====[/" ++ c^.className ++ "]===="

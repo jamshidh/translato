@@ -78,6 +78,7 @@ instance Show EChar where
     show (FutureItem _) = cyan ("<??>")
     show (ItemInfo eString) = cyan ("{itemInfo=" ++ show eString ++ "}")
     show (DelayedWS defltWS) = cyan ("{delayedWS=" ++ show defltWS ++ "}")
+    show (WSItem defltWS) = blue ("{wsItem=" ++ show defltWS ++ "}")
     show (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
     show (NestedItem s) = yellow "<<<" ++ show s ++ yellow ">>>"
     show (VOut attrName) = green ("[" ++ attrName ++ "]")
@@ -162,7 +163,9 @@ expandWhitespace (WSItem FutureWS:rest) = expandWhitespace (WSItem futureDefltWS
     where
         (futureDefltWS, rest2) = getFutureDefltWS rest
         getFutureDefltWS::EString->(DefaultWS, EString)
-        getFutureDefltWS (DelayedWS defltWS:rest) = (defltWS, rest)
+        getFutureDefltWS [] = error "End of string reached, before DelayedWS was found."
+        getFutureDefltWS (DelayedWS defltWS:rest') = (defltWS, rest')
+        getFutureDefltWS (c:rest') = (c:) <$> getFutureDefltWS rest'
 expandWhitespace (Ch x:WSItem EmptyWS:Ch y:rest) | isAlphaNum x && isAlphaNum y = Ch x:Ch ' ':Ch y:(expandWhitespace rest)
 expandWhitespace (WSItem EmptyWS:rest) = expandWhitespace rest
 expandWhitespace (c:rest) = c:(expandWhitespace rest)

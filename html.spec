@@ -46,7 +46,7 @@ element =>{node}*;
 text => {word}+;
 
 left: <@tagName_{attribute}*_>
-;
+  ;
 
 right: _</@tagName>;
 

@@ -122,7 +122,7 @@ rawParse items s = case chooseOne items s of
 parseTree::Grammar->String->Forest Expression
 parseTree g startRule=seq2ParseTree (cleanSMap g) [Link startRule]
     where
-        cleanSMap = leftFactorSequenceMap . fmap removeDefaultWS . sequenceMap
+        cleanSMap = leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
         removeDefaultWS::Sequence->Sequence
         removeDefaultWS [] = []
         removeDefaultWS (WhiteSpace _:rest) = WhiteSpace NoDefaultWS:removeDefaultWS rest

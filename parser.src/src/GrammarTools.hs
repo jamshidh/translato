@@ -35,8 +35,10 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 import System.IO
 import Text.ParserCombinators.Parsec as P hiding (try)
+import Text.Regex.Posix
 
 import EnhancedString
+import Format
 import Grammar
 import GrammarParser
 import OperatorNames
@@ -243,7 +245,7 @@ seq2Separator g [Link linkName] = case M.lookup linkName (g^.classes) of
     Just cl -> cl^.separator
 seq2Separator _ [Character _ _] = []
 seq2Separator _ [TextMatch _ _] = []
-seq2Separator _ sq = error ("Missing case in seq2Separator: " ++ formatSequence sq)
+seq2Separator _ sq = error ("Missing case in seq2Separator: " ++ format sq)
 
 -------------------------------
 
@@ -281,7 +283,7 @@ seq2Right g [Link linkName] = case M.lookup linkName (g^.classes) of
     Just cl -> cl^.right
 seq2Right _ [Character _ _] = []
 seq2Right _ [TextMatch _ _] = []
-seq2Right _ sq = error ("Missing case in seq2Separator: " ++ formatSequence sq)
+seq2Right _ sq = error ("Missing case in seq2Separator: " ++ format sq)
 
 -------------------------------
 
@@ -293,6 +295,22 @@ removeOption g = modifySeqsInGrammar (replaceOption <$>) g
         replaceOption (List minCount sq) = List minCount (replaceOption <$> sq)
         replaceOption (Or seqs) = Or ((replaceOption <$>) <$> seqs)
         replaceOption x = x
+
+addTabs::Grammar->Grammar
+addTabs g = modifySeqsInGrammar addTabsToSeq g
+    where
+        addTabsToSeq::Sequence->Sequence
+        addTabsToSeq [] = []
+        addTabsToSeq (WhiteSpace (WSString defltWS):expr@(Link _):rest) =  rebuildIt defltWS expr rest
+        addTabsToSeq (WhiteSpace (WSString defltWS):expr@(SepBy _ _ _):rest) =  rebuildIt defltWS expr rest
+        addTabsToSeq (WhiteSpace (WSString defltWS):expr@(List _ _):rest) =  rebuildIt defltWS expr rest
+        addTabsToSeq (expr:rest) = expr:addTabsToSeq rest
+
+        rebuildIt defltWS expr rest | '\n' `elem` defltWS =
+            WhiteSpace (WSString prefixWS):Out [TabRight tabSpaces]:expr:Out [TabLeft]:addTabsToSeq rest
+                where
+                    [[_, prefixWS, tabSpaces]] = defltWS =~ "^(.*\n+)(.*)$"
+        rebuildIt defltWS expr rest = WhiteSpace (WSString defltWS):addTabsToSeq (expr:rest)
 
 -----------------------
 
@@ -327,5 +345,6 @@ loadGrammarAndSimplifyForGenerate fileName = do
         $ rewriteOperatorsAsLeftRecursion
         $ stripWhitespaceFromGrammar
         $ removeOption
+        $ addTabs
         $ removeEQuote g)
 

@@ -26,6 +26,7 @@ import Data.List hiding (union)
 import Data.Map as M hiding (filter)
 
 import EnhancedString
+import Format
 import Grammar
 import GrammarTools
 
@@ -37,7 +38,7 @@ formatSequenceMap::SequenceMap->String
 formatSequenceMap sMap = concat ((++ "\n\n") <$> formatSubstitution <$> (toList sMap))
 
 formatSubstitution::(String, Sequence)->String
-formatSubstitution (ruleName, sq) = ruleName ++ " => " ++ formatSequence sq
+formatSubstitution (ruleName, sq) = ruleName ++ " => " ++ format sq
 
 sequenceMap::Grammar->SequenceMap
 sequenceMap g =

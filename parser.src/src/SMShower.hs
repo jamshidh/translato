@@ -24,6 +24,7 @@ module SMShower (
 import Data.Map as M
 
 import ArgOpts
+import Format
 import Grammar
 import GrammarTools
 import LeftFactoring
@@ -41,12 +42,12 @@ showGeneratorSequenceMap simplify args = do
     grammar<-loadGrammarAndSimplifyForGenerate (specFileName options)
     let rawSequenceMap = sequenceMap grammar
     let sequenceMap = if simplify
-                        then leftFactorSequenceMap rawSequenceMap
+                        then leftFactorSequenceMap False rawSequenceMap
                         else rawSequenceMap
     case ruleName options of
         Nothing->putStrLn $ formatSequenceMap sequenceMap
         Just ruleName'->case M.lookup ruleName' sequenceMap of
-                            Just sequence -> putStrLn $ formatSequence sequence
+                            Just sequence -> putStrLn $ format sequence
                             Nothing -> error ("Error: '" ++ ruleName' ++ "' isn't in the sequenceMap")
 
 showSequenceMap::Bool->[String]->IO ()
@@ -55,12 +56,12 @@ showSequenceMap simplify args = do
     grammar<-loadGrammarAndSimplifyForParse (specFileName options)
     let rawSequenceMap = sequenceMap grammar
     let sequenceMap = if simplify
-                        then leftFactorSequenceMap rawSequenceMap
+                        then leftFactorSequenceMap True rawSequenceMap
                         else rawSequenceMap
     case ruleName options of
         Nothing->putStrLn $ formatSequenceMap sequenceMap
         Just ruleName'->case M.lookup ruleName' sequenceMap of
-                            Just sequence -> putStrLn $ formatSequence sequence
+                            Just sequence -> putStrLn $ format sequence
                             Nothing -> error ("Error: '" ++ ruleName' ++ "' isn't in the sequenceMap")
 
 showSimplifiedSequenceMapMain::[String]->IO ()

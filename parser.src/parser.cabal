@@ -11,9 +11,9 @@ extra-source-files: ""
 executable parser
     build-depends: base -any, bytestring -any, case-insensitive -any,
                    containers -any, fgl -any, filepath -any, gtk -any, lens -any,
-                   mtl -any, parsec -any, regex-compat -any, system-filepath -any,
-                   template-haskell -any, text -any, utf8-string -any,
-                   xml-conduit -any
+                   mtl -any, parsec -any, regex-compat -any, regex-posix -any,
+                   system-filepath -any, template-haskell -any, text -any,
+                   utf8-string -any, xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
@@ -27,9 +27,9 @@ executable parser
 test-suite test-parser
     build-depends: base -any, bytestring -any, case-insensitive -any,
                    containers -any, fgl -any, filepath -any, gtk -any, lens -any,
-                   mtl -any, parsec -any, regex-compat -any, system-filepath -any,
-                   template-haskell -any, text -any, utf8-string -any,
-                   xml-conduit -any
+                   mtl -any, parsec -any, regex-compat -any, regex-posix -any,
+                   system-filepath -any, template-haskell -any, text -any,
+                   utf8-string -any, xml-conduit -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

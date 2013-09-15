@@ -94,7 +94,7 @@ cShow c remainingChildren expr = showCursor c ++ " - [" ++(intercalate ", " (map
 
 generate::Grammar->Cursor->String
 generate g c = enhancedString2String (cursor2String g sMap c)
-    where sMap = leftFactorSequenceMap $ sequenceMap g
+    where sMap = leftFactorSequenceMap False $ sequenceMap g
 
 cursor2String::Grammar->SequenceMap->Cursor->EString
 cursor2String g sMap c =
@@ -166,7 +166,7 @@ seq2EString _ _ (EOF:_) _ _ = error "Expected EOF, but there is stuff after"
 seq2EString _ _ [] c children =
         error ("Error in tag '" ++ tagName c ++ "': Sequence is finished, but children remain.\n    children = " ++ intercalate "\n" (showCursor <$> children))
 seq2EString _ _ sq c children =
-        error ("Missing case in seq2EString:\n    tag = " ++ tagName c ++ ",\n    sequence = " ++ formatSequence sq  ++ ",\n    children = " ++ intercalate "\n" (showCursor <$> children))
+        error ("Missing case in seq2EString:\n    tag = " ++ tagName c ++ ",\n    sequence = " ++ format sq  ++ ",\n    children = " ++ intercalate "\n" (showCursor <$> children))
 
 useTextNode::String->Sequence->Sequence
 useTextNode [] (SepBy 0 [Character charset _] sep:rest) = rest
@@ -178,7 +178,7 @@ useTextNode (c:cs) sq@(SepBy 0 [Character charset _] sep:rest) | c `isIn` charse
 useTextNode s (SepBy minCount sq sep:rest) =
     useTextNode s (sq ++ SepBy (minCount-1) sq sep:rest)
 useTextNode s sq =
-    error ("Missing case in useTextNode:\n    string=" ++ show s ++ "\n    sequence=" ++ formatSequence sq)
+    error ("Missing case in useTextNode:\n    string=" ++ show s ++ "\n    sequence=" ++ format sq)
 
 --TODO add the separator between elements
 applyTemplates::Grammar->SequenceMap->[Cursor]->String->Sequence->Bool->(EString, [Cursor])

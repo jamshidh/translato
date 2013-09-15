@@ -15,7 +15,8 @@
 -----------------------------------------------------------------------------
 
 module Generator (
-    generatorMain
+    generatorMain,
+    generateFromText
 ) where
 
 import Prelude hiding (lookup)
@@ -40,7 +41,7 @@ import LeftFactoring
 import ParseError
 import SequenceMap
 
---import JDebug
+import JDebug
 
 ------------------------------
 
@@ -92,6 +93,12 @@ cShow c remainingChildren expr = showCursor c ++ " - [" ++(intercalate ", " (map
 
 --data GenError = GenError String deriving (Show)
 
+--generateFromText::Grammar->Text->String
+generateFromText g inputText =
+    case parseText def inputText of
+        Left err -> "Error:" ++ show err
+        Right inputXMLDoc -> generate g (fromDocument inputXMLDoc)
+
 generate::Grammar->Cursor->String
 --generate g c = show (cursor2String g sMap c)
 generate g c = enhancedString2String (cursor2String g sMap c)
@@ -138,10 +145,10 @@ seq2EString g sMap (SepBy minCount sq sep:_) c remainingChildren =
 
 seq2EString _ _ (Or []:_) _ _ = error "No matching alternative in seq2EString Or case"
 seq2EString g sMap (Or (sq:otherSq):rest) c children =
-    {-jtrace (show (length children)) $
+    --jtrace (show (length children)) $
     jtrace (show (cursorFingerprint c children)) $
-    jtrace (formatSequence (sq ++ rest)) $
-    jtrace (show (sequenceFingerprint (sq ++ rest))) $-}
+    --jtrace (format (sq ++ rest)) $
+    jtrace (show (sequenceFingerprint (sq ++ rest))) $
     if fingerprintMatches g (cursorFingerprint c children) (sequenceFingerprint (sq ++ rest))
         then seq2EString g sMap (sq ++ rest) c children
         else seq2EString g sMap (Or otherSq:rest) c children
@@ -257,10 +264,7 @@ generatorMain args = do
     let options = $(arg2Opts ''Options ["specFileName"]) args deflt
     grammar <- loadGrammarAndSimplifyForGenerate $ specFileName options
     contents<-TL.getContents
-    let doc=case parseText def contents of
-                Left err -> error ("Error:" ++ show err)
-                Right x -> x
-    let s = generate grammar (fromDocument doc)
+    let s = generateFromText grammar contents
     putStrLn s
 
 

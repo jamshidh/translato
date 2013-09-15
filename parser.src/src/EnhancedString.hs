@@ -192,7 +192,8 @@ addLineBreaks (needsBreak:breakRest) (expr@(FilledInEStart _ _):rest) =
 addLineBreaks (needsBreak:breakRest) (expr@(EEnd _):rest) = --jtrace "EEnd" $
     (if needsBreak then [TabLeft, Ch '\n'] else [])
         ++ expr:addLineBreaks breakRest rest
-addLineBreaks [] (EEnd _:_) = error "shouldn't call addLIneBreaks for EEnd with empty breakStack"
+--TODO Figure out what should happen here
+addLineBreaks [] (EEnd _:_) = e $ red "Error" -- error "shouldn't call addLIneBreaks for EEnd with empty breakStack"
 addLineBreaks breakStack (c:rest) =
     c:addLineBreaks breakStack rest
 addLineBreaks _ [] = [Ch '\n']

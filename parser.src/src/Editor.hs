@@ -27,6 +27,7 @@ import Data.List
 import Data.Maybe
 --import Data.Text as T hiding (head, concat, null, map, intercalate, break)
 --import Data.Text.Encoding
+import qualified Data.Text.Lazy as TL
 import Data.Tree
 import Graphics.UI.Gtk hiding (Range)
 import System.IO
@@ -34,6 +35,7 @@ import Text.Regex
 
 import ArgOpts
 import qualified EnhancedString as E
+import Generator
 import Grammar
 import GrammarTools
 import ListView
@@ -47,8 +49,12 @@ import JDebug
 
 --data Error = Error { line::Int, column::Int, message::CI String } deriving (Show)
 
-edit::Grammar->String->IO ()
-edit g fileNameString = do
+makeGenerator::Grammar->String->String
+makeGenerator g contents = generateFromText g (TL.pack $ createParser g contents)
+
+
+edit::Grammar->Grammar->String->IO ()
+edit g generatorGrammar fileNameString = do
     errorStore <- listStoreNew []
     parseStore <- treeStoreNew [Node{rootLabel="qqqq",subForest=[Node{rootLabel="abcd", subForest=[]}, Node{rootLabel="qq2", subForest=[]}]}]
 
@@ -75,7 +81,9 @@ edit g fileNameString = do
     vbox <- vBoxNew False 0
     hbox <- hBoxNew True 0
 
-    let validateFn = validate g validImage textView errorStore parseStore parseTreeView
+    let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
+
+    let doValidate = validate g validImage textView errorStore parseStore parseTreeView
 
     clipboard <- clipboardGet selectionPrimary
     textBuffer <- textViewGetBuffer textView
@@ -99,7 +107,7 @@ edit g fileNameString = do
                     ] False,
                 TrSubMenu "Tools"
                     [
-                        TrItem "Validate" (Just "<Control>v") validateFn
+                        TrItem "Validate" (Just "<Control>v") doValidate
                     ] False,
                 TrSubMenu "Help"
                     [
@@ -117,7 +125,7 @@ edit g fileNameString = do
                 Item (Stock stockQuit) (Just "Quit the program") mainQuit,
                 Item (Stock stockFind) (Just "Find....") mainQuit,
                 Item (Stock stockAbout) (Just "About") showAboutDialog,
-                Item (File "redBall.png") (Just "Validate") validateFn
+                Item (File "redBall.png") (Just "Validate") doValidate
             ]
         )
 
@@ -153,9 +161,23 @@ edit g fileNameString = do
     treeViewSetEnableTreeLines parseTreeView True
     treeViewSetHeadersVisible parseTreeView False
 
+    outputTextView <- textViewNew
+
+    outputTextBuffer <- textViewGetBuffer outputTextView
+
+    notebook <- notebookNew
+
+    notebookSetTabPos notebook PosRight
+
+    notebookInsertPage notebook scrolledParseTreeView "tree" 0
+    notebookInsertPage notebook outputTextView "output" 1
+
     panedPack1 hPaned scrolledTextView True True
     panedPack1 vPaned hPaned True True
-    panedPack2 hPaned scrolledParseTreeView True True
+
+
+
+    panedPack2 hPaned notebook True True
 
     addListBoxToWindow window vPaned errorStore
         [
@@ -178,7 +200,7 @@ edit g fileNameString = do
 
     after textView moveCursor (onCursorMoved positionLabel textBuffer)
     on textView keyPressEvent onKeyPressed
-    after textBuffer bufferChanged (onBuffChanged positionLabel textBuffer validateFn)
+    after textBuffer bufferChanged (onBuffChanged positionLabel textBuffer outputTextBuffer doValidate doGenerate)
 
     boxPackStart statusBarBox statusBarButton PackNatural 0
     boxPackEnd statusBarBox validImage PackNatural 2
@@ -202,17 +224,18 @@ edit g fileNameString = do
     widgetShowAll window
 
     Rectangle _ _ _ height <- widgetGetAllocation vPaned
-    panedSetPosition vPaned (round (0.8 * fromIntegral height))
+    panedSetPosition vPaned (round (0.7 * fromIntegral height))
 
     Rectangle _ _ width _ <- widgetGetAllocation hPaned
-    panedSetPosition hPaned (round (0.8 * fromIntegral width))
+    panedSetPosition hPaned (round (0.7 * fromIntegral width))
 
     widgetGrabFocus textView
 
     start <- textBufferGetStartIter textBuffer
     textBufferPlaceCursor textBuffer start
 
-    validateFn
+    doValidate
+    generateOutput outputTextBuffer textBuffer doGenerate
 
     mainGUI
 
@@ -226,10 +249,11 @@ onKeyPressed = do
         then return (jtrace (show key) $ True)
         else return False
 
-onBuffChanged::Label->TextBuffer->(IO())->IO()
-onBuffChanged positionLabel textBuffer doValidate=do
+onBuffChanged::Label->TextBuffer->TextBuffer->(IO())->(String->String)->IO()
+onBuffChanged positionLabel textBuffer outputTextBuffer doValidate doGenerate = do
     updatePositionLabel positionLabel textBuffer
     doValidate
+    generateOutput outputTextBuffer textBuffer doGenerate
 
 updatePositionLabel::Label->TextBuffer->IO()
 updatePositionLabel positionLabel textBuffer=do
@@ -365,6 +389,20 @@ loadBuffer filename tv =
         endIt <- textBufferGetEndIter txtBuff
         textBufferSetByteString txtBuff startIt endIt True--}
 
+generateOutput::TextBuffer->TextBuffer->(String->String)->IO ()
+generateOutput outputTextBuffer txtBuff doGenerate = do
+    startIt <- textBufferGetStartIter txtBuff
+    endIt <- textBufferGetEndIter txtBuff
+    contents <- textBufferGetText txtBuff startIt endIt True
+    textBufferSetText outputTextBuffer $ doGenerate contents
+
+
+
+
+
+
+
+
 promptAndLoadBuffer::TextView->Window->IO ()
 promptAndLoadBuffer tv window =
     do
@@ -454,7 +492,8 @@ editMain args = do
             fixOptions
                 ($(arg2Opts ''Options ["fileName"]) args deflt)
     grammar <- loadGrammarAndSimplifyForParse (fromJust $ specFileName options)
-    Editor.edit grammar (fileName options)
+    generatorGrammar <- loadGrammarAndSimplifyForGenerate (fromJust $ specFileName options)
+    Editor.edit grammar generatorGrammar (fileName options)
 
 
 

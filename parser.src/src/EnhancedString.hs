@@ -27,6 +27,7 @@ module EnhancedString (
     truncateString
 ) where
 
+import Control.Monad.State
 import Data.Char
 import Data.Functor
 
@@ -142,20 +143,28 @@ enhancedString2String::EString->String
 enhancedString2String es =
     chs2String
 --    show
-        $ expandTabs []
+        $ (`evalState` []) $  expandTabs
         $ expandWhitespace
         $ expandElements
         $ addLineBreaks [False]
             es
 --enhancedString2String = debugOutput
 
-expandTabs::[String]->EString->EString
-expandTabs tabs ((TabRight tabString):rest) = e tabString ++ expandTabs (tabString:tabs) rest
-expandTabs (_:tabs) (TabLeft:rest) = expandTabs tabs rest
-expandTabs tabs (TabLeft:_) = error ("TabLeft missed in expandTabs: " ++ show tabs)
-expandTabs tabs (Ch '\n':rest) = Ch '\n':(e (concat tabs) ++ expandTabs tabs rest)
-expandTabs tabs (x:rest) = x:expandTabs tabs rest
-expandTabs _ [] = []
+expandTabs::EString->State [String] EString
+expandTabs (TabRight tabString:rest) = do
+    modify (tabString:)
+    expandTabs rest
+expandTabs (TabLeft:rest) = do
+    modify tail --error ("TabLeft missed in expandTabs: " ++ show tabs)
+    expandTabs rest
+expandTabs (Ch '\n':rest) = do
+    tabs <- get
+    remainingOutput <- expandTabs rest
+    return (Ch '\n':(e (concat tabs) ++ remainingOutput))
+expandTabs (x:rest) = do
+    remainingOutput <- expandTabs rest
+    return (x:remainingOutput)
+expandTabs [] = return []
 
 expandWhitespace::EString->EString
 expandWhitespace (WSItem (WSString defltWS):rest) = e defltWS ++ expandWhitespace rest

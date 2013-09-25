@@ -17,32 +17,63 @@ module Main (
     main
 ) where
 
-import Control.Monad.State
 import Data.Maybe
 import Data.IORef
 import Data.Functor
 import Graphics.UI.Gtk
 
-label::String->IO Widget
-label labelStr = do
-    gtkLabel <- labelNew Nothing
-    set gtkLabel [labelLabel := labelStr]
-    return (castToWidget gtkLabel)
+simpleWidget::WidgetClass a=>IO a->[WidgetModifier a]->IO Widget
+simpleWidget widgetCreator attModifiers = do
+    widget <- widgetCreator
+    set widget [attr|Atr attr <- attModifiers]
+    mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
+    return (castToWidget widget)
 
-vBox::[IO Widget]->IO Widget
-vBox widgetCreators = do
-    gtkVBox <- vBoxNew False 0
-    widgets <- sequence widgetCreators
-    mapM_ (\widget -> boxPackStart gtkVBox widget PackNatural 0) widgets
-    return (castToWidget gtkVBox)
+labeledWidget::WidgetClass a=>String->Attr a String->IO a->[WidgetModifier a]->IO Widget
+labeledWidget name labelAttr widgetCreator attModifiers = do
+    widget <- widgetCreator
+    labelValue <- get widget labelAttr
+    case labelValue of
+        "" -> set widget [labelAttr := name]
+        _ -> return ()
+    set widget [attr|Atr attr <- attModifiers]
+    mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
+    return (castToWidget widget)
 
-button::[WidgetModifier Button]->IO Widget
-button attModifiers = do
-    gtkButton <- buttonNew
-    set gtkButton [buttonLabel := "button"]
-    set gtkButton [attr|Atr attr <- attModifiers]
-    mapM_ (uncurry (gtkButton `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    return (castToWidget gtkButton)
+containerWidget::ContainerClass a=>IO a->[WidgetModifier a]->[IO Widget]->IO Widget
+containerWidget widgetCreator attModifiers childrenWidgetCreators = do
+    widget <- widgetCreator
+    widgets <- sequence childrenWidgetCreators
+    set widget ((containerChild :=) <$> widgets)
+    return (castToWidget widget)
+
+binWidget::ContainerClass a=>IO a->[WidgetModifier a]->IO Widget->IO Widget
+binWidget widgetCreator attModifiers childWidgetCreator =
+    containerWidget widgetCreator attModifiers [childWidgetCreator]
+
+
+
+label = flip $ labeledWidget "label" labelLabel . labelNew . Just
+accelLabel = flip $ labeledWidget "accelLabel" labelLabel . accelLabelNew
+rightArrow = simpleWidget (arrowNew ArrowRight ShadowIn)
+leftArrow = simpleWidget (arrowNew ArrowLeft ShadowIn)
+upArrow = simpleWidget (arrowNew ArrowUp ShadowIn)
+downArrow = simpleWidget (arrowNew ArrowDown ShadowIn)
+image = simpleWidget imageNew
+frame = binWidget frameNew
+aspectFrame = binWidget (aspectFrameNew 0.5 0.5 Nothing)
+button = labeledWidget "button" buttonLabel buttonNew
+checkButton = labeledWidget "button" buttonLabel toggleButtonNew
+radioButton = labeledWidget "button" buttonLabel radioButtonNew
+scrolledWindow = binWidget (scrolledWindowNew Nothing Nothing)
+
+
+vBox = containerWidget (vBoxNew False 0)
+hBox = containerWidget (hBoxNew False 0)
+--    widgets <- sequence widgetCreators
+--    mapM_ (\widget -> boxPackStart gtkVBox widget PackNatural 0) widgets
+--    return (castToWidget gtkVBox)
+
 
 window::String->[WidgetModifier Window]->IO Widget->IO Widget
 window title atts widgetCreator = do
@@ -72,7 +103,7 @@ data DOM = DOM{mainWidget::Widget}
 initDOM::IO (IORef DOM)
 initDOM = do
     initGUI
-    mainWindow <- window "<No Title>" [Atr $ windowDefaultWidth := 400, Atr $ windowDefaultHeight := 300] (label "empty content")
+    mainWindow <- window "<No Title>" [Atr $ windowDefaultWidth := 400, Atr $ windowDefaultHeight := 300] (label [] "empty content")
     ioRef <- newIORef (DOM mainWindow)
     return ioRef
 
@@ -98,14 +129,15 @@ main = do
 
     createMainWindow domR (
             window "The Window" [Atr $ windowDefaultWidth := 400, Atr $ windowDefaultHeight := 300] (
-                vBox [
-                    label "label",
-                    button [Sig buttonActivated (changeSecondLabel domR)],
-                    label "abcd",
-                    button [Atr $ buttonLabel := "the button label"
+                vBox [] [
+                    image [],
+                    label [] "label",
+                    checkButton [Sig buttonActivated (changeSecondLabel domR)],
+                    frame [Atr $ frameLabel:="Frame Label"] $ label [] "abcd",
+                    checkButton [Atr $ buttonLabel := "the button label"
                             , Sig buttonActivated
                                 (setM
-                                    (_main domR>>=_vBox>>=_label>>=_item 1)
+                                    (_main domR>>=_vBox>>=_label)
                                     [labelLabel:="qqqq"])]
                 ]
             )

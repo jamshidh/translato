@@ -34,6 +34,7 @@ import System.IO
 import Text.Regex
 
 import ArgOpts
+import DOM
 import qualified EnhancedString as E
 import Generator
 import Grammar

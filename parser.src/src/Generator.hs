@@ -41,7 +41,7 @@ import LeftFactoring
 import ParseError
 import SequenceMap
 
-import JDebug
+--import JDebug
 
 ------------------------------
 
@@ -146,9 +146,9 @@ seq2EString g sMap (SepBy minCount sq sep:_) c remainingChildren =
 seq2EString _ _ (Or []:_) _ _ = error "No matching alternative in seq2EString Or case"
 seq2EString g sMap (Or (sq:otherSq):rest) c children =
     --jtrace (show (length children)) $
-    jtrace (show (cursorFingerprint c children)) $
+    --jtrace (show (cursorFingerprint c children)) $
     --jtrace (format (sq ++ rest)) $
-    jtrace (show (sequenceFingerprint (sq ++ rest))) $
+    --jtrace (show (sequenceFingerprint (sq ++ rest))) $
     if fingerprintMatches g (cursorFingerprint c children) (sequenceFingerprint (sq ++ rest))
         then seq2EString g sMap (sq ++ rest) c children
         else seq2EString g sMap (Or otherSq:rest) c children

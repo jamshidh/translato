@@ -180,7 +180,7 @@ parseMain args = do
                 Nothing ->
                     case inputFileName options of
                         Nothing -> error "You have to supply the spec filename"
-                        Just fileName -> extension ++ ".spec"
+                        Just fileName -> "specs/" ++ extension ++ ".spec"
                             where
                                 extension =
                                     case matchRegex (mkRegex "\\.([^\\.]+$)") fileName of

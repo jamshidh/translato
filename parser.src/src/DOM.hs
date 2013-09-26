@@ -14,7 +14,41 @@
 -----------------------------------------------------------------------------
 
 module DOM (
-    main
+    initDOM,
+    createMainWindow,
+    mainDOM,
+
+    boxPacking,
+
+    --List of creators
+    window,
+    label,
+    accelLabel,
+    statusbar,
+    rightArrow,
+    leftArrow,
+    upArrow,
+    downArrow,
+    image,
+    frame,
+    aspectFrame,
+    button,
+    checkButton,
+    radioButton,
+    textView,
+    scrolledWindow,
+    vBox,
+    hBox,
+    vPaned,
+    hPaned,
+    notebook,
+
+    --widget modifier tools
+    setM,
+    _main,
+    _vBox,
+    _label,
+    WidgetModifier(..)
 ) where
 
 import Data.Maybe
@@ -22,10 +56,24 @@ import Data.IORef
 import Data.Functor
 import Graphics.UI.Gtk
 
+boxPacking::WidgetClass self => Attr self Packing
+boxPacking = newAttr
+    (\x -> return PackGrow)
+    (\self packing -> do
+        Just parent <- widgetGetParent self
+        let parentBox = castToBox parent
+        set parentBox [boxChildPacking self := packing]
+    )
+
+
+
+
 simpleWidget::WidgetClass a=>IO a->[WidgetModifier a]->IO Widget
 simpleWidget widgetCreator attModifiers = do
     widget <- widgetCreator
     set widget [attr|Atr attr <- attModifiers]
+--    Just parent <- widgetGetParent widget
+--    set parent [attr|CAtr attr <- attModifiers]
     mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
     return (castToWidget widget)
 
@@ -45,16 +93,32 @@ containerWidget widgetCreator attModifiers childrenWidgetCreators = do
     widget <- widgetCreator
     widgets <- sequence childrenWidgetCreators
     set widget ((containerChild :=) <$> widgets)
+    set widget [attr|Atr attr <- attModifiers]
+    mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
+    return (castToWidget widget)
+
+boxWidget::BoxClass a=>IO a->[WidgetModifier a]->[IO Widget]->IO Widget
+boxWidget widgetCreator attModifiers childrenWidgetCreators = do
+    widget <- widgetCreator
+    widgets <- sequence childrenWidgetCreators
+    set widget ((containerChild :=) <$> widgets)
+    set widget ((\w -> boxChildPacking w := PackNatural) <$> widgets)
+    set widget [attr|Atr attr <- attModifiers]
+    mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
     return (castToWidget widget)
 
 binWidget::ContainerClass a=>IO a->[WidgetModifier a]->IO Widget->IO Widget
 binWidget widgetCreator attModifiers childWidgetCreator =
     containerWidget widgetCreator attModifiers [childWidgetCreator]
 
+panedWidget::ContainerClass a=>IO a->[WidgetModifier a]->(IO Widget, IO Widget)->IO Widget
+panedWidget widgetCreator attModifiers (firstWidgetCreator, secondWidgetCreator) =
+    containerWidget widgetCreator attModifiers [firstWidgetCreator, secondWidgetCreator]
 
 
 label = flip $ labeledWidget "label" labelLabel . labelNew . Just
 accelLabel = flip $ labeledWidget "accelLabel" labelLabel . accelLabelNew
+statusbar = simpleWidget statusbarNew
 rightArrow = simpleWidget (arrowNew ArrowRight ShadowIn)
 leftArrow = simpleWidget (arrowNew ArrowLeft ShadowIn)
 upArrow = simpleWidget (arrowNew ArrowUp ShadowIn)
@@ -66,14 +130,18 @@ button = labeledWidget "button" buttonLabel buttonNew
 checkButton = labeledWidget "button" buttonLabel toggleButtonNew
 radioButton = labeledWidget "button" buttonLabel radioButtonNew
 scrolledWindow = binWidget (scrolledWindowNew Nothing Nothing)
+textView = simpleWidget textViewNew
 
 
-vBox = containerWidget (vBoxNew False 0)
-hBox = containerWidget (hBoxNew False 0)
+
+vBox = boxWidget (vBoxNew False 0)
+hBox = boxWidget (hBoxNew False 0)
 --    widgets <- sequence widgetCreators
 --    mapM_ (\widget -> boxPackStart gtkVBox widget PackNatural 0) widgets
 --    return (castToWidget gtkVBox)
-
+vPaned = panedWidget vPanedNew
+hPaned = panedWidget hPanedNew
+notebook = simpleWidget notebookNew
 
 window::String->[WidgetModifier Window]->IO Widget->IO Widget
 window title atts widgetCreator = do
@@ -123,24 +191,3 @@ createMainWindow domR createWindow = do
 
 changeSecondLabel::IORef DOM->IO()
 changeSecondLabel domR = setM (_main domR >>= _vBox >>= _label >>= _item 1) [labelLabel := "qqqq"]
-
-main = do
-    domR <- initDOM
-
-    createMainWindow domR (
-            window "The Window" [Atr $ windowDefaultWidth := 400, Atr $ windowDefaultHeight := 300] (
-                vBox [] [
-                    image [],
-                    label [] "label",
-                    checkButton [Sig buttonActivated (changeSecondLabel domR)],
-                    frame [Atr $ frameLabel:="Frame Label"] $ label [] "abcd",
-                    checkButton [Atr $ buttonLabel := "the button label"
-                            , Sig buttonActivated
-                                (setM
-                                    (_main domR>>=_vBox>>=_label)
-                                    [labelLabel:="qqqq"])]
-                ]
-            )
-        )
-
-    mainDOM domR

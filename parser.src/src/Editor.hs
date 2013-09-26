@@ -58,45 +58,29 @@ edit::Grammar->Grammar->String->IO ()
 edit g generatorGrammar fileNameString = do
     errorStore <- listStoreNew []
     parseStore <- treeStoreNew [Node{rootLabel="qqqq",subForest=[Node{rootLabel="abcd", subForest=[]}, Node{rootLabel="qq2", subForest=[]}]}]
-
-
-
-    _ <- initGUI
-    window <- windowNew
     fileNameRef <- newIORef fileNameString
-    windowSetTitle window fileNameString
-    --windowSetHasFrame window True
-    --windowSetDecorated window False
-    --windowSetFrameDimensions window 50 50 50 50
 
-    validImage <- imageNewFromFile "redBall.png"
+    domR <- initDOM
+    mainWindow <- head <$> _main domR
 
-    scrolledTextView <- scrolledWindowNew Nothing Nothing
-    textView <- textViewNew
-    set scrolledTextView [ containerChild := textView ]
+    mainTextView <- textView []
+    textBuffer <- textViewGetBuffer (castToTextView mainTextView)
+    clipboard <- clipboardGet selectionPrimary
 
-    scrolledParseTreeView <- scrolledWindowNew Nothing Nothing
+    validImage <- image [Atr $ imageFile := "resources/redBall.png"]
     parseTreeView <- treeViewNewWithModel parseStore
-    set scrolledParseTreeView [ containerChild := parseTreeView ]
-
-    vbox <- vBoxNew False 0
-    hbox <- hBoxNew True 0
+    positionLabel <- label [] "Line 0, Col 0"
 
     let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
+    let doValidate = validate g (castToImage validImage) (castToTextView mainTextView) errorStore parseStore parseTreeView
 
-    let doValidate = validate g validImage textView errorStore parseStore parseTreeView
-
-    clipboard <- clipboardGet selectionPrimary
-    textBuffer <- textViewGetBuffer textView
-
-    addMenuToWindow window vbox
-        (
+    editorMenu <- menu mainWindow (
             [
                 TrSubMenu "_File"
                     [
-                        TrItem "Open" Nothing (promptAndLoadBuffer textView window),
-                        TrItem "Save" (Just "<Control>s") (saveBuffer fileNameRef textView),
-                        TrItem "Save As...." Nothing (saveBufferAs fileNameRef textView window),
+                        TrItem "Open" Nothing (promptAndLoadBuffer (castToTextView mainTextView) mainWindow),
+                        TrItem "Save" (Just "<Control>s") (saveBuffer fileNameRef (castToTextView mainTextView)),
+                        TrItem "Save As...." Nothing (saveBufferAs fileNameRef (castToTextView mainTextView) mainWindow),
                         TrItem "_Quit" (Just "<Control>q") mainQuit
                     ] False,
                 TrSubMenu "Edit"
@@ -117,12 +101,12 @@ edit g generatorGrammar fileNameString = do
             ]
             )
 
-    addToolBarToWindow window vbox
+    editorToolbar <- toolbar
         (
             [
-                Item (Stock stockOpen) (Just "Open File") (promptAndLoadBuffer textView window),
-                Item (Stock stockSave) (Just "Save File") (saveBuffer fileNameRef textView),
-                Item (Stock stockSaveAs) (Just "Save File As....") (saveBufferAs fileNameRef textView window),
+                Item (Stock stockOpen) (Just "Open File") (promptAndLoadBuffer (castToTextView mainTextView) mainWindow),
+                Item (Stock stockSave) (Just "Save File") (saveBuffer fileNameRef (castToTextView mainTextView)),
+                Item (Stock stockSaveAs) (Just "Save File As....") (saveBufferAs fileNameRef (castToTextView mainTextView) mainWindow),
                 Item (Stock stockQuit) (Just "Quit the program") mainQuit,
                 Item (Stock stockFind) (Just "Find....") mainQuit,
                 Item (Stock stockAbout) (Just "About") showAboutDialog,
@@ -130,18 +114,63 @@ edit g generatorGrammar fileNameString = do
             ]
         )
 
+    errorListView <- listView errorStore
+        [
+            ("Location", DataExtractor ((intercalate "\n") . (formatRange <$>) . ranges)),
+            ("Message", DataExtractor message)
+        ]
+
+    outputNotebook <- notebook []
+
+    createMainWindow domR (
+            window fileNameString [Atr $ containerBorderWidth := 4, Atr $ windowDefaultWidth := 1400, Atr $ windowDefaultHeight := 900] (
+                vBox [] [
+                    return editorMenu,
+                    return editorToolbar,
+                    vPaned [Atr $ boxPacking := PackGrow] (
+                            hPaned [] (scrolledWindow [] (return mainTextView), return outputNotebook),
+                            return errorListView
+                        ),
+                    hBox [] [statusbar [], statusbar [], button [], return positionLabel, return validImage]
+
+--
+--                    image [],
+--                    label [] "label",
+--                    checkButton [],
+--                    frame [Atr $ frameLabel:="Frame Label"] $ label [] "abcd",
+--                    checkButton [Atr $ buttonLabel := "the button label"
+--                            , Sig buttonActivated
+--                                (setM
+--                                    (_main domR>>=_vBox>>=_label)
+--                                    [labelLabel:="qqqq"])]
+                ]
+            )
+        )
+
+    mainDOM domR
+
+
+
+
+
+    window <- windowNew
+    --windowSetHasFrame window True
+    --windowSetDecorated window False
+    --windowSetFrameDimensions window 50 50 50 50
+
+
+    scrolledTextView <- scrolledWindowNew Nothing Nothing
+
+    scrolledParseTreeView <- scrolledWindowNew Nothing Nothing
+    set scrolledParseTreeView [ containerChild := parseTreeView ]
+
+
+
+
 
     --set hbox [ containerChild := outputButton, containerChild := resetButton ]
-    set window [ containerBorderWidth := 4,
-        containerChild := vbox, windowDefaultWidth := 1400, windowDefaultHeight := 900 ]
 
-    loadBuffer fileNameString textView
-
-    boxPackStart vbox hbox PackNatural 0
-
-    vPaned <- vPanedNew
-    hPaned <- hPanedNew
-    boxPackStart vbox vPaned PackGrow 0
+    loadBuffer fileNameString (castToTextView mainTextView)
 
 --------------
 
@@ -166,50 +195,31 @@ edit g generatorGrammar fileNameString = do
 
     outputTextBuffer <- textViewGetBuffer outputTextView
 
-    notebook <- notebookNew
+    notebookSetTabPos (castToNotebook outputNotebook) PosRight
 
-    notebookSetTabPos notebook PosRight
+    notebookInsertPage (castToNotebook outputNotebook) scrolledParseTreeView "tree" 0
+    notebookInsertPage (castToNotebook outputNotebook) outputTextView "output" 1
 
-    notebookInsertPage notebook scrolledParseTreeView "tree" 0
-    notebookInsertPage notebook outputTextView "output" 1
-
-    panedPack1 hPaned scrolledTextView True True
-    panedPack1 vPaned hPaned True True
+--    panedPack1 hPaned scrolledTextView True True
+--    panedPack1 vPaned hPaned True True
 
 
 
-    panedPack2 hPaned notebook True True
+--    panedPack2 hPaned (castToNotebook outputNotebook) True True
 
-    addListBoxToWindow window vPaned errorStore
-        [
-            ("Location", DataExtractor ((intercalate "\n") . (formatRange <$>) . ranges)),
-            ("Message", DataExtractor message)
-        ]
 
 
 ----------------------------------
-
-    statusBarBox <- hBoxNew False 0
-    boxPackStart vbox statusBarBox PackNatural 0
 
 
 
     statusBar <- statusbarNew
     statusBarButton <- buttonNewWithLabel "qqqq"
-    positionLabel <- labelNew (Just "Line 0, Col 0")
     --validImage <- imageNewFromStock stockYes IconSizeMenu
 
-    after textView moveCursor (onCursorMoved positionLabel textBuffer)
-    on textView keyPressEvent onKeyPressed
-    after textBuffer bufferChanged (onBuffChanged positionLabel textBuffer outputTextBuffer doValidate doGenerate)
-
-    boxPackStart statusBarBox statusBarButton PackNatural 0
-    boxPackEnd statusBarBox validImage PackNatural 2
-    boxPackEnd statusBarBox positionLabel PackNatural 10
-
-    label <- labelNew (Just "qqqq")
-
-    boxPackStart statusBarBox label PackNatural 0
+    after (castToTextView mainTextView) moveCursor (onCursorMoved (castToLabel positionLabel) textBuffer)
+    on (castToTextView mainTextView) keyPressEvent onKeyPressed
+    after textBuffer bufferChanged (onBuffChanged (castToLabel positionLabel) textBuffer outputTextBuffer doValidate doGenerate)
 
     id <- statusbarGetContextId statusBar "qqqq"
 
@@ -224,13 +234,13 @@ edit g generatorGrammar fileNameString = do
     onDestroy window mainQuit
     widgetShowAll window
 
-    Rectangle _ _ _ height <- widgetGetAllocation vPaned
-    panedSetPosition vPaned (round (0.7 * fromIntegral height))
+--    Rectangle _ _ _ height <- widgetGetAllocation vPaned
+--    panedSetPosition vPaned (round (0.7 * fromIntegral height))
+--
+--    Rectangle _ _ width _ <- widgetGetAllocation hPaned
+--    panedSetPosition hPaned (round (0.7 * fromIntegral width))
 
-    Rectangle _ _ width _ <- widgetGetAllocation hPaned
-    panedSetPosition hPaned (round (0.7 * fromIntegral width))
-
-    widgetGrabFocus textView
+    widgetGrabFocus mainTextView
 
     start <- textBufferGetStartIter textBuffer
     textBufferPlaceCursor textBuffer start
@@ -273,8 +283,8 @@ validate g validImage textView errorStore parseStore parseView = do
     bufferString <- textBufferGetByteString buff start end False
     let (res, errorList) = createEParserWithErrors g (toString bufferString)
     if null errorList
-        then imageSetFromFile validImage "greenBall.png"
-        else imageSetFromFile validImage "redBall.png"
+        then imageSetFromFile validImage "resources/greenBall.png"
+        else imageSetFromFile validImage "resources/redBall.png"
     listStoreClear errorStore
     treeStoreClear parseStore
     textBufferRemoveAllTags buff start end
@@ -405,12 +415,12 @@ generateOutput outputTextBuffer txtBuff doGenerate = do
 
 
 promptAndLoadBuffer::TextView->Window->IO ()
-promptAndLoadBuffer tv window =
+promptAndLoadBuffer textView window =
     do
         maybeFileName <- openOpenFileDialog FileChooserActionOpen window Nothing
         case maybeFileName of
             Just fileName -> do
-                loadBuffer fileName tv
+                loadBuffer fileName textView
                 windowSetTitle window fileName
             Nothing -> return ()
 
@@ -485,7 +495,7 @@ getExtension x =
 fixOptions::Options->Options
 fixOptions o@Options{specFileName=Nothing} = o{specFileName=Just specFileName}
     where
-        specFileName = getExtension (fileName o) ++ ".spec"
+        specFileName = "specs/" ++ getExtension (fileName o) ++ ".spec"
 
 editMain::[String]->IO ()
 editMain args = do

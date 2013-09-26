@@ -16,7 +16,7 @@
 module ListView (
     DataExtractor(..),
     addColumn,
-    addListBoxToWindow
+    listView
 ) where
 
 import Data.CaseInsensitive
@@ -37,8 +37,8 @@ instance Format (CI String) where
 
 data DataExtractor a b =forall b.(Format b, Ord b)=>DataExtractor (a->b)
 
-addListBoxToWindow::PanedClass a=>Window->a->ListStore b->[(String, DataExtractor b c)]->IO()
-addListBoxToWindow _ box storeSource columns = do
+listView::ListStore b->[(String, DataExtractor b c)]->IO Widget
+listView storeSource columns = do
     --I don't know why I can't just use storeSource2 everywhere, but it causes the app to crash.
     --For now I don't care, I'll do what works without understanding it.
     storeSource2 <- treeModelSortNewWithModel storeSource
@@ -57,9 +57,7 @@ addListBoxToWindow _ box storeSource columns = do
 
     mapM_ (\(position, (name, extractor)) -> addColumn position name storeSource storeSource2 extractor treeView) (zip [1..] columns)
 
-    panedPack2 box treeView True True
-
-    return ()
+    return (castToWidget treeView)
 
 --sortFunc::TypedTreeModelClass model=>model row->TreeIter->IO row
 sortFunc::Ord b=>ListStore a->(a->b)->TreeIter->TreeIter->IO Ordering

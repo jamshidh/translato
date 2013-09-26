@@ -13,7 +13,7 @@
 -----------------------------------------------------------------------------
 
 module ToolBar (
-    addToolBarToWindow,
+    toolbar,
     ImageId(..),
     Item(..)
 ) where
@@ -26,12 +26,12 @@ data ImageId = Stock String | File String
 
 data Item = Item ImageId (Maybe String) (IO())
 
-addToolBarToWindow::BoxClass a=>Window->a->[Item]->IO ()
-addToolBarToWindow window parent menu = do
+toolbar::[Item]->IO Widget
+toolbar menu = do
     toolbar <- toolbarNew
     toolbarSetStyle toolbar ToolbarIcons
     mapM_ (addToolButton toolbar) menu
-    boxPackStart parent toolbar PackNatural 0
+    return (castToWidget toolbar)
 
     where
         addToolButton::Toolbar->Item->IO ()

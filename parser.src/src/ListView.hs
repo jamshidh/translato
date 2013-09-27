@@ -39,8 +39,8 @@ instance Format (CI String) where
 
 data DataExtractor a b =forall b.(Format b, Ord b)=>DataExtractor (a->b)
 
-listView::ListStore b->[(String, DataExtractor b c)]->IO DOM
-listView storeSource columns = do
+listView::[WidgetModifier p TreeView]->ListStore b->[(String, DataExtractor b c)]->IO (DOM p)
+listView attModifiers storeSource columns = do
     --I don't know why I can't just use storeSource2 everywhere, but it causes the app to crash.
     --For now I don't care, I'll do what works without understanding it.
     storeSource2 <- treeModelSortNewWithModel storeSource
@@ -59,7 +59,7 @@ listView storeSource columns = do
 
     mapM_ (\(position, (name, extractor)) -> addColumn position name storeSource storeSource2 extractor treeView) (zip [1..] columns)
 
-    return DOM{widget=castToWidget treeView}
+    return DOM{widget=castToWidget treeView, childAttrs=[attr treeView|CAtr attr <- attModifiers]}
 
 --sortFunc::TypedTreeModelClass model=>model row->TreeIter->IO row
 sortFunc::Ord b=>ListStore a->(a->b)->TreeIter->TreeIter->IO Ordering

@@ -74,7 +74,7 @@ edit g generatorGrammar fileNameString = do
     let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
     let doValidate = validate g (castToImage $ widget validImage) (castToTextView $ widget mainTextView) errorStore parseStore parseTreeView
 
-    editorMenu <- menu mainWindow (
+    editorMenu <- menu [CAtr $ (\c -> boxChildPacking c := PackNatural)] mainWindow (
             [
                 TrSubMenu "_File"
                     [
@@ -101,7 +101,7 @@ edit g generatorGrammar fileNameString = do
             ]
             )
 
-    editorToolbar <- toolbar
+    editorToolbar <- toolbar [CAtr $ (\c -> boxChildPacking c := PackNatural)]
         (
             [
                 Item (Stock stockOpen) (Just "Open File") (promptAndLoadBuffer (castToTextView $ widget mainTextView) mainWindow),
@@ -114,7 +114,7 @@ edit g generatorGrammar fileNameString = do
             ]
         )
 
-    errorListView <- listView errorStore
+    errorListView <- listView [] errorStore
         [
             ("Location", DataExtractor ((intercalate "\n") . (formatRange <$>) . ranges)),
             ("Message", DataExtractor message)
@@ -127,11 +127,11 @@ edit g generatorGrammar fileNameString = do
                 vBox [] [
                     return editorMenu,
                     return editorToolbar,
-                    vPaned [CAtr $ boxPacking := PackGrow] (
+                    vPaned [CAtr $ (\c -> boxChildPacking c := PackGrow)] (
                             hPaned [] (scrolledWindow [] (return mainTextView), return outputNotebook),
                             return errorListView
                         ),
-                    hBox [] [statusbar [], statusbar [], button [], return positionLabel, return validImage]
+                    hBox [CAtr $ (\c -> boxChildPacking c := PackNatural)] [statusbar [], statusbar [], button [], return positionLabel, return validImage]
 
 --
 --                    image [],

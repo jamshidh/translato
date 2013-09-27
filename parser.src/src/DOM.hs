@@ -63,7 +63,7 @@ import Graphics.UI.Gtk
 
 
 
-data DOM = DOM{widget::Widget}
+data DOM p = DOM{widget::Widget, childAttrs::[AttrOp p]}
 
 -----------------------------------
 
@@ -92,7 +92,7 @@ setD = undefined
 ----------------------------------------
 -- Widget creation
 
-simpleWidget::WidgetClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier a]->IO DOM
+simpleWidget::WidgetClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->IO (DOM p)
 simpleWidget maybeLabelInfo widgetCreator attModifiers = do
     let extraAttModifiers =
             case maybeLabelInfo of
@@ -101,23 +101,23 @@ simpleWidget maybeLabelInfo widgetCreator attModifiers = do
     widget <- widgetCreator
     set widget [attr|Atr attr <- attModifiers]
     mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    let dom = DOM{widget=castToWidget widget}
---    setD widget [attr|Atr attr <- attModifiers]
+    let dom = DOM{widget=castToWidget widget, childAttrs=[attr widget|CAtr attr <- attModifiers]}
     return dom
 
-containerWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier a]->[IO DOM]->IO DOM
+containerWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->[IO (DOM a)]->IO (DOM p)
 containerWidget maybeLabelInfo widgetCreator attModifiers childCreators = do
     childDOMs <- sequence childCreators
-    let extraAttModifiers = Atr <$> (containerChild :=) <$> widget <$> childDOMs
+    let extraAttModifiers = Atr <$> (((containerChild :=) <$> widget <$> childDOMs)
+                                ++ (childAttrs =<< childDOMs))
 --    let extraAttModifiers2 = Atr <$> (\dom -> (boxChildPacking (widget dom) := childBoxPacking dom)) <$> childDOMs
     simpleWidget maybeLabelInfo widgetCreator (attModifiers ++ extraAttModifiers)
 
 
-binWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier a]->IO DOM->IO DOM
+binWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->IO (DOM a)->IO (DOM p)
 binWidget maybeLabelInfo widgetCreator attModifiers childCreator =
     containerWidget maybeLabelInfo widgetCreator attModifiers [childCreator]
 
-panedWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier a]->(IO DOM, IO DOM)->IO DOM
+panedWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->(IO (DOM a), IO (DOM a))->IO (DOM p)
 panedWidget maybeLabelInfo widgetCreator attModifiers (firstCreator, secondCreator) =
     containerWidget maybeLabelInfo widgetCreator attModifiers [firstCreator, secondCreator]
 
@@ -158,7 +158,7 @@ notebook = simpleWidget Nothing notebookNew
 --    onDestroy window mainQuit
 --    return (castToWidget window)
 
-data WidgetModifier a = Atr (AttrOp a) | CAtr (AttrOp a) | Sig (Signal a (IO())) (IO())
+data WidgetModifier p a = Atr (AttrOp a) | CAtr (a->AttrOp p) | Sig (Signal a (IO())) (IO())
 
 _main = fmap ((:[]) . castToWindow . widget) . readIORef
 
@@ -174,24 +174,24 @@ setM x y = do
 
 --data DOM = DOM{mainWidget::Widget}
 
-initDOM::IO (IORef DOM)
+initDOM::IO (IORef (DOM p))
 initDOM = do
     initGUI
     dom <- window "<No Title>" [Atr $ windowDefaultWidth := 400, Atr $ windowDefaultHeight := 300] (label [] "empty content")
     newIORef dom
 
-mainDOM::IORef DOM->IO()
+mainDOM::IORef (DOM p)->IO()
 mainDOM domR = do
     dom <- readIORef domR
     widgetShowAll (widget dom)
     mainGUI
 
-createMainWindow::IORef DOM->IO DOM->IO()
+createMainWindow::IORef (DOM p)->IO (DOM p)->IO()
 createMainWindow domR createDOM = do
     dom <- createDOM
     writeIORef domR dom
 
 -------------
 
-changeSecondLabel::IORef DOM->IO()
+changeSecondLabel::IORef (DOM p)->IO()
 changeSecondLabel domR = setM (_main domR >>= _vBox >>= _label >>= _item 1) [labelLabel := "qqqq"]

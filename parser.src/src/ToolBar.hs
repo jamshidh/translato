@@ -28,12 +28,12 @@ data ImageId = Stock String | File String
 
 data Item = Item ImageId (Maybe String) (IO())
 
-toolbar::[Item]->IO DOM
-toolbar menu = do
+toolbar::[WidgetModifier p Toolbar]->[Item]->IO (DOM p)
+toolbar attModifiers menu = do
     toolbar <- toolbarNew
     toolbarSetStyle toolbar ToolbarIcons
     mapM_ (addToolButton toolbar) menu
-    return DOM{widget=castToWidget toolbar}
+    return DOM{widget=castToWidget toolbar, childAttrs=[attr toolbar|CAtr attr <- attModifiers]}
 
     where
         addToolButton::Toolbar->Item->IO ()

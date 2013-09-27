@@ -31,8 +31,8 @@ data MenuTree = TrSubMenu String [MenuTree] Bool | TrItem String (Maybe String) 
 --it seems that Haskell only has full support for widgets created this way.  In particular, I don't
 --think I can create an accelerator on a menu widget created directly.
 
-menu::Window->[MenuTree]->IO DOM
-menu window menu = do
+menu::[WidgetModifier p MenuBar]->Window->[MenuTree]->IO (DOM p)
+menu attModifiers window menu = do
     actionGroup <- actionGroupNew "Editor"
     (menuXMLString, actionGroup) <- menuTree2MenuData menu
 
@@ -42,12 +42,12 @@ menu window menu = do
 
 
     maybeMenubar <- uiManagerGetWidget ui "/ui/menubar"
-    let menubar = case maybeMenubar of
+    let menuBar = case maybeMenubar of
             (Just x) -> x
             Nothing -> error "Cannot get menubar from string."
     accelGroup <- uiManagerGetAccelGroup ui
     windowAddAccelGroup window accelGroup
-    return DOM{widget=menubar}
+    return DOM{widget=menuBar, childAttrs=[attr (castToMenuBar menuBar)|CAtr attr <- attModifiers]}
 
 
 menuTree2MenuData::[MenuTree]->IO (String, ActionGroup)

@@ -22,6 +22,8 @@ module ListView (
 import Data.CaseInsensitive
 import Graphics.UI.Gtk
 
+import DOM
+
 class Format a where
     format::a->String
 
@@ -37,7 +39,7 @@ instance Format (CI String) where
 
 data DataExtractor a b =forall b.(Format b, Ord b)=>DataExtractor (a->b)
 
-listView::ListStore b->[(String, DataExtractor b c)]->IO Widget
+listView::ListStore b->[(String, DataExtractor b c)]->IO DOM
 listView storeSource columns = do
     --I don't know why I can't just use storeSource2 everywhere, but it causes the app to crash.
     --For now I don't care, I'll do what works without understanding it.
@@ -57,7 +59,7 @@ listView storeSource columns = do
 
     mapM_ (\(position, (name, extractor)) -> addColumn position name storeSource storeSource2 extractor treeView) (zip [1..] columns)
 
-    return (castToWidget treeView)
+    return DOM{widget=castToWidget treeView}
 
 --sortFunc::TypedTreeModelClass model=>model row->TreeIter->IO row
 sortFunc::Ord b=>ListStore a->(a->b)->TreeIter->TreeIter->IO Ordering

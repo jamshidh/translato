@@ -19,7 +19,9 @@ module Menu (
 
 import Graphics.UI.Gtk
 
-import JDebug
+import DOM
+
+--import JDebug
 
 data MenuTree = TrSubMenu String [MenuTree] Bool | TrItem String (Maybe String) (IO())
 
@@ -29,7 +31,7 @@ data MenuTree = TrSubMenu String [MenuTree] Bool | TrItem String (Maybe String) 
 --it seems that Haskell only has full support for widgets created this way.  In particular, I don't
 --think I can create an accelerator on a menu widget created directly.
 
-menu::Window->[MenuTree]->IO Widget
+menu::Window->[MenuTree]->IO DOM
 menu window menu = do
     actionGroup <- actionGroupNew "Editor"
     (menuXMLString, actionGroup) <- menuTree2MenuData menu
@@ -45,7 +47,7 @@ menu window menu = do
             Nothing -> error "Cannot get menubar from string."
     accelGroup <- uiManagerGetAccelGroup ui
     windowAddAccelGroup window accelGroup
-    return menubar
+    return DOM{widget=menubar}
 
 
 menuTree2MenuData::[MenuTree]->IO (String, ActionGroup)

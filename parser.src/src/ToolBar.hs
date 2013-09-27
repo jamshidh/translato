@@ -20,18 +20,20 @@ module ToolBar (
 
 import Graphics.UI.Gtk
 
-import JDebug
+import DOM
+
+--import JDebug
 
 data ImageId = Stock String | File String
 
 data Item = Item ImageId (Maybe String) (IO())
 
-toolbar::[Item]->IO Widget
+toolbar::[Item]->IO DOM
 toolbar menu = do
     toolbar <- toolbarNew
     toolbarSetStyle toolbar ToolbarIcons
     mapM_ (addToolButton toolbar) menu
-    return (castToWidget toolbar)
+    return DOM{widget=castToWidget toolbar}
 
     where
         addToolButton::Toolbar->Item->IO ()

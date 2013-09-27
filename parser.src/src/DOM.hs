@@ -14,6 +14,7 @@
 -----------------------------------------------------------------------------
 
 module DOM (
+    DOM(..),
     initDOM,
     createMainWindow,
     mainDOM,
@@ -51,110 +52,115 @@ module DOM (
     WidgetModifier(..)
 ) where
 
+import Data.HList
 import Data.Maybe
 import Data.IORef
 import Data.Functor
 import Graphics.UI.Gtk
 
+--TODO I would really like to make container widgets hold HLists of children, not lists of children.
+--For now I will postpone this, as I find HLists hard to deal with (perhaps I don't have enough experience yet)
+
+
+
+data DOM = DOM{widget::Widget}
+
+-----------------------------------
+
+--Extra Attributes
+
 boxPacking::WidgetClass self => Attr self Packing
 boxPacking = newAttr
     (\x -> return PackGrow)
     (\self packing -> do
-        Just parent <- widgetGetParent self
-        let parentBox = castToBox parent
-        set parentBox [boxChildPacking self := packing]
+        maybeParent <- widgetGetParent self
+        case maybeParent of
+            Just parent -> do
+                let parentBox = castToBox parent
+                set parentBox [boxChildPacking self := packing]
+            Nothing -> return ()
     )
 
 
+--data A; a = proxy::Proxy A
+--data B; b = proxy::Proxy B
+--
+--myRecord = (a .=. "param1value") .*. (b .=. "param1value") .*. emptyRecord
 
+setD = undefined
 
-simpleWidget::WidgetClass a=>IO a->[WidgetModifier a]->IO Widget
-simpleWidget widgetCreator attModifiers = do
+----------------------------------------
+-- Widget creation
+
+simpleWidget::WidgetClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier a]->IO DOM
+simpleWidget maybeLabelInfo widgetCreator attModifiers = do
+    let extraAttModifiers =
+            case maybeLabelInfo of
+                Nothing -> []
+                Just (name, labelAttr) -> [Atr $ labelAttr := name]
     widget <- widgetCreator
     set widget [attr|Atr attr <- attModifiers]
---    Just parent <- widgetGetParent widget
---    set parent [attr|CAtr attr <- attModifiers]
     mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    return (castToWidget widget)
+    let dom = DOM{widget=castToWidget widget}
+--    setD widget [attr|Atr attr <- attModifiers]
+    return dom
 
-labeledWidget::WidgetClass a=>String->Attr a String->IO a->[WidgetModifier a]->IO Widget
-labeledWidget name labelAttr widgetCreator attModifiers = do
-    widget <- widgetCreator
-    labelValue <- get widget labelAttr
-    case labelValue of
-        "" -> set widget [labelAttr := name]
-        _ -> return ()
-    set widget [attr|Atr attr <- attModifiers]
-    mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    return (castToWidget widget)
-
-containerWidget::ContainerClass a=>IO a->[WidgetModifier a]->[IO Widget]->IO Widget
-containerWidget widgetCreator attModifiers childrenWidgetCreators = do
-    widget <- widgetCreator
-    widgets <- sequence childrenWidgetCreators
-    set widget ((containerChild :=) <$> widgets)
-    set widget [attr|Atr attr <- attModifiers]
-    mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    return (castToWidget widget)
-
-boxWidget::BoxClass a=>IO a->[WidgetModifier a]->[IO Widget]->IO Widget
-boxWidget widgetCreator attModifiers childrenWidgetCreators = do
-    widget <- widgetCreator
-    widgets <- sequence childrenWidgetCreators
-    set widget ((containerChild :=) <$> widgets)
-    set widget ((\w -> boxChildPacking w := PackNatural) <$> widgets)
-    set widget [attr|Atr attr <- attModifiers]
-    mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    return (castToWidget widget)
-
-binWidget::ContainerClass a=>IO a->[WidgetModifier a]->IO Widget->IO Widget
-binWidget widgetCreator attModifiers childWidgetCreator =
-    containerWidget widgetCreator attModifiers [childWidgetCreator]
-
-panedWidget::ContainerClass a=>IO a->[WidgetModifier a]->(IO Widget, IO Widget)->IO Widget
-panedWidget widgetCreator attModifiers (firstWidgetCreator, secondWidgetCreator) =
-    containerWidget widgetCreator attModifiers [firstWidgetCreator, secondWidgetCreator]
+containerWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier a]->[IO DOM]->IO DOM
+containerWidget maybeLabelInfo widgetCreator attModifiers childCreators = do
+    childDOMs <- sequence childCreators
+    let extraAttModifiers = Atr <$> (containerChild :=) <$> widget <$> childDOMs
+--    let extraAttModifiers2 = Atr <$> (\dom -> (boxChildPacking (widget dom) := childBoxPacking dom)) <$> childDOMs
+    simpleWidget maybeLabelInfo widgetCreator (attModifiers ++ extraAttModifiers)
 
 
-label = flip $ labeledWidget "label" labelLabel . labelNew . Just
-accelLabel = flip $ labeledWidget "accelLabel" labelLabel . accelLabelNew
-statusbar = simpleWidget statusbarNew
-rightArrow = simpleWidget (arrowNew ArrowRight ShadowIn)
-leftArrow = simpleWidget (arrowNew ArrowLeft ShadowIn)
-upArrow = simpleWidget (arrowNew ArrowUp ShadowIn)
-downArrow = simpleWidget (arrowNew ArrowDown ShadowIn)
-image = simpleWidget imageNew
-frame = binWidget frameNew
-aspectFrame = binWidget (aspectFrameNew 0.5 0.5 Nothing)
-button = labeledWidget "button" buttonLabel buttonNew
-checkButton = labeledWidget "button" buttonLabel toggleButtonNew
-radioButton = labeledWidget "button" buttonLabel radioButtonNew
-scrolledWindow = binWidget (scrolledWindowNew Nothing Nothing)
-textView = simpleWidget textViewNew
+binWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier a]->IO DOM->IO DOM
+binWidget maybeLabelInfo widgetCreator attModifiers childCreator =
+    containerWidget maybeLabelInfo widgetCreator attModifiers [childCreator]
+
+panedWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier a]->(IO DOM, IO DOM)->IO DOM
+panedWidget maybeLabelInfo widgetCreator attModifiers (firstCreator, secondCreator) =
+    containerWidget maybeLabelInfo widgetCreator attModifiers [firstCreator, secondCreator]
 
 
+label = flip $ simpleWidget (Just ("label", labelLabel)) . labelNew . Just
+accelLabel = flip $ simpleWidget (Just ("accelLabel", labelLabel)) . accelLabelNew
+statusbar = simpleWidget Nothing statusbarNew
+rightArrow = simpleWidget Nothing (arrowNew ArrowRight ShadowIn)
+leftArrow = simpleWidget Nothing (arrowNew ArrowLeft ShadowIn)
+upArrow = simpleWidget Nothing (arrowNew ArrowUp ShadowIn)
+downArrow = simpleWidget Nothing (arrowNew ArrowDown ShadowIn)
+image = simpleWidget Nothing imageNew
+frame = binWidget Nothing frameNew
+aspectFrame = binWidget Nothing (aspectFrameNew 0.5 0.5 Nothing)
+button = simpleWidget (Just ("button", buttonLabel)) buttonNew
+checkButton = simpleWidget (Just ("button", buttonLabel)) toggleButtonNew
+radioButton = simpleWidget (Just ("button", buttonLabel)) radioButtonNew
+scrolledWindow = binWidget Nothing (scrolledWindowNew Nothing Nothing)
+textView = simpleWidget Nothing textViewNew
 
-vBox = boxWidget (vBoxNew False 0)
-hBox = boxWidget (hBoxNew False 0)
+window title = binWidget (Just (title, windowTitle)) windowNew
+
+vBox = containerWidget Nothing (vBoxNew False 0)
+hBox = containerWidget Nothing (hBoxNew False 0)
 --    widgets <- sequence widgetCreators
 --    mapM_ (\widget -> boxPackStart gtkVBox widget PackNatural 0) widgets
 --    return (castToWidget gtkVBox)
-vPaned = panedWidget vPanedNew
-hPaned = panedWidget hPanedNew
-notebook = simpleWidget notebookNew
+vPaned = panedWidget Nothing vPanedNew
+hPaned = panedWidget Nothing hPanedNew
+notebook = simpleWidget Nothing notebookNew
 
-window::String->[WidgetModifier Window]->IO Widget->IO Widget
-window title atts widgetCreator = do
-    widget <- widgetCreator
-    window <- windowNew
-    set window [windowTitle := title, containerChild := widget]
-    set window [attr|Atr attr <- atts]
-    onDestroy window mainQuit
-    return (castToWidget window)
+--window::String->[WidgetModifier Window]->IO DOM->IO DOM
+--window title atts childCreator = do
+--    widget <- childCreator
+--    window <- windowNew
+--    set window [windowTitle := title, containerChild := widget]
+--    set window [attr|Atr attr <- atts]
+--    onDestroy window mainQuit
+--    return (castToWidget window)
 
-data WidgetModifier a = Atr (AttrOp a) | Sig (Signal a (IO())) (IO())
+data WidgetModifier a = Atr (AttrOp a) | CAtr (AttrOp a) | Sig (Signal a (IO())) (IO())
 
-_main = fmap ((:[]) . castToWindow . mainWidget) . readIORef
+_main = fmap ((:[]) . castToWindow . widget) . readIORef
 
 _vBox = fmap (map castToVBox . filter (`isA` gTypeVBox) . concat) . sequence . fmap containerGetChildren
 _label = fmap (map castToLabel . filter (`isA` gTypeLabel) . concat) . sequence . fmap containerGetChildren
@@ -166,26 +172,24 @@ setM x y = do
     set (head widget) y
 
 
-data DOM = DOM{mainWidget::Widget}
+--data DOM = DOM{mainWidget::Widget}
 
 initDOM::IO (IORef DOM)
 initDOM = do
     initGUI
-    mainWindow <- window "<No Title>" [Atr $ windowDefaultWidth := 400, Atr $ windowDefaultHeight := 300] (label [] "empty content")
-    ioRef <- newIORef (DOM mainWindow)
-    return ioRef
+    dom <- window "<No Title>" [Atr $ windowDefaultWidth := 400, Atr $ windowDefaultHeight := 300] (label [] "empty content")
+    newIORef dom
 
 mainDOM::IORef DOM->IO()
 mainDOM domR = do
     dom <- readIORef domR
-    widgetShowAll (mainWidget dom)
+    widgetShowAll (widget dom)
     mainGUI
 
-createMainWindow::IORef DOM->IO Widget->IO()
-createMainWindow domR createWindow = do
-    mainWindow <- createWindow
-    dom <- readIORef domR
-    writeIORef domR dom{mainWidget=mainWindow}
+createMainWindow::IORef DOM->IO DOM->IO()
+createMainWindow domR createDOM = do
+    dom <- createDOM
+    writeIORef domR dom
 
 -------------
 

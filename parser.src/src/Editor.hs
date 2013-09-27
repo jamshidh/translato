@@ -64,7 +64,7 @@ edit g generatorGrammar fileNameString = do
     mainWindow <- head <$> _main domR
 
     mainTextView <- textView []
-    textBuffer <- textViewGetBuffer (castToTextView mainTextView)
+    textBuffer <- textViewGetBuffer (castToTextView $ widget mainTextView)
     clipboard <- clipboardGet selectionPrimary
 
     validImage <- image [Atr $ imageFile := "resources/redBall.png"]
@@ -72,15 +72,15 @@ edit g generatorGrammar fileNameString = do
     positionLabel <- label [] "Line 0, Col 0"
 
     let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
-    let doValidate = validate g (castToImage validImage) (castToTextView mainTextView) errorStore parseStore parseTreeView
+    let doValidate = validate g (castToImage $ widget validImage) (castToTextView $ widget mainTextView) errorStore parseStore parseTreeView
 
     editorMenu <- menu mainWindow (
             [
                 TrSubMenu "_File"
                     [
-                        TrItem "Open" Nothing (promptAndLoadBuffer (castToTextView mainTextView) mainWindow),
-                        TrItem "Save" (Just "<Control>s") (saveBuffer fileNameRef (castToTextView mainTextView)),
-                        TrItem "Save As...." Nothing (saveBufferAs fileNameRef (castToTextView mainTextView) mainWindow),
+                        TrItem "Open" Nothing (promptAndLoadBuffer (castToTextView $ widget mainTextView) mainWindow),
+                        TrItem "Save" (Just "<Control>s") (saveBuffer fileNameRef (castToTextView $ widget mainTextView)),
+                        TrItem "Save As...." Nothing (saveBufferAs fileNameRef (castToTextView $ widget mainTextView) mainWindow),
                         TrItem "_Quit" (Just "<Control>q") mainQuit
                     ] False,
                 TrSubMenu "Edit"
@@ -104,9 +104,9 @@ edit g generatorGrammar fileNameString = do
     editorToolbar <- toolbar
         (
             [
-                Item (Stock stockOpen) (Just "Open File") (promptAndLoadBuffer (castToTextView mainTextView) mainWindow),
-                Item (Stock stockSave) (Just "Save File") (saveBuffer fileNameRef (castToTextView mainTextView)),
-                Item (Stock stockSaveAs) (Just "Save File As....") (saveBufferAs fileNameRef (castToTextView mainTextView) mainWindow),
+                Item (Stock stockOpen) (Just "Open File") (promptAndLoadBuffer (castToTextView $ widget mainTextView) mainWindow),
+                Item (Stock stockSave) (Just "Save File") (saveBuffer fileNameRef (castToTextView $ widget mainTextView)),
+                Item (Stock stockSaveAs) (Just "Save File As....") (saveBufferAs fileNameRef (castToTextView $ widget mainTextView) mainWindow),
                 Item (Stock stockQuit) (Just "Quit the program") mainQuit,
                 Item (Stock stockFind) (Just "Find....") mainQuit,
                 Item (Stock stockAbout) (Just "About") showAboutDialog,
@@ -127,7 +127,7 @@ edit g generatorGrammar fileNameString = do
                 vBox [] [
                     return editorMenu,
                     return editorToolbar,
-                    vPaned [Atr $ boxPacking := PackGrow] (
+                    vPaned [CAtr $ boxPacking := PackGrow] (
                             hPaned [] (scrolledWindow [] (return mainTextView), return outputNotebook),
                             return errorListView
                         ),
@@ -170,7 +170,7 @@ edit g generatorGrammar fileNameString = do
 
     --set hbox [ containerChild := outputButton, containerChild := resetButton ]
 
-    loadBuffer fileNameString (castToTextView mainTextView)
+    loadBuffer fileNameString (castToTextView $ widget mainTextView)
 
 --------------
 
@@ -195,10 +195,10 @@ edit g generatorGrammar fileNameString = do
 
     outputTextBuffer <- textViewGetBuffer outputTextView
 
-    notebookSetTabPos (castToNotebook outputNotebook) PosRight
+    notebookSetTabPos (castToNotebook $ widget outputNotebook) PosRight
 
-    notebookInsertPage (castToNotebook outputNotebook) scrolledParseTreeView "tree" 0
-    notebookInsertPage (castToNotebook outputNotebook) outputTextView "output" 1
+    notebookInsertPage (castToNotebook $ widget outputNotebook) scrolledParseTreeView "tree" 0
+    notebookInsertPage (castToNotebook $ widget outputNotebook) outputTextView "output" 1
 
 --    panedPack1 hPaned scrolledTextView True True
 --    panedPack1 vPaned hPaned True True
@@ -217,9 +217,9 @@ edit g generatorGrammar fileNameString = do
     statusBarButton <- buttonNewWithLabel "qqqq"
     --validImage <- imageNewFromStock stockYes IconSizeMenu
 
-    after (castToTextView mainTextView) moveCursor (onCursorMoved (castToLabel positionLabel) textBuffer)
-    on (castToTextView mainTextView) keyPressEvent onKeyPressed
-    after textBuffer bufferChanged (onBuffChanged (castToLabel positionLabel) textBuffer outputTextBuffer doValidate doGenerate)
+    after (castToTextView $ widget mainTextView) moveCursor (onCursorMoved (castToLabel $ widget positionLabel) textBuffer)
+    on (castToTextView $ widget mainTextView) keyPressEvent onKeyPressed
+    after textBuffer bufferChanged (onBuffChanged (castToLabel $ widget positionLabel) textBuffer outputTextBuffer doValidate doGenerate)
 
     id <- statusbarGetContextId statusBar "qqqq"
 
@@ -240,7 +240,7 @@ edit g generatorGrammar fileNameString = do
 --    Rectangle _ _ width _ <- widgetGetAllocation hPaned
 --    panedSetPosition hPaned (round (0.7 * fromIntegral width))
 
-    widgetGrabFocus mainTextView
+    widgetGrabFocus $ widget mainTextView
 
     start <- textBufferGetStartIter textBuffer
     textBufferPlaceCursor textBuffer start

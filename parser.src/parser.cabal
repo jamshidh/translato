@@ -9,27 +9,29 @@ data-dir: ""
 extra-source-files: ""
  
 executable parser
-    build-depends: base -any, bytestring -any, case-insensitive -any,
-                   containers -any, fgl -any, filepath -any, glib -any, gtk -any,
-                   lens -any, mtl -any, parsec -any, regex-compat -any,
-                   regex-posix -any, system-filepath -any, template-haskell -any,
-                   text -any, utf8-string -any, xml-conduit -any
+    build-depends: HList -any, base -any, bytestring -any,
+                   case-insensitive -any, containers -any, fgl -any, filepath -any,
+                   glib -any, gtk -any, lens -any, mtl -any, parsec -any,
+                   regex-compat -any, regex-posix -any, system-filepath -any,
+                   template-haskell -any, text -any, utf8-string -any,
+                   xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: ArgOpts OperatorNames SequenceMap JDebug Grammar
+    other-modules: DOM ArgOpts OperatorNames SequenceMap JDebug Grammar
                    CmdOptions Colors FakeColors Parser Editor XPath SMShower Editor2
                    LText Lookahead Format LString Main GrammarParser ParseError
                    ToolBar StupidSetGet EnhancedString EStringTools Shower Quoter
                    CharSet ListView Menu Generator ParseElements Context LeftFactoring
-                   GrammarTools TreeTools Generator DOM
+                   GrammarTools TreeTools Generator
  
 test-suite test-parser
-    build-depends: base -any, bytestring -any, case-insensitive -any,
-                   containers -any, fgl -any, filepath -any, glib -any, gtk -any,
-                   lens -any, mtl -any, parsec -any, regex-compat -any,
-                   regex-posix -any, system-filepath -any, template-haskell -any,
-                   text -any, utf8-string -any, xml-conduit -any
+    build-depends: HList -any, base -any, bytestring -any,
+                   case-insensitive -any, containers -any, fgl -any, filepath -any,
+                   glib -any, gtk -any, lens -any, mtl -any, parsec -any,
+                   regex-compat -any, regex-posix -any, system-filepath -any,
+                   template-haskell -any, text -any, utf8-string -any,
+                   xml-conduit -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

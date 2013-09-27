@@ -49,6 +49,8 @@ module DOM (
     _main,
     _vBox,
     _label,
+    _item,
+    (#=),
     WidgetModifier(..)
 ) where
 
@@ -157,6 +159,8 @@ notebook = simpleWidget Nothing notebookNew
 --    set window [attr|Atr attr <- atts]
 --    onDestroy window mainQuit
 --    return (castToWidget window)
+
+x #= y = (:= y) . x
 
 data WidgetModifier p a = Atr (AttrOp a) | CAtr (a->AttrOp p) | Sig (Signal a (IO())) (IO())
 

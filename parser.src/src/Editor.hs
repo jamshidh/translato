@@ -67,14 +67,14 @@ edit g generatorGrammar fileNameString = do
     textBuffer <- textViewGetBuffer (castToTextView $ widget mainTextView)
     clipboard <- clipboardGet selectionPrimary
 
-    validImage <- image [Atr $ imageFile := "resources/redBall.png"]
+    validImage <- image [Atr $ imageFile := "resources/redBall.png", CAtr $ boxChildPacking #= PackNatural, CAtr $ boxChildPackType #= PackEnd]
     parseTreeView <- treeViewNewWithModel parseStore
-    positionLabel <- label [] "Line 0, Col 0"
+    positionLabel <- label [CAtr $ boxChildPacking #= PackNatural, CAtr $ boxChildPackType #= PackEnd] "Line 0, Col 0"
 
     let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
     let doValidate = validate g (castToImage $ widget validImage) (castToTextView $ widget mainTextView) errorStore parseStore parseTreeView
 
-    editorMenu <- menu [CAtr $ (\c -> boxChildPacking c := PackNatural)] mainWindow (
+    editorMenu <- menu [CAtr $ boxChildPacking #= PackNatural] mainWindow (
             [
                 TrSubMenu "_File"
                     [
@@ -131,7 +131,14 @@ edit g generatorGrammar fileNameString = do
                             hPaned [] (scrolledWindow [] (return mainTextView), return outputNotebook),
                             return errorListView
                         ),
-                    hBox [CAtr $ (\c -> boxChildPacking c := PackNatural)] [statusbar [], statusbar [], button [], return positionLabel, return validImage]
+                    hBox [CAtr $ (\c -> boxChildPacking c := PackNatural)]
+                        [
+                            statusbar [CAtr $ (\c -> boxChildPacking c := PackNatural)],
+                            statusbar [CAtr $ (\c -> boxChildPacking c := PackNatural)],
+                            button [CAtr $ (\c -> boxChildPacking c := PackNatural)],
+                            return positionLabel,
+                            return validImage
+                        ]
 
 --
 --                    image [],
@@ -147,19 +154,15 @@ edit g generatorGrammar fileNameString = do
             )
         )
 
-    mainDOM domR
 
 
 
 
 
-    window <- windowNew
     --windowSetHasFrame window True
     --windowSetDecorated window False
     --windowSetFrameDimensions window 50 50 50 50
 
-
-    scrolledTextView <- scrolledWindowNew Nothing Nothing
 
     scrolledParseTreeView <- scrolledWindowNew Nothing Nothing
     set scrolledParseTreeView [ containerChild := parseTreeView ]
@@ -213,26 +216,22 @@ edit g generatorGrammar fileNameString = do
 
 
 
-    statusBar <- statusbarNew
-    statusBarButton <- buttonNewWithLabel "qqqq"
-    --validImage <- imageNewFromStock stockYes IconSizeMenu
 
     after (castToTextView $ widget mainTextView) moveCursor (onCursorMoved (castToLabel $ widget positionLabel) textBuffer)
     on (castToTextView $ widget mainTextView) keyPressEvent onKeyPressed
     after textBuffer bufferChanged (onBuffChanged (castToLabel $ widget positionLabel) textBuffer outputTextBuffer doValidate doGenerate)
 
-    id <- statusbarGetContextId statusBar "qqqq"
+--    id <- statusbarGetContextId statusBar "qqqq"
 
-    statusbarSetHasResizeGrip statusBar True
+--    statusbarSetHasResizeGrip statusBar True
 
-    statusbarPush statusBar id "qqqq"
+--    statusbarPush statusBar id "qqqq"
 
 
 
 ----------------
 
-    onDestroy window mainQuit
-    widgetShowAll window
+    (`onDestroy` mainQuit) =<< head <$> _main domR
 
 --    Rectangle _ _ _ height <- widgetGetAllocation vPaned
 --    panedSetPosition vPaned (round (0.7 * fromIntegral height))
@@ -248,7 +247,11 @@ edit g generatorGrammar fileNameString = do
     doValidate
     generateOutput outputTextBuffer textBuffer doGenerate
 
-    mainGUI
+    mainDOM domR
+
+
+
+
 
 onCursorMoved::Label->TextBuffer->MovementStep->Int->Bool->IO()
 onCursorMoved positionLabel textBuffer _ _ _ = updatePositionLabel positionLabel textBuffer

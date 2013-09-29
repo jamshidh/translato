@@ -54,7 +54,7 @@ module DOM (
     WidgetModifier(..)
 ) where
 
-import Data.HList
+--import Data.HList
 import Data.Maybe
 import Data.IORef
 import Data.Functor
@@ -65,7 +65,7 @@ import Graphics.UI.Gtk
 
 
 
-data DOM p = DOM{widget::Widget, childAttrs::[AttrOp p]}
+data DOM p = DOM{widget::Widget, childAttrs::[AttrOp p], ids::[(String, Widget)]}
 
 -----------------------------------
 
@@ -103,7 +103,11 @@ simpleWidget maybeLabelInfo widgetCreator attModifiers = do
     widget <- widgetCreator
     set widget [attr|Atr attr <- attModifiers]
     mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    let dom = DOM{widget=castToWidget widget, childAttrs=[attr widget|CAtr attr <- attModifiers]}
+    let ids = case [(name, castToWidget widget)|Id name <- attModifiers] of
+                [] -> []
+                [oneId] -> [oneId]
+                _ -> error "You can only have one ID in a widget"
+    let dom = DOM{widget=castToWidget widget, childAttrs=[attr widget|CAtr attr <- attModifiers], ids=ids}
     return dom
 
 containerWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->[IO (DOM a)]->IO (DOM p)
@@ -111,8 +115,10 @@ containerWidget maybeLabelInfo widgetCreator attModifiers childCreators = do
     childDOMs <- sequence childCreators
     let extraAttModifiers = Atr <$> (((containerChild :=) <$> widget <$> childDOMs)
                                 ++ (childAttrs =<< childDOMs))
+    let extraIds = concat (ids <$> childDOMs)
 --    let extraAttModifiers2 = Atr <$> (\dom -> (boxChildPacking (widget dom) := childBoxPacking dom)) <$> childDOMs
-    simpleWidget maybeLabelInfo widgetCreator (attModifiers ++ extraAttModifiers)
+    dom <- simpleWidget maybeLabelInfo widgetCreator (attModifiers ++ extraAttModifiers)
+    return dom{ids = ids dom ++ extraIds}
 
 
 binWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->IO (DOM a)->IO (DOM p)
@@ -162,7 +168,7 @@ notebook = simpleWidget Nothing notebookNew
 
 x #= y = (:= y) . x
 
-data WidgetModifier p a = Atr (AttrOp a) | CAtr (a->AttrOp p) | Sig (Signal a (IO())) (IO())
+data WidgetModifier p a = Id String | Atr (AttrOp a) | CAtr (a->AttrOp p) | Sig (Signal a (IO())) (IO())
 
 _main = fmap ((:[]) . castToWindow . widget) . readIORef
 

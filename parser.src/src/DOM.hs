@@ -37,6 +37,7 @@ module DOM (
     checkButton,
     radioButton,
     textView,
+    treeView,
     scrolledWindow,
     vBox,
     hBox,
@@ -103,7 +104,7 @@ simpleWidget maybeLabelInfo widgetCreator attModifiers = do
     widget <- widgetCreator
     set widget [attr|Atr attr <- attModifiers]
     mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    let ids = case [(name, castToWidget widget)|Id name <- attModifiers] of
+    let ids = case [(name, castToWidget widget)|ID name <- attModifiers] of
                 [] -> []
                 [oneId] -> [oneId]
                 _ -> error "You can only have one ID in a widget"
@@ -145,6 +146,8 @@ checkButton = simpleWidget (Just ("button", buttonLabel)) toggleButtonNew
 radioButton = simpleWidget (Just ("button", buttonLabel)) radioButtonNew
 scrolledWindow = binWidget Nothing (scrolledWindowNew Nothing Nothing)
 textView = simpleWidget Nothing textViewNew
+treeView = simpleWidget Nothing treeViewNew
+
 
 window title = binWidget (Just (title, windowTitle)) windowNew
 
@@ -155,7 +158,12 @@ hBox = containerWidget Nothing (hBoxNew False 0)
 --    return (castToWidget gtkVBox)
 vPaned = panedWidget Nothing vPanedNew
 hPaned = panedWidget Nothing hPanedNew
-notebook = simpleWidget Nothing notebookNew
+
+
+
+notebook::[WidgetModifier p Notebook]->[(String, IO (DOM Notebook))]->IO (DOM p)
+notebook attModifiers pages =
+    containerWidget Nothing notebookNew attModifiers (snd <$> pages)
 
 --window::String->[WidgetModifier Window]->IO DOM->IO DOM
 --window title atts childCreator = do
@@ -168,7 +176,7 @@ notebook = simpleWidget Nothing notebookNew
 
 x #= y = (:= y) . x
 
-data WidgetModifier p a = Id String | Atr (AttrOp a) | CAtr (a->AttrOp p) | Sig (Signal a (IO())) (IO())
+data WidgetModifier p a = ID String | Atr (AttrOp a) | CAtr (a->AttrOp p) | Sig (Signal a (IO())) (IO())
 
 _main = fmap ((:[]) . castToWindow . widget) . readIORef
 
@@ -190,10 +198,11 @@ initDOM = do
     dom <- window "<No Title>" [Atr $ windowDefaultWidth := 400, Atr $ windowDefaultHeight := 300] (label [] "empty content")
     newIORef dom
 
-mainDOM::IORef (DOM p)->IO()
-mainDOM domR = do
+mainDOM::IORef (DOM p)->(IORef (DOM p)->IO())->IO()
+mainDOM domR onStart = do
     dom <- readIORef domR
     widgetShowAll (widget dom)
+    onStart domR
     mainGUI
 
 createMainWindow::IORef (DOM p)->IO (DOM p)->IO()

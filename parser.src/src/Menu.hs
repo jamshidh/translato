@@ -47,7 +47,7 @@ menu attModifiers window menu = do
             Nothing -> error "Cannot get menubar from string."
     accelGroup <- uiManagerGetAccelGroup ui
     windowAddAccelGroup window accelGroup
-    let ids = case [(name, castToWidget menuBar)|Id name <- attModifiers] of
+    let ids = case [(name, castToWidget menuBar)|ID name <- attModifiers] of
                 [] -> []
                 [oneId] -> [oneId]
                 _ -> error "You can only have one ID in a widget"

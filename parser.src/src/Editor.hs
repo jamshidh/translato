@@ -53,51 +53,78 @@ import JDebug
 makeGenerator::Grammar->String->String
 makeGenerator g contents = generateFromText g (TL.pack $ createParser g contents)
 
-data Ids = Ids{mainTextView::TextView}
+data Ids = Ids{
+    mainTextView::TextView,
+    outputNotebook::Notebook,
+    validImage::Image,
+    positionLabel::Label,
+    errorListView::TreeView,
+    outputTextView::TextView,
+    errorPaned::VPaned,
+    outputPaned::HPaned
+}
+
+getIDs::IORef (DOM p)->IO Ids
+getIDs domR = do
+    dom <- readIORef domR
+    return Ids{mainTextView=case lookup "mainTextView" (ids dom) of Just w -> castToTextView w,
+               outputNotebook=case lookup "outputNotebook" (ids dom) of Just w -> castToNotebook w,
+               validImage=case lookup "validImage" (ids dom) of Just w -> castToImage w,
+               positionLabel=case lookup "positionLabel" (ids dom) of Just w -> castToLabel w,
+               errorListView=case lookup "errorListView" (ids dom) of Just w -> castToTreeView w,
+               outputTextView=case lookup "outputTextView" (ids dom) of Just w -> castToTextView w,
+               outputPaned=case lookup "outputPaned" (ids dom) of Just w -> castToHPaned w,
+               errorPaned=case lookup "errorPaned" (ids dom) of Just w -> castToVPaned w}
+
+onStart::IORef (DOM p)->IO()
+onStart domR = do
+    ids <- getIDs domR
+    Rectangle _ _ _ height <- widgetGetAllocation (errorPaned ids)
+    panedSetPosition (errorPaned ids) (round (0.7 * fromIntegral height))
+
+    Rectangle _ _ width _ <- widgetGetAllocation (outputPaned ids)
+    panedSetPosition (outputPaned ids) (round (0.7 * fromIntegral width))
+
+    widgetGrabFocus $ mainTextView ids
+
+    jtrace ("height = " ++ show height) $ return ()
+    jtrace ("width = " ++ show width) $ return ()
+
 
 edit::Grammar->Grammar->String->IO ()
 edit g generatorGrammar fileNameString = do
+    domR <- initDOM
+
     errorStore <- listStoreNew []
     parseStore <- treeStoreNew [Node{rootLabel="qqqq",subForest=[Node{rootLabel="abcd", subForest=[]}, Node{rootLabel="qq2", subForest=[]}]}]
     fileNameRef <- newIORef fileNameString
+    clipboard <- clipboardGet selectionPrimary
 
-    domR <- initDOM
-
-    let
-        getIds::IORef (DOM p)->IO Ids
-        getIds domR = do
-            dom <- readIORef domR
-            return Ids{mainTextView=case lookup "mainTextView" (ids dom) of Just w -> castToTextView w}
 
     mainWindow <- head <$> _main domR
 
---    mainTextView <- textView []
---    textBuffer <- textViewGetBuffer (do ids <- getIds domR; mainTextView ids)
-    clipboard <- clipboardGet selectionPrimary
-
-    validImage <- image [Atr $ imageFile := "resources/redBall.png", CAtr $ boxChildPacking #= PackNatural, CAtr $ boxChildPackType #= PackEnd]
-    parseTreeView <- treeViewNewWithModel parseStore
-    positionLabel <- label [CAtr $ boxChildPacking #= PackNatural, CAtr $ boxChildPackType #= PackEnd] "Line 0, Col 0"
+    parseTreeView2 <- treeView [Atr $ treeViewModel := parseStore]
+--    parseTreeView <- treeViewNewWithModel parseStore
 
     let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
     let doValidate = do
-        ids <- getIds domR
-        validate g (castToImage $ widget validImage) (mainTextView ids) errorStore parseStore parseTreeView
+        ids <- getIDs domR
+        validate g (validImage ids) (mainTextView ids) errorStore parseStore (castToTreeView $ widget parseTreeView2)
 
     editorMenu <- menu [CAtr $ boxChildPacking #= PackNatural] mainWindow (
             [
                 TrSubMenu "_File"
                     [
-                        TrItem "Open" Nothing (do ids <- getIds domR; promptAndLoadBuffer (mainTextView ids) mainWindow),
-                        TrItem "Save" (Just "<Control>s") (do ids <- getIds domR; saveBuffer fileNameRef (mainTextView ids)),
-                        TrItem "Save As...." Nothing (do ids <- getIds domR; saveBufferAs fileNameRef (mainTextView ids) mainWindow),
+                        TrItem "Open" Nothing (do ids <- getIDs domR; promptAndLoadBuffer (mainTextView ids) mainWindow),
+                        TrItem "Save" (Just "<Control>s") (do ids <- getIDs domR; saveBuffer fileNameRef (mainTextView ids)),
+                        TrItem "Save As...." Nothing (do ids <- getIDs domR; saveBufferAs fileNameRef (mainTextView ids) mainWindow),
                         TrItem "_Quit" (Just "<Control>q") mainQuit
                     ] False,
                 TrSubMenu "Edit"
                     [
-                        TrItem "Cut" (Just "<Control>x") (do ids <- getIds domR; textBuffer <- textViewGetBuffer $ mainTextView ids; textBufferCutClipboard textBuffer clipboard True),
-                        TrItem "Copy" (Just "<Control>c") (do ids <- getIds domR; textBuffer <- textViewGetBuffer $ mainTextView ids; textBufferCopyClipboard textBuffer clipboard),
-                        TrItem "Paste" (Just "<Control>v") (do ids <- getIds domR; textBuffer <- textViewGetBuffer $ mainTextView ids; textBufferPasteClipboardAtCursor textBuffer clipboard True),
+                        TrItem "Cut" (Just "<Control>x") (do ids <- getIDs domR; textBuffer <- textViewGetBuffer $ mainTextView ids; textBufferCutClipboard textBuffer clipboard True),
+                        TrItem "Copy" (Just "<Control>c") (do ids <- getIDs domR; textBuffer <- textViewGetBuffer $ mainTextView ids; textBufferCopyClipboard textBuffer clipboard),
+                        TrItem "Paste" (Just "<Control>v") (do ids <- getIDs domR; textBuffer <- textViewGetBuffer $ mainTextView ids; textBufferPasteClipboardAtCursor textBuffer clipboard True),
                         TrItem "Find" Nothing doFind
                     ] False,
                 TrSubMenu "Tools"
@@ -114,9 +141,9 @@ edit g generatorGrammar fileNameString = do
     editorToolbar <- toolbar [CAtr $ (\c -> boxChildPacking c := PackNatural)]
         (
             [
-                Item (Stock stockOpen) (Just "Open File") (do ids <- getIds domR; promptAndLoadBuffer (mainTextView ids) mainWindow),
-                Item (Stock stockSave) (Just "Save File") (do ids <- getIds domR; saveBuffer fileNameRef (mainTextView ids)),
-                Item (Stock stockSaveAs) (Just "Save File As....") (do ids <- getIds domR; saveBufferAs fileNameRef (mainTextView ids) mainWindow),
+                Item (Stock stockOpen) (Just "Open File") (do ids <- getIDs domR; promptAndLoadBuffer (mainTextView ids) mainWindow),
+                Item (Stock stockSave) (Just "Save File") (do ids <- getIDs domR; saveBuffer fileNameRef (mainTextView ids)),
+                Item (Stock stockSaveAs) (Just "Save File As....") (do ids <- getIDs domR; saveBufferAs fileNameRef (mainTextView ids) mainWindow),
                 Item (Stock stockQuit) (Just "Quit the program") mainQuit,
                 Item (Stock stockFind) (Just "Find....") mainQuit,
                 Item (Stock stockAbout) (Just "About") showAboutDialog,
@@ -124,37 +151,45 @@ edit g generatorGrammar fileNameString = do
             ]
         )
 
-    errorListView <- listView [] errorStore
-        [
-            ("Location", DataExtractor ((intercalate "\n") . (formatRange <$>) . ranges)),
-            ("Message", DataExtractor message)
-        ]
-
-    outputNotebook <- notebook []
+--    scrolledParseTreeView <- scrolledWindow []
+--    outputTextView <- textView []
+--    notebookInsertPage (outputNotebook ids) scrolledParseTreeView "tree" 0
+--    notebookInsertPage (outputNotebook ids) outputTextView "output" 1
 
     createMainWindow domR (
-            window fileNameString [Atr $ containerBorderWidth := 4, Atr $ windowDefaultWidth := 1400, Atr $ windowDefaultHeight := 900] (
+            window fileNameString [Atr $ containerBorderWidth := 4,
+                                    --Sig destroyEvent (do mainQuit; return True),
+                                    Atr $ windowDefaultWidth := 1400,
+                                    Atr $ windowDefaultHeight := 900] (
                 vBox [] [
                     return editorMenu,
                     return editorToolbar,
-                    vPaned [CAtr $ (\c -> boxChildPacking c := PackGrow)] (
-                            hPaned [] (scrolledWindow [] (textView [Id "mainTextView"]), return outputNotebook),
-                            return errorListView
+                    vPaned [ID "errorPaned", CAtr $ (\c -> boxChildPacking c := PackGrow)]
+                        (
+                            hPaned [ID "outputPaned"]
+                                (
+                                    scrolledWindow [] (textView [ID "mainTextView"]),
+                                    notebook [ID "outputNotebook"]
+                                        [
+                                            ("tree", scrolledWindow [] (return parseTreeView2)),
+                                            ("output", textView [ID "outputTextView"])
+                                        ]
+                                ),
+                            listView [] errorStore
+                                    [
+                                        ("Location", DataExtractor ((intercalate "\n") . (formatRange <$>) . ranges)),
+                                        ("Message", DataExtractor message)
+                                    ]
                         ),
                     hBox [CAtr $ (\c -> boxChildPacking c := PackNatural)]
                         [
                             statusbar [CAtr $ (\c -> boxChildPacking c := PackNatural)],
                             statusbar [CAtr $ (\c -> boxChildPacking c := PackNatural)],
                             button [CAtr $ (\c -> boxChildPacking c := PackNatural)],
-                            return positionLabel,
-                            return validImage
+                            label [ID "positionLabel", CAtr $ boxChildPacking #= PackNatural, CAtr $ boxChildPackType #= PackEnd] "Line 0, Col 0",
+                            image [ID "validImage", Atr $ imageFile := "resources/redBall.png", CAtr $ boxChildPacking #= PackNatural, CAtr $ boxChildPackType #= PackEnd]
                         ]
 
---
---                    image [],
---                    label [] "label",
---                    checkButton [],
---                    frame [Atr $ frameLabel:="Frame Label"] $ label [] "abcd",
 --                    checkButton [Atr $ buttonLabel := "the button label"
 --                            , Sig buttonActivated
 --                                (setM
@@ -164,26 +199,12 @@ edit g generatorGrammar fileNameString = do
             )
         )
 
-
-
-
-
-
     --windowSetHasFrame window True
     --windowSetDecorated window False
     --windowSetFrameDimensions window 50 50 50 50
 
 
-    scrolledParseTreeView <- scrolledWindowNew Nothing Nothing
-    set scrolledParseTreeView [ containerChild := parseTreeView ]
-
-
-
-
-
-    --set hbox [ containerChild := outputButton, containerChild := resetButton ]
-
-    ids <- getIds domR
+    ids <- getIDs domR
 
     loadBuffer fileNameString (mainTextView ids)
 
@@ -201,26 +222,16 @@ edit g generatorGrammar fileNameString = do
     --cellLayoutSetAttributes col renderer store $ \row -> [cellPixbuf := itemIcon icos row]
     cellLayoutSetAttributes col renderer parseStore $ \row -> [cellTextMarkup   := Just row]
 
-    treeViewAppendColumn parseTreeView col
+--    treeViewAppendColumn (parseTreeView ids) col
 
-    treeViewSetEnableTreeLines parseTreeView True
-    treeViewSetHeadersVisible parseTreeView False
-
-    outputTextView <- textViewNew
-
-    outputTextBuffer <- textViewGetBuffer outputTextView
-
-    notebookSetTabPos (castToNotebook $ widget outputNotebook) PosRight
-
-    notebookInsertPage (castToNotebook $ widget outputNotebook) scrolledParseTreeView "tree" 0
-    notebookInsertPage (castToNotebook $ widget outputNotebook) outputTextView "output" 1
-
---    panedPack1 hPaned scrolledTextView True True
---    panedPack1 vPaned hPaned True True
+--    treeViewSetEnableTreeLines parseTreeView True
+--    treeViewSetHeadersVisible parseTreeView False
 
 
+    outputTextBuffer <- textViewGetBuffer (outputTextView ids)
 
---    panedPack2 hPaned (castToNotebook outputNotebook) True True
+    notebookSetTabPos (outputNotebook ids) PosRight
+
 
 
 
@@ -229,14 +240,17 @@ edit g generatorGrammar fileNameString = do
 
 
     textBuffer <- textViewGetBuffer $ mainTextView ids;
-    after (mainTextView ids) moveCursor (onCursorMoved (castToLabel $ widget positionLabel) textBuffer)
-    on (castToTextView $ mainTextView ids) keyPressEvent onKeyPressed
---    after textBuffer bufferChanged (do ids <- getIds domR; textBuffer <- textViewGetBuffer $ mainTextView ids; onBuffChanged (castToLabel $ widget positionLabel) textBuffer outputTextBuffer doValidate doGenerate)
+    after (mainTextView ids) moveCursor (onCursorMoved (positionLabel ids) textBuffer)
+    on (mainTextView ids) keyPressEvent onKeyPressed
+    after textBuffer bufferChanged (do ids <- getIDs domR; textBuffer <- textViewGetBuffer $ mainTextView ids; onBuffChanged (positionLabel ids) textBuffer outputTextBuffer doValidate doGenerate)
+    start <- textBufferGetStartIter textBuffer
+    textBufferPlaceCursor textBuffer start
+
+
+
 
 --    id <- statusbarGetContextId statusBar "qqqq"
-
 --    statusbarSetHasResizeGrip statusBar True
-
 --    statusbarPush statusBar id "qqqq"
 
 
@@ -245,21 +259,13 @@ edit g generatorGrammar fileNameString = do
 
     (`onDestroy` mainQuit) =<< head <$> _main domR
 
---    Rectangle _ _ _ height <- widgetGetAllocation vPaned
---    panedSetPosition vPaned (round (0.7 * fromIntegral height))
---
---    Rectangle _ _ width _ <- widgetGetAllocation hPaned
---    panedSetPosition hPaned (round (0.7 * fromIntegral width))
 
-    widgetGrabFocus $ mainTextView ids
-
---    start <- textBufferGetStartIter textBuffer
---    textBufferPlaceCursor textBuffer start
 
     doValidate
 --    generateOutput outputTextBuffer textBuffer doGenerate
 
-    mainDOM domR
+
+    mainDOM domR onStart
 
 
 

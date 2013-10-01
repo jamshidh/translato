@@ -48,7 +48,7 @@ toolbar attModifiers menu = do
     toolbar <- toolbarNew
     toolbarSetStyle toolbar ToolbarIcons
     mapM_ (addToolButton toolbar) menu
-    let ids = case [(name, castToWidget toolbar)|Id name <- attModifiers] of
+    let ids = case [(name, castToWidget toolbar)|ID name <- attModifiers] of
                 [] -> []
                 [oneId] -> [oneId]
                 _ -> error "You can only have one ID in a widget"

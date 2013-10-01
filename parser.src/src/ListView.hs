@@ -59,7 +59,12 @@ listView attModifiers storeSource columns = do
 
     mapM_ (\(position, (name, extractor)) -> addColumn position name storeSource storeSource2 extractor treeView) (zip [1..] columns)
 
-    return DOM{widget=castToWidget treeView, childAttrs=[attr treeView|CAtr attr <- attModifiers]}
+    let ids = case [(name, castToWidget treeView)|ID name <- attModifiers] of
+                [] -> []
+                [oneId] -> [oneId]
+                _ -> error "You can only have one ID in a widget"
+
+    return DOM{widget=castToWidget treeView, childAttrs=[attr treeView|CAtr attr <- attModifiers], ids=ids}
 
 --sortFunc::TypedTreeModelClass model=>model row->TreeIter->IO row
 sortFunc::Ord b=>ListStore a->(a->b)->TreeIter->TreeIter->IO Ordering

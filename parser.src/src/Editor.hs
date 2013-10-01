@@ -87,10 +87,6 @@ onStart domR = do
 
     widgetGrabFocus $ mainTextView ids
 
-    jtrace ("height = " ++ show height) $ return ()
-    jtrace ("width = " ++ show width) $ return ()
-
-
 edit::Grammar->Grammar->String->IO ()
 edit g generatorGrammar fileNameString = do
     domR <- initDOM
@@ -186,8 +182,9 @@ edit g generatorGrammar fileNameString = do
                             statusbar [CAtr $ (\c -> boxChildPacking c := PackNatural)],
                             statusbar [CAtr $ (\c -> boxChildPacking c := PackNatural)],
                             button [CAtr $ (\c -> boxChildPacking c := PackNatural)],
-                            label [ID "positionLabel", CAtr $ boxChildPacking #= PackNatural, CAtr $ boxChildPackType #= PackEnd] "Line 0, Col 0",
-                            image [ID "validImage", Atr $ imageFile := "resources/redBall.png", CAtr $ boxChildPacking #= PackNatural, CAtr $ boxChildPackType #= PackEnd]
+                            boxSpacer,
+                            label [ID "positionLabel", CAtr $ boxChildPacking #= PackNatural] "Line 0, Col 0",
+                            image [ID "validImage", Atr $ imageFile := "resources/redBall.png", CAtr $ boxChildPacking #= PackNatural]
                         ]
 
 --                    checkButton [Atr $ buttonLabel := "the button label"

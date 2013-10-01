@@ -45,6 +45,8 @@ module DOM (
     hPaned,
     notebook,
 
+    boxSpacer,
+
     --widget modifier tools
     setM,
     _main,
@@ -173,6 +175,9 @@ notebook attModifiers pages =
 --    set window [attr|Atr attr <- atts]
 --    onDestroy window mainQuit
 --    return (castToWidget window)
+
+boxSpacer::BoxClass p=>IO (DOM p)
+boxSpacer = label [CAtr $ (\c -> boxChildPacking c := PackGrow)] " "
 
 x #= y = (:= y) . x
 

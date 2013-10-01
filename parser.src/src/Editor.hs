@@ -99,8 +99,10 @@ edit g generatorGrammar fileNameString = do
 
     mainWindow <- head <$> _main domR
 
-    parseTreeView2 <- treeView [Atr $ treeViewModel := parseStore]
+    parseTreeView2 <- treeView [Atr $ treeViewModel := parseStore, Atr $ treeViewEnableTreeLines := True, Atr $ treeViewHeadersVisible := False]
+    let parseTreeView = castToTreeView (widget parseTreeView2)
 --    parseTreeView <- treeViewNewWithModel parseStore
+--    let parseTreeView2 = DOM{widget=castToWidget parseTreeView, childAttrs=[], ids=[]}
 
     let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
     let doValidate = do
@@ -165,7 +167,7 @@ edit g generatorGrammar fileNameString = do
                             hPaned [ID "outputPaned"]
                                 (
                                     scrolledWindow [] (textView [ID "mainTextView"]),
-                                    notebook [ID "outputNotebook"]
+                                    notebook [ID "outputNotebook", Atr $ notebookTabPos := PosRight]
                                         [
                                             ("tree", scrolledWindow [] (return parseTreeView2)),
                                             ("output", textView [ID "outputTextView"])
@@ -209,32 +211,23 @@ edit g generatorGrammar fileNameString = do
 
     col <- treeViewColumnNew
 
-    --renderer <- cellRendererPixbufNew
+--    renderer <- cellRendererPixbufNew
     renderer <- cellRendererTextNew
-
-    --set renderer [ cellBackground := "blue" ]
 
     cellLayoutPackStart col renderer True
 
-    --cellLayoutSetAttributes col renderer store $ \row -> [cellPixbuf := itemIcon icos row]
+
+
+--    cellLayoutSetAttributes col renderer parseStore $ \row -> [cellPixbuf := itemIcon icos row]
     cellLayoutSetAttributes col renderer parseStore $ \row -> [cellTextMarkup   := Just row]
 
---    treeViewAppendColumn (parseTreeView ids) col
-
---    treeViewSetEnableTreeLines parseTreeView True
---    treeViewSetHeadersVisible parseTreeView False
-
-
-    outputTextBuffer <- textViewGetBuffer (outputTextView ids)
-
-    notebookSetTabPos (outputNotebook ids) PosRight
-
-
-
+    treeViewAppendColumn (parseTreeView) col
+--    set parseTreeView [treeViewAppendColumn := col]
 
 ----------------------------------
 
 
+    outputTextBuffer <- textViewGetBuffer (outputTextView ids)
 
     textBuffer <- textViewGetBuffer $ mainTextView ids;
     after (mainTextView ids) moveCursor (onCursorMoved (positionLabel ids) textBuffer)

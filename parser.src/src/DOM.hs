@@ -21,6 +21,9 @@ module DOM (
 
     boxPacking,
 
+    --Creator helpers
+    applyModifiers,
+
     --List of creators
     window,
     label,
@@ -37,7 +40,6 @@ module DOM (
     checkButton,
     radioButton,
     textView,
-    treeView,
     scrolledWindow,
     vBox,
     hBox,
@@ -97,6 +99,17 @@ setD = undefined
 ----------------------------------------
 -- Widget creation
 
+applyModifiers::WidgetClass a=>a->[WidgetModifier p a]->IO [(String, Widget)]
+applyModifiers widget attModifiers = do
+    set widget [attr|Atr attr <- attModifiers]
+    mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
+    let ids = case [(name, castToWidget widget)|ID name <- attModifiers] of
+                [] -> []
+                [oneId] -> [oneId]
+                _ -> error "You can only have one ID in a widget"
+    return ids
+
+
 simpleWidget::WidgetClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->IO (DOM p)
 simpleWidget maybeLabelInfo widgetCreator attModifiers = do
     let extraAttModifiers =
@@ -104,12 +117,7 @@ simpleWidget maybeLabelInfo widgetCreator attModifiers = do
                 Nothing -> []
                 Just (name, labelAttr) -> [Atr $ labelAttr := name]
     widget <- widgetCreator
-    set widget [attr|Atr attr <- attModifiers]
-    mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    let ids = case [(name, castToWidget widget)|ID name <- attModifiers] of
-                [] -> []
-                [oneId] -> [oneId]
-                _ -> error "You can only have one ID in a widget"
+    ids <- applyModifiers widget attModifiers
     let dom = DOM{widget=castToWidget widget, childAttrs=[attr widget|CAtr attr <- attModifiers], ids=ids}
     return dom
 
@@ -148,7 +156,6 @@ checkButton = simpleWidget (Just ("button", buttonLabel)) toggleButtonNew
 radioButton = simpleWidget (Just ("button", buttonLabel)) radioButtonNew
 scrolledWindow = binWidget Nothing (scrolledWindowNew Nothing Nothing)
 textView = simpleWidget Nothing textViewNew
-treeView = simpleWidget Nothing treeViewNew
 
 
 window title = binWidget (Just (title, windowTitle)) windowNew

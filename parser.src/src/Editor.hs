@@ -45,6 +45,7 @@ import Menu
 import Parser
 import ParseError
 import ToolBar
+import TreeView
 
 import JDebug
 
@@ -59,6 +60,7 @@ data Ids = Ids{
     validImage::Image,
     positionLabel::Label,
     errorListView::TreeView,
+    parseTreeView::TreeView,
     outputTextView::TextView,
     errorPaned::VPaned,
     outputPaned::HPaned
@@ -72,6 +74,7 @@ getIDs domR = do
                validImage=case lookup "validImage" (ids dom) of Just w -> castToImage w,
                positionLabel=case lookup "positionLabel" (ids dom) of Just w -> castToLabel w,
                errorListView=case lookup "errorListView" (ids dom) of Just w -> castToTreeView w,
+               parseTreeView=case lookup "parseTreeView" (ids dom) of Just w -> castToTreeView w,
                outputTextView=case lookup "outputTextView" (ids dom) of Just w -> castToTextView w,
                outputPaned=case lookup "outputPaned" (ids dom) of Just w -> castToHPaned w,
                errorPaned=case lookup "errorPaned" (ids dom) of Just w -> castToVPaned w}
@@ -99,15 +102,12 @@ edit g generatorGrammar fileNameString = do
 
     mainWindow <- head <$> _main domR
 
-    parseTreeView2 <- treeView [Atr $ treeViewModel := parseStore, Atr $ treeViewEnableTreeLines := True, Atr $ treeViewHeadersVisible := False]
-    let parseTreeView = castToTreeView (widget parseTreeView2)
---    parseTreeView <- treeViewNewWithModel parseStore
---    let parseTreeView2 = DOM{widget=castToWidget parseTreeView, childAttrs=[], ids=[]}
+    col <- treeViewColumnNew
 
     let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
     let doValidate = do
         ids <- getIDs domR
-        validate g (validImage ids) (mainTextView ids) errorStore parseStore (castToTreeView $ widget parseTreeView2)
+        validate g (validImage ids) (mainTextView ids) errorStore parseStore (parseTreeView ids)
 
     editorMenu <- menu [CAtr $ boxChildPacking #= PackNatural] mainWindow (
             [
@@ -162,14 +162,22 @@ edit g generatorGrammar fileNameString = do
                 vBox [] [
                     return editorMenu,
                     return editorToolbar,
-                    vPaned [ID "errorPaned", CAtr $ (\c -> boxChildPacking c := PackGrow)]
+                    vPaned [ID "errorPaned", CAtr $ boxChildPacking #= PackGrow]
                         (
                             hPaned [ID "outputPaned"]
                                 (
                                     scrolledWindow [] (textView [ID "mainTextView"]),
                                     notebook [ID "outputNotebook", Atr $ notebookTabPos := PosRight]
                                         [
-                                            ("tree", scrolledWindow [] (return parseTreeView2)),
+                                            ("tree", scrolledWindow []
+                                                        (
+                                                            treeView [ID "parseTreeView",
+                                                                    Atr $ treeViewModel := parseStore,
+                                                                    Atr $ treeViewEnableTreeLines := True,
+                                                                    Atr $ treeViewHeadersVisible := False]
+                                                                [col]
+                                                        )
+                                            ),
                                             ("output", textView [ID "outputTextView"])
                                         ]
                                 ),
@@ -179,11 +187,11 @@ edit g generatorGrammar fileNameString = do
                                         ("Message", DataExtractor message)
                                     ]
                         ),
-                    hBox [CAtr $ (\c -> boxChildPacking c := PackNatural)]
+                    hBox [CAtr $ boxChildPacking #= PackNatural]
                         [
-                            statusbar [CAtr $ (\c -> boxChildPacking c := PackNatural)],
-                            statusbar [CAtr $ (\c -> boxChildPacking c := PackNatural)],
-                            button [CAtr $ (\c -> boxChildPacking c := PackNatural)],
+                            statusbar [CAtr $ boxChildPacking #= PackNatural],
+                            statusbar [CAtr $ boxChildPacking #= PackNatural],
+                            button [CAtr $ boxChildPacking #= PackNatural],
                             boxSpacer,
                             label [ID "positionLabel", CAtr $ boxChildPacking #= PackNatural] "Line 0, Col 0",
                             image [ID "validImage", Atr $ imageFile := "resources/redBall.png", CAtr $ boxChildPacking #= PackNatural]
@@ -209,7 +217,6 @@ edit g generatorGrammar fileNameString = do
 
 --------------
 
-    col <- treeViewColumnNew
 
 --    renderer <- cellRendererPixbufNew
     renderer <- cellRendererTextNew
@@ -220,9 +227,6 @@ edit g generatorGrammar fileNameString = do
 
 --    cellLayoutSetAttributes col renderer parseStore $ \row -> [cellPixbuf := itemIcon icos row]
     cellLayoutSetAttributes col renderer parseStore $ \row -> [cellTextMarkup   := Just row]
-
-    treeViewAppendColumn (parseTreeView) col
---    set parseTreeView [treeViewAppendColumn := col]
 
 ----------------------------------
 

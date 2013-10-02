@@ -31,27 +31,25 @@ data MenuTree = TrSubMenu String [MenuTree] Bool | TrItem String (Maybe String) 
 --it seems that Haskell only has full support for widgets created this way.  In particular, I don't
 --think I can create an accelerator on a menu widget created directly.
 
-menu::[WidgetModifier p MenuBar]->Window->[MenuTree]->IO (DOM p)
-menu attModifiers window menu = do
+menu::[WidgetModifier p MenuBar]->[MenuTree]->IO (DOM p)
+menu attModifiers menu = do
     actionGroup <- actionGroupNew "Editor"
     (menuXMLString, actionGroup) <- menuTree2MenuData menu
 
-    ui <- uiManagerNew
-    uiManagerAddUiFromString ui menuXMLString
-    uiManagerInsertActionGroup ui actionGroup 0
+    uiManager <- uiManagerNew
+    uiManagerAddUiFromString uiManager menuXMLString
+    uiManagerInsertActionGroup uiManager actionGroup 0
 
 
-    maybeMenubar <- uiManagerGetWidget ui "/ui/menubar"
+    maybeMenubar <- uiManagerGetWidget uiManager "/ui/menubar"
     let menuBar = case maybeMenubar of
             (Just x) -> x
             Nothing -> error "Cannot get menubar from string."
-    accelGroup <- uiManagerGetAccelGroup ui
-    windowAddAccelGroup window accelGroup
     let ids = case [(name, castToWidget menuBar)|ID name <- attModifiers] of
                 [] -> []
                 [oneId] -> [oneId]
                 _ -> error "You can only have one ID in a widget"
-    return DOM{widget=menuBar, childAttrs=[attr (castToMenuBar menuBar)|CAtr attr <- attModifiers], ids=ids}
+    return DOM{widget=menuBar, childAttrs=[attr (castToMenuBar menuBar)|CAtr attr <- attModifiers], uiManagers=[uiManager], ids=ids}
 
 
 menuTree2MenuData::[MenuTree]->IO (String, ActionGroup)

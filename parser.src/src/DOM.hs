@@ -66,12 +66,16 @@ import Data.IORef
 import Data.Functor
 import Graphics.UI.Gtk
 
+--import JDebug
+
 --TODO I would really like to make container widgets hold HLists of children, not lists of children.
 --For now I will postpone this, as I find HLists hard to deal with (perhaps I don't have enough experience yet)
 
+--Ugh, gtk2hs doesn't fully support AccelGroup!  As far as I can tell, the only way to set accelerators is by using Glade
+--and a UIManager.  I have to pass around uimanagers so that the window can get accelerators from the menu.  This is ugly,
+--but I think it is the only way.
 
-
-data DOM p = DOM{widget::Widget, childAttrs::[AttrOp p], ids::[(String, Widget)]}
+data DOM p = DOM{widget::Widget, childAttrs::[AttrOp p], uiManagers::[UIManager], ids::[(String, Widget)]}
 
 -----------------------------------
 
@@ -88,14 +92,6 @@ boxPacking = newAttr
                 set parentBox [boxChildPacking self := packing]
             Nothing -> return ()
     )
-
-
---data A; a = proxy::Proxy A
---data B; b = proxy::Proxy B
---
---myRecord = (a .=. "param1value") .*. (b .=. "param1value") .*. emptyRecord
-
-setD = undefined
 
 ----------------------------------------
 -- Widget creation
@@ -119,7 +115,7 @@ simpleWidget maybeLabelInfo widgetCreator attModifiers = do
                 Just (name, labelAttr) -> [Atr $ labelAttr := name]
     widget <- widgetCreator
     ids <- applyModifiers widget attModifiers
-    let dom = DOM{widget=castToWidget widget, childAttrs=[attr widget|CAtr attr <- attModifiers], ids=ids}
+    let dom = DOM{widget=castToWidget widget, childAttrs=[attr widget|CAtr attr <- attModifiers], uiManagers=[], ids=ids}
     return dom
 
 containerWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->[IO (DOM a)]->IO (DOM p)
@@ -130,7 +126,8 @@ containerWidget maybeLabelInfo widgetCreator attModifiers childCreators = do
     let extraIds = concat (ids <$> childDOMs)
 --    let extraAttModifiers2 = Atr <$> (\dom -> (boxChildPacking (widget dom) := childBoxPacking dom)) <$> childDOMs
     dom <- simpleWidget maybeLabelInfo widgetCreator (attModifiers ++ extraAttModifiers)
-    return dom{ids = ids dom ++ extraIds}
+    let childUIManagers = uiManagers =<< childDOMs
+    return dom{ids = ids dom ++ extraIds, uiManagers=childUIManagers}
 
 
 binWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->IO (DOM a)->IO (DOM p)
@@ -159,13 +156,19 @@ scrolledWindow = binWidget Nothing (scrolledWindowNew Nothing Nothing)
 textView = simpleWidget Nothing textViewNew
 
 
-window title = binWidget (Just (title, windowTitle)) windowNew
+window title attModifier widgetCreator = do
+    dom <- binWidget (Just (title, windowTitle)) windowNew attModifier widgetCreator
+    case uiManagers dom of
+        [] -> return ()
+        [uiManager] -> do
+                    accelGroup <- uiManagerGetAccelGroup uiManager
+                    windowAddAccelGroup (castToWindow $ widget dom) accelGroup
+        _ -> error "You can only have one menu in a window"
+--    onDestroy window mainQuit
+    return dom
 
 vBox = containerWidget Nothing (vBoxNew False 0)
 hBox = containerWidget Nothing (hBoxNew False 0)
---    widgets <- sequence widgetCreators
---    mapM_ (\widget -> boxPackStart gtkVBox widget PackNatural 0) widgets
---    return (castToWidget gtkVBox)
 vPaned = panedWidget Nothing vPanedNew
 hPaned = panedWidget Nothing hPanedNew
 
@@ -174,23 +177,16 @@ hPaned = panedWidget Nothing hPanedNew
 notebook::[WidgetModifier p Notebook]->[(String, IO (DOM Notebook))]->IO (DOM p)
 notebook attModifiers pages = do
     notebook <- notebookNew
-    extraIds <- forM pages (\page -> do
+    childDOMs <- forM pages (\page -> do
         childDOM <- snd page
         notebookInsertPage notebook (widget childDOM) (fst page) 0
-        return (ids childDOM))
+        return childDOM)
+    let extraIds = ids <$> childDOMs
+    let childUIManagers = uiManagers =<< childDOMs
     ids <- applyModifiers notebook attModifiers
-    return DOM{widget=castToWidget notebook, childAttrs=[attr notebook|CAtr attr <- attModifiers], ids = ids ++ concat extraIds}
+    return DOM{widget=castToWidget notebook, childAttrs=[attr notebook|CAtr attr <- attModifiers], uiManagers=childUIManagers, ids = ids ++ concat extraIds}
 
 
-
---window::String->[WidgetModifier Window]->IO DOM->IO DOM
---window title atts childCreator = do
---    widget <- childCreator
---    window <- windowNew
---    set window [windowTitle := title, containerChild := widget]
---    set window [attr|Atr attr <- atts]
---    onDestroy window mainQuit
---    return (castToWidget window)
 
 boxSpacer::BoxClass p=>IO (DOM p)
 boxSpacer = label [CAtr $ (\c -> boxChildPacking c := PackGrow)] " "
@@ -210,8 +206,6 @@ setM x y = do
     widget <- x
     set (head widget) y
 
-
---data DOM = DOM{mainWidget::Widget}
 
 initDOM::IO (IORef (DOM p))
 initDOM = do

@@ -52,7 +52,7 @@ toolbar attModifiers menu = do
                 [] -> []
                 [oneId] -> [oneId]
                 _ -> error "You can only have one ID in a widget"
-    return DOM{widget=castToWidget toolbar, childAttrs=[attr toolbar|CAtr attr <- attModifiers], ids=ids}
+    return DOM{widget=castToWidget toolbar, childAttrs=[attr toolbar|CAtr attr <- attModifiers], uiManagers=[], ids=ids}
 
     where
         addToolButton::Toolbar->Item a->IO ()

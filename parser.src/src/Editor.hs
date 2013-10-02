@@ -107,7 +107,7 @@ edit g generatorGrammar fileNameString = do
         ids <- getIDs domR
         validate g (validImage ids) (mainTextView ids) errorStore parseStore (parseTreeView ids)
 
-    editorMenu <- menu [CAtr $ boxChildPacking #= PackNatural] mainWindow (
+    editorMenu <- menu [CAtr $ boxChildPacking #= PackNatural]
             [
                 TrSubMenu "_File"
                     [
@@ -132,7 +132,6 @@ edit g generatorGrammar fileNameString = do
                         TrItem "about" Nothing showAboutDialog
                     ] True
             ]
-            )
 
     editorToolbar <- toolbar [CAtr $ (\c -> boxChildPacking c := PackNatural)]
         (

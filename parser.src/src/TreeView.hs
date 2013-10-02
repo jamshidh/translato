@@ -34,7 +34,7 @@ treeView attModifiers columnCreators dataStore = do
     columns <- sequence (($ dataStore) <$> columnCreators)
     forM_ columns (treeViewAppendColumn treeView)
     ids <- applyModifiers treeView attModifiers
-    return DOM{widget=castToWidget treeView, childAttrs=[attr treeView|CAtr attr <- attModifiers], ids=ids}
+    return DOM{widget=castToWidget treeView, childAttrs=[attr treeView|CAtr attr <- attModifiers], uiManagers=[], ids=ids}
 
 treeViewColumn::(CellRendererClass cell, TreeModelClass (model row), TypedTreeModelClass model)=>
                         [TreeViewColumn->model row->IO (cell)]->model row->IO TreeViewColumn

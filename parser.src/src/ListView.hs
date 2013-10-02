@@ -64,7 +64,7 @@ listView attModifiers storeSource columns = do
                 [oneId] -> [oneId]
                 _ -> error "You can only have one ID in a widget"
 
-    return DOM{widget=castToWidget treeView, childAttrs=[attr treeView|CAtr attr <- attModifiers], ids=ids}
+    return DOM{widget=castToWidget treeView, childAttrs=[attr treeView|CAtr attr <- attModifiers], uiManagers=[], ids=ids}
 
 --sortFunc::TypedTreeModelClass model=>model row->TreeIter->IO row
 sortFunc::Ord b=>ListStore a->(a->b)->TreeIter->TreeIter->IO Ordering

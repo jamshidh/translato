@@ -16,9 +16,11 @@ module TreeView (
     treeView,
     treeViewColumn,
     cellRendererText,
-    cellRendererPixbuf
+    cellRendererPixbuf,
+    cellRendererStockPixbuf
 ) where
 
+import Control.Applicative
 import Control.Monad
 import Data.Functor
 import Graphics.UI.Gtk
@@ -35,20 +37,28 @@ treeView attModifiers columnCreators dataStore = do
     return DOM{widget=castToWidget treeView, childAttrs=[attr treeView|CAtr attr <- attModifiers], ids=ids}
 
 treeViewColumn::(CellRendererClass cell, TreeModelClass (model row), TypedTreeModelClass model)=>
-                        [IO (cell, row->[AttrOp cell])]->model row->IO TreeViewColumn
+                        [TreeViewColumn->model row->IO (cell)]->model row->IO TreeViewColumn
 treeViewColumn rendererCreators dataStore = do
     column <- treeViewColumnNew
-    renderers <- sequence rendererCreators
-    forM_ renderers (\(renderer, extractor) -> do
-            cellLayoutPackStart column renderer True
-            cellLayoutSetAttributes column renderer dataStore extractor
-        )
+    sequence (rendererCreators <*> [column] <*> [dataStore])
     return column
 
-cellRenderer::IO o->ReadWriteAttr o c b->(a->b)->IO (o, a->[AttrOp o])
-cellRenderer rendererCreator attribute extractor = do
+cellRenderer::(CellRendererClass cell, TreeModelClass (model row), TypedTreeModelClass model)=>
+                        IO cell->ReadWriteAttr cell c b->(row->b)->TreeViewColumn->model row->IO CellRenderer
+cellRenderer rendererCreator attribute extractor column dataStore = do
     renderer <- rendererCreator
-    return (renderer, \row -> [attribute := extractor row])
+    cellLayoutPackStart column renderer True
+    cellLayoutSetAttributes column renderer dataStore $ \row -> [attribute := extractor row]
+    return (castToCellRenderer renderer)
 
+cellRendererText::(TreeModelClass (model row), TypedTreeModelClass model)=>
+                        (row->String)->TreeViewColumn->model row->IO CellRenderer
 cellRendererText = cellRenderer cellRendererTextNew cellTextMarkup . (Just .)
+
+cellRendererPixbuf::(TreeModelClass (model row), TypedTreeModelClass model)=>
+                        (row->Pixbuf)->TreeViewColumn->model row->IO CellRenderer
 cellRendererPixbuf = cellRenderer cellRendererPixbufNew cellPixbuf
+
+cellRendererStockPixbuf::(TreeModelClass (model row), TypedTreeModelClass model)=>
+                        (row->String)->TreeViewColumn->model row->IO CellRenderer
+cellRendererStockPixbuf = cellRenderer cellRendererPixbufNew cellPixbufStockId

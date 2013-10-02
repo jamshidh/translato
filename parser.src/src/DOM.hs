@@ -59,6 +59,7 @@ module DOM (
     WidgetModifier(..)
 ) where
 
+import Control.Monad
 --import Data.HList
 import Data.Maybe
 import Data.IORef
@@ -171,8 +172,16 @@ hPaned = panedWidget Nothing hPanedNew
 
 
 notebook::[WidgetModifier p Notebook]->[(String, IO (DOM Notebook))]->IO (DOM p)
-notebook attModifiers pages =
-    containerWidget Nothing notebookNew attModifiers (snd <$> pages)
+notebook attModifiers pages = do
+    notebook <- notebookNew
+    extraIds <- forM pages (\page -> do
+        childDOM <- snd page
+        notebookInsertPage notebook (widget childDOM) (fst page) 0
+        return (ids childDOM))
+    ids <- applyModifiers notebook attModifiers
+    return DOM{widget=castToWidget notebook, childAttrs=[attr notebook|CAtr attr <- attModifiers], ids = ids ++ concat extraIds}
+
+
 
 --window::String->[WidgetModifier Window]->IO DOM->IO DOM
 --window title atts childCreator = do

@@ -241,8 +241,7 @@ edit g generatorGrammar fileNameString = do
 
 
     doValidate
---    generateOutput outputTextBuffer textBuffer doGenerate
-
+    generateOutput outputTextBuffer textBuffer doGenerate
 
     mainDOM domR onStart
 

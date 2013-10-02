@@ -102,8 +102,6 @@ edit g generatorGrammar fileNameString = do
 
     mainWindow <- head <$> _main domR
 
-    col <- treeViewColumnNew
-
     let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
     let doValidate = do
         ids <- getIDs domR
@@ -172,10 +170,10 @@ edit g generatorGrammar fileNameString = do
                                             ("tree", scrolledWindow []
                                                         (
                                                             treeView [ID "parseTreeView",
-                                                                    Atr $ treeViewModel := parseStore,
                                                                     Atr $ treeViewEnableTreeLines := True,
                                                                     Atr $ treeViewHeadersVisible := False]
-                                                                [col]
+                                                                [treeViewColumn [cellRendererText id]]
+                                                                parseStore
                                                         )
                                             ),
                                             ("output", textView [ID "outputTextView"])
@@ -214,19 +212,6 @@ edit g generatorGrammar fileNameString = do
     ids <- getIDs domR
 
     loadBuffer fileNameString (mainTextView ids)
-
---------------
-
-
---    renderer <- cellRendererPixbufNew
-    renderer <- cellRendererTextNew
-
-    cellLayoutPackStart col renderer True
-
-
-
---    cellLayoutSetAttributes col renderer parseStore $ \row -> [cellPixbuf := itemIcon icos row]
-    cellLayoutSetAttributes col renderer parseStore $ \row -> [cellTextMarkup   := Just row]
 
 ----------------------------------
 

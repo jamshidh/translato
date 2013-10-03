@@ -74,7 +74,7 @@ catch\({expression}\) {body};
 
 for => for \({expression}_\; {expression}_\; {expression}\) {body};
 
-for => for \({varDeclaration}_\; {expression}_\; {expression}\) {body};
+for => for \({varDeclaration}_ {expression}_\; {expression}\) {body};
 
 funcDeclaration => function @name\({parameter}*\) {body};
 

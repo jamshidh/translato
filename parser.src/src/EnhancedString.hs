@@ -23,6 +23,7 @@ module EnhancedString (
     e,
     chs2String,
     enhancedString2String,
+    eAmpEscape,
     formatMaybe,
     truncateString
 ) where
@@ -130,24 +131,27 @@ chs2String (EndCap endCapName:rest) = yellow ("EndCap(" ++ endCapName ++ ")") ++
 chs2String [] = []
 --chs2String x = error ("missing case in chs2String: " ++ show x)
 
-ampEscape::String->String
-ampEscape [] = []
-ampEscape ('"':rest) = "&quot;" ++ ampEscape rest
-ampEscape ('\'':rest) = "&apos;" ++ ampEscape rest
-ampEscape ('<':rest) = "&lt;" ++ ampEscape rest
-ampEscape ('>':rest) = "&gt;" ++ ampEscape rest
-ampEscape ('&':rest) = "&amp;" ++ ampEscape rest
-ampEscape (c:rest) = c:ampEscape rest
+ampEscape::Char->String
+ampEscape '"' = "&quot;"
+ampEscape '\'' = "&apos;"
+ampEscape '<' = "&lt;"
+ampEscape '>' = "&gt;"
+ampEscape '&' = "&amp;"
+ampEscape c = [c]
+
+eAmpEscape::EChar->EString
+eAmpEscape (Ch c) = Ch <$> ampEscape c
+eAmpEscape x = [x]
 
 enhancedString2String::EString->String
-enhancedString2String es =
+enhancedString2String =
     chs2String
---    show
-        $ (`evalState` []) $  expandTabs
-        $ expandWhitespace
-        $ expandElements
-        $ addLineBreaks [False]
-            es
+        . (`evalState` [])
+        .  expandTabs
+        . expandWhitespace
+        . expandElements
+        . addLineBreaks [False]
+
 --enhancedString2String = debugOutput
 
 expandTabs::EString->State [String] EString
@@ -224,5 +228,5 @@ expandAtts::[String]->EString
 expandAtts atts = atts >>= (\attrName -> e (" " ++ attrName ++ "='") ++ [VOut ("@" ++ attrName)] ++ e "'")
 
 expandAttsWithVal::(String, Maybe String)->String
-expandAttsWithVal (attrName, val) = attrName ++ "='" ++ ampEscape (formatMaybe val) ++ "'"
+expandAttsWithVal (attrName, val) = attrName ++ "='" ++ (ampEscape =<< formatMaybe val) ++ "'"
 

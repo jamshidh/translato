@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
 -----------------------------------------------------------------------------
 --
 -- Module      :  ParseElements
@@ -21,19 +21,20 @@ module ParseElements (
 import Data.List
 import Data.Map as M hiding (map)
 import Data.Text hiding (map, concat, foldl1, foldl, head, intercalate, tail, length)
-import Data.Text.Lazy (toStrict, fromStrict)
+import Data.Text.Lazy as TL (toStrict, fromStrict)
 import Data.Text.Lazy.IO as TL hiding (putStrLn, interact)
 import Text.XML
 import Text.XML.Cursor
 import System.Console.GetOpt
 
-import Context
---import ManyWorldsParser
+import ArgOpts
 import Parser
 import Grammar hiding (tagName, Name)
 import GrammarTools
 import ParseError
 import SequenceMap
+
+import JDebug
 
 name2String::Name->String
 name2String name = unpack $ nameLocalName name
@@ -89,7 +90,9 @@ input2Output g c | isElement c && tagName c == "parse" =
             case parseText def (fromStrict $ pack ret) of
                 Left err -> errorElement (show err)
                 Right doc -> NodeElement $ documentRoot doc
-            where ret = (createParserForClass ruleName) g (concat (map unpack (child c >>= content)))
+            where
+                textContent = child c >>= content >>= unpack
+                ret = createParserForClass ruleName g textContent
 input2Output sMap c | isElement c = let element = getElement c in
     NodeElement $ Element {
     elementName = fullTagName c,
@@ -98,21 +101,10 @@ input2Output sMap c | isElement c = let element = getElement c in
     }
 input2Output g c = node c
 
---------------
-
 ----------------
 
 data Options = Options { specFileName::String }
-defaultOptions = Options { specFileName = "file.spec" }
-
-optionDefs::[OptDescr Options]
-optionDefs = []
-
-args2Grammar::[String]->IO Grammar
-args2Grammar args = loadGrammarAndSimplifyForParse filename
-    where (options, filename) =
-            case getOpt Permute optionDefs args of
-                ([o], [f], _) -> (o, f)
+deflt = Options { specFileName = "file.spec" }
 
 try::(Show err)=>Either err a->a
 try (Left err) = error ("Error:" ++ show err)
@@ -120,13 +112,11 @@ try (Right a) = a
 
 parseElementsMain::[String]->IO ()
 parseElementsMain args = do
-    grammar <- args2Grammar args
+    let options = $(arg2Opts ''Options ["specFileName"]) args deflt
+    grammar <- loadGrammarAndSimplifyForParse (specFileName options)
     contents<-TL.getContents
     let doc=try(parseText def contents)
-    putStrLn "To be added"
-    {--contents<-TL.getContents
-    let doc=try(parseText def contents)
-    putStrLn (TL.unpack (renderText def (parseElements cx (fromDocument doc))))--}
+    putStrLn (unpack $ toStrict (renderText def (parseElements grammar (fromDocument doc))))
 
 
 

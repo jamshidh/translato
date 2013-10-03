@@ -17,12 +17,13 @@ executable parser
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: TreeView DOM ArgOpts OperatorNames SequenceMap
-                   JDebug Grammar CmdOptions Colors FakeColors Parser Editor XPath
-                   SMShower Editor2 LText Lookahead Format LString Main GrammarParser
-                   ParseError ToolBar StupidSetGet EnhancedString EStringTools Shower
-                   Quoter CharSet ListView Menu Generator ParseElements Context
-                   LeftFactoring GrammarTools TreeTools Generator
+    other-modules: List2Record IsWidget TreeView DOM ArgOpts
+                   OperatorNames SequenceMap JDebug Grammar CmdOptions Colors
+                   FakeColors Parser Editor XPath SMShower Editor2 LText Lookahead
+                   Format LString Main GrammarParser ParseError ToolBar StupidSetGet
+                   EnhancedString EStringTools Shower Quoter CharSet ListView Menu
+                   Generator ParseElements Context LeftFactoring GrammarTools
+                   TreeTools Generator
  
 test-suite test-parser
     build-depends: HList -any, base -any, bytestring -any,

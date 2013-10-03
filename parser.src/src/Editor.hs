@@ -20,13 +20,10 @@ module Editor (
 ) where
 
 import Data.ByteString.UTF8 hiding (break)
---import Data.CaseInsensitive hiding (map)
 import Data.Functor
 import Data.IORef
 import Data.List
 import Data.Maybe
---import Data.Text as T hiding (head, concat, null, map, intercalate, break)
---import Data.Text.Encoding
 import qualified Data.Text.Lazy as TL
 import Data.Tree
 import Graphics.UI.Gtk hiding (Range)
@@ -39,8 +36,9 @@ import qualified EnhancedString as E
 import Generator
 import Grammar
 import GrammarTools
+import IsWidget
+import List2Record
 import ListView
---import qualified LString as LS
 import Menu
 import Parser
 import ParseError
@@ -48,8 +46,6 @@ import ToolBar
 import TreeView
 
 import JDebug
-
---data Error = Error { line::Int, column::Int, message::CI String } deriving (Show)
 
 makeGenerator::Grammar->String->String
 makeGenerator g contents = generateFromText g (TL.pack $ createParser g contents)
@@ -66,18 +62,12 @@ data Ids = Ids{
     outputPaned::HPaned
 }
 
+$(list2Record ''Ids 'fromWidget)
+
 getIDs::IORef (DOM p)->IO Ids
 getIDs domR = do
     dom <- readIORef domR
-    return Ids{mainTextView=case lookup "mainTextView" (ids dom) of Just w -> castToTextView w,
-               outputNotebook=case lookup "outputNotebook" (ids dom) of Just w -> castToNotebook w,
-               validImage=case lookup "validImage" (ids dom) of Just w -> castToImage w,
-               positionLabel=case lookup "positionLabel" (ids dom) of Just w -> castToLabel w,
-               errorListView=case lookup "errorListView" (ids dom) of Just w -> castToTreeView w,
-               parseTreeView=case lookup "parseTreeView" (ids dom) of Just w -> castToTreeView w,
-               outputTextView=case lookup "outputTextView" (ids dom) of Just w -> castToTextView w,
-               outputPaned=case lookup "outputPaned" (ids dom) of Just w -> castToHPaned w,
-               errorPaned=case lookup "errorPaned" (ids dom) of Just w -> castToVPaned w}
+    return (list2Ids (ids dom))
 
 onStart::IORef (DOM p)->IO()
 onStart domR = do
@@ -146,11 +136,6 @@ edit g generatorGrammar fileNameString = do
             ]
         )
 
---    scrolledParseTreeView <- scrolledWindow []
---    outputTextView <- textView []
---    notebookInsertPage (outputNotebook ids) scrolledParseTreeView "tree" 0
---    notebookInsertPage (outputNotebook ids) outputTextView "output" 1
-
     createMainWindow domR (
             window fileNameString [Atr $ containerBorderWidth := 4,
                                     --Sig destroyEvent (do mainQuit; return True),
@@ -207,13 +192,11 @@ edit g generatorGrammar fileNameString = do
     --windowSetDecorated window False
     --windowSetFrameDimensions window 50 50 50 50
 
-
     ids <- getIDs domR
 
     loadBuffer fileNameString (mainTextView ids)
 
 ----------------------------------
-
 
     outputTextBuffer <- textViewGetBuffer (outputTextView ids)
 
@@ -224,25 +207,24 @@ edit g generatorGrammar fileNameString = do
     start <- textBufferGetStartIter textBuffer
     textBufferPlaceCursor textBuffer start
 
-
-
-
 --    id <- statusbarGetContextId statusBar "qqqq"
 --    statusbarSetHasResizeGrip statusBar True
 --    statusbarPush statusBar id "qqqq"
-
-
 
 ----------------
 
     (`onDestroy` mainQuit) =<< head <$> _main domR
 
-
-
     doValidate
     generateOutput outputTextBuffer textBuffer doGenerate
 
     mainDOM domR onStart
+
+
+
+
+
+
 
 
 

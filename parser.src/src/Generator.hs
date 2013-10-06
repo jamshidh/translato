@@ -210,6 +210,8 @@ sep2String::Sequence->EString
 sep2String [] = []
 sep2String (TextMatch s _:rest) = e s ++ sep2String rest
 sep2String (WhiteSpace (WSString defltWS):rest) = e defltWS ++ sep2String rest
+sep2String (WhiteSpace EmptyWS:rest) = sep2String rest
+sep2String sq = error ("Missing case in sep2String: " ++ format sq)
 
 --fingerprint format:
 -- cursor fingerprint = (attributes, firstChild tag) = what we actually have

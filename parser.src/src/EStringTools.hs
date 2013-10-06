@@ -178,11 +178,13 @@ expandOperatorsInBlock (NestedItem item:InfixTag InfixOp{opName=name,opAssociati
         where (inside, outside) = splitByEndCap rest
 
 
-expandOperatorsInBlock [NestedItem left, InfixTag InfixOp{opName=name}, NestedItem right] =
-    [FilledInEStart name []] ++ left ++ right ++ [EEnd name]
 expandOperatorsInBlock
     (NestedItem left:InfixTag o1:NestedItem right:InfixTag o2:rest)
     = simplifyOpPair left o1 right o2 rest
+expandOperatorsInBlock (NestedItem left:InfixTag InfixOp{opName=name}:NestedItem right:rest) =
+    [FilledInEStart name []] ++ left ++ right ++ [EEnd name] ++ expandOperatorsInBlock rest
+expandOperatorsInBlock (NestedItem left:e@(FilledInEStart _ _):rest) =
+    left ++ expandOperatorsInBlock (e:rest)
 expandOperatorsInBlock [NestedItem item] = item
 expandOperatorsInBlock [] = []
 expandOperatorsInBlock s =

@@ -50,7 +50,8 @@ import JDebug
 makeGenerator::Grammar->String->String
 makeGenerator g contents = generateFromText g (TL.pack $ createParser g contents)
 
-data Ids = Ids{
+data IDs = IDs{
+    mainWindow::Window,
     mainTextView::TextView,
     outputNotebook::Notebook,
     validImage::Image,
@@ -62,12 +63,12 @@ data Ids = Ids{
     outputPaned::HPaned
 }
 
-$(list2Record ''Ids 'fromWidget)
+$(list2Record ''IDs 'fromWidget)
 
-getIDs::IORef (DOM p)->IO Ids
+getIDs::IORef (DOM p)->IO IDs
 getIDs domR = do
     dom <- readIORef domR
-    return (list2Ids (ids dom))
+    return (list2IDs (ids dom))
 
 onStart::IORef (DOM p)->IO()
 onStart domR = do
@@ -89,9 +90,6 @@ edit g generatorGrammar fileNameString = do
     fileNameRef <- newIORef fileNameString
     clipboard <- clipboardGet selectionPrimary
 
-
-    mainWindow <- head <$> _main domR
-
     let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
     let doValidate = do
         ids <- getIDs domR
@@ -101,9 +99,9 @@ edit g generatorGrammar fileNameString = do
             [
                 TrSubMenu "_File"
                     [
-                        TrItem "Open" Nothing (do ids <- getIDs domR; promptAndLoadBuffer (mainTextView ids) mainWindow),
+                        TrItem "Open" Nothing (do ids <- getIDs domR; promptAndLoadBuffer ids),
                         TrItem "Save" (Just "<Control>s") (do ids <- getIDs domR; saveBuffer fileNameRef (mainTextView ids)),
-                        TrItem "Save As...." Nothing (do ids <- getIDs domR; saveBufferAs fileNameRef (mainTextView ids) mainWindow),
+                        TrItem "Save As...." Nothing (do ids <- getIDs domR; saveBufferAs fileNameRef ids),
                         TrItem "_Quit" (Just "<Control>q") mainQuit
                     ] False,
                 TrSubMenu "Edit"
@@ -126,9 +124,9 @@ edit g generatorGrammar fileNameString = do
     editorToolbar <- toolbar [CAtr $ (\c -> boxChildPacking c := PackNatural)]
         (
             [
-                Item (Stock stockOpen) (Just "Open File") (do ids <- getIDs domR; promptAndLoadBuffer (mainTextView ids) mainWindow),
+                Item (Stock stockOpen) (Just "Open File") (do ids <- getIDs domR; promptAndLoadBuffer ids),
                 Item (Stock stockSave) (Just "Save File") (do ids <- getIDs domR; saveBuffer fileNameRef (mainTextView ids)),
-                Item (Stock stockSaveAs) (Just "Save File As....") (do ids <- getIDs domR; saveBufferAs fileNameRef (mainTextView ids) mainWindow),
+                Item (Stock stockSaveAs) (Just "Save File As....") (do ids <- getIDs domR; saveBufferAs fileNameRef ids),
                 Item (Stock stockQuit) (Just "Quit the program") mainQuit,
                 Item (Stock stockFind) (Just "Find....") mainQuit,
                 Item (Stock stockAbout) (Just "About") showAboutDialog,
@@ -137,7 +135,8 @@ edit g generatorGrammar fileNameString = do
         )
 
     createMainWindow domR (
-            window fileNameString [Atr $ containerBorderWidth := 4,
+            window fileNameString [ID "mainWindow",
+                                    Atr $ containerBorderWidth := 4,
                                     --Sig destroyEvent (do mainQuit; return True),
                                     Atr $ windowDefaultWidth := 1400,
                                     Atr $ windowDefaultHeight := 900] (
@@ -194,7 +193,7 @@ edit g generatorGrammar fileNameString = do
 
     ids <- getIDs domR
 
-    loadBuffer fileNameString (mainTextView ids)
+    loadBuffer fileNameString ids
 
 ----------------------------------
 
@@ -353,27 +352,29 @@ saveBuffer fileNameRef tv =
         writeFile filename srcString
         --hClose fileHandle
 
-saveBufferAs::IORef String->TextView->Window->IO ()
-saveBufferAs fileNameRef tv window =
+saveBufferAs::IORef String->IDs->IO ()
+saveBufferAs fileNameRef ids =
     do
         defaultFileName <- readIORef fileNameRef
-        response <- openOpenFileDialog FileChooserActionSave window (Just defaultFileName)
+        response <- openOpenFileDialog FileChooserActionSave (mainWindow ids) (Just defaultFileName)
         case response of
             Just fileName -> do
-                windowSetTitle window fileName
+                windowSetTitle (mainWindow ids) fileName
                 writeIORef fileNameRef fileName
-                saveBuffer fileNameRef tv
+                saveBuffer fileNameRef (mainTextView ids)
             Nothing -> return ()
 
-loadBuffer::String->TextView->IO ()
-loadBuffer filename tv =
+loadBuffer::String->IDs->IO ()
+loadBuffer fileName ids =
     do
-        fileHandle<-openFile filename ReadMode
+        fileHandle<-openFile fileName ReadMode
         contents<-hGetContents fileHandle
 
-        buf <- textViewGetBuffer tv
+        buf <- textViewGetBuffer (mainTextView ids)
         textBufferSetText buf contents
         hClose fileHandle
+
+        windowSetTitle (mainWindow ids) fileName
 
         {--txtBuff <- textViewGetBuffer tv
         startIt <- textBufferGetStartIter txtBuff
@@ -394,14 +395,13 @@ generateOutput outputTextBuffer txtBuff doGenerate = do
 
 
 
-promptAndLoadBuffer::TextView->Window->IO ()
-promptAndLoadBuffer textView window =
+promptAndLoadBuffer::IDs->IO ()
+promptAndLoadBuffer ids =
     do
-        maybeFileName <- openOpenFileDialog FileChooserActionOpen window Nothing
+        maybeFileName <- openOpenFileDialog FileChooserActionOpen (mainWindow ids) Nothing
         case maybeFileName of
             Just fileName -> do
-                loadBuffer fileName textView
-                windowSetTitle window fileName
+                loadBuffer fileName ids
             Nothing -> return ()
 
 {--chooseFile::IO String

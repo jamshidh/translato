@@ -134,26 +134,44 @@ parseTree g startRule=seq2ParseTree (cleanSMap g) [Link startRule]
         removeDefaultWS (expr:rest) = expr:removeDefaultWS rest
 
 createEParserForClass::String->Grammar->EParser
-createEParserForClass startRule g s =
-            expandOperators
-            $ fillInAttributes
-            $ checkForVarConsistency []
-            $ fillInVariableAssignments
-            $ fillInFutureItems
-            $ rawParse (parseTree g startRule) (createLString s)
+createEParserForClass startRule g =
+    expandOperators
+    . fillInAttributes
+    . checkForVarConsistency []
+    . fillInVariableAssignments
+    . fillInFutureItems
+    . rawParse (parseTree g startRule)
+    . (createLString $)
 
 createParserForClass::String->Grammar->Parser
-createParserForClass startRule g s =
+createParserForClass startRule g =
         enhancedString2String
---        show
-        $ createEParserForClass startRule g s
+        . (>>= eAmpEscape)
+        . createEParserForClass startRule g
 
 createEParser::Grammar->EParser
 createEParser g = createEParserForClass (g^.main) g
 
+--createParser::Grammar->Parser
+--createParser g =
+--    enhancedString2String
+--    . (>>= eAmpEscape)
+--    . createEParser g
+
 createParser::Grammar->Parser
---createParser g = show . createEParser g
-createParser g = enhancedString2String . createEParser g
+createParser g =
+    enhancedString2String
+    . (>>= eAmpEscape)
+    . expandOperators
+    . fillInAttributes
+    . checkForVarConsistency []
+    . fillInVariableAssignments
+    . fillInFutureItems
+    . rawParse (parseTree g (g^.main))
+    . (createLString $)
+
+
+
 
 createEParserWithErrors::Grammar->String->(EString, [ParseError])
 createEParserWithErrors g s = (result, getErrors result)

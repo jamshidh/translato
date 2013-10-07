@@ -74,7 +74,9 @@ catch\({expression}\) {body};
 
 for => for \({expression}_\; {expression}_\; {expression}\) {body};
 
-for => for \({varDeclaration}_\; {expression}_\; {expression}\) {body};
+for => for \({varDeclaration}_ {expression}_\; {expression}\) {body};
+
+iteratorFor => for \({variable} in {expression}_\) {body};
 
 funcDeclaration => function @name\({parameter}*\) {body};
 
@@ -82,13 +84,25 @@ separator: '\n'
 
 ====[/command]==================
 
+====[field]=====================
 
+field => {string}:_{expression};
+
+separator: '_, '
+
+====[/field]====================
 
 ====[expression:lvalue]=========
 
 num => @value(\d+);
 
 string => "@value([^"]*)";
+
+incrementor => {expression}\+\+;
+
+array => \[_{expression}*_\];
+
+object => \{_{field}*_\};
 
 embeddedElement => {node}*;
 
@@ -108,7 +122,7 @@ operators: '.'
 
 function => {lvalue}\({expression}*\);
 
-#array => {lvalue}\[{expression}\];
+arrayIndex => {lvalue}\[{expression}\];
 
 lambda => function () {body};
 

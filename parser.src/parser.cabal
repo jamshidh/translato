@@ -4,34 +4,33 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
+description:  
 data-dir: ""
 extra-source-files: ""
  
 executable parser
-    build-depends: HList -any, base -any, bytestring -any,
-                   case-insensitive -any, containers -any, fgl -any, filepath -any,
-                   glib -any, gtk -any, lens -any, mtl -any, parsec -any,
-                   regex-compat -any, regex-posix -any, system-filepath -any,
-                   template-haskell -any, text -any, utf8-string -any,
-                   xml-conduit -any
+    build-depends: base -any, bytestring -any, case-insensitive -any,
+                   containers -any, fgl -any, filepath -any, glib -any, gtk -any,
+                   lens -any, mtl -any, parsec -any, regex-compat -any,
+                   regex-posix -any, system-filepath -any, template-haskell -any,
+                   text -any, utf8-string -any, xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: List2Record IsWidget TreeView DOM ArgOpts
-                   OperatorNames SequenceMap JDebug Grammar CmdOptions Colors
-                   FakeColors Parser Editor XPath SMShower Editor2 LText Lookahead
-                   Format LString Main GrammarParser ParseError ToolBar StupidSetGet
-                   EnhancedString EStringTools Shower Quoter CharSet ListView Menu
-                   Generator ParseElements Context LeftFactoring GrammarTools
-                   TreeTools Generator
+    other-modules: SequenceMap Lookahead ArgOpts LText StupidSetGet
+                   Editor LString ToolBar Main ListView CharSet ParseElements
+                   Generator ParseError TreeTools Quoter Editor2 Format Grammar
+                   OperatorNames FakeColors CmdOptions Generator SMShower JDebug
+                   Colors List2Record GrammarParser TreeView Shower Menu EStringTools
+                   Context GrammarTools IsWidget EnhancedString DOM XPath Parser
+                   LeftFactoring
  
 test-suite test-parser
-    build-depends: HList -any, base -any, bytestring -any,
-                   case-insensitive -any, containers -any, fgl -any, filepath -any,
-                   glib -any, gtk -any, lens -any, mtl -any, parsec -any,
-                   regex-compat -any, regex-posix -any, system-filepath -any,
-                   template-haskell -any, text -any, utf8-string -any,
-                   xml-conduit -any
+    build-depends: base -any, bytestring -any, case-insensitive -any,
+                   containers -any, fgl -any, filepath -any, glib -any, gtk -any,
+                   lens -any, mtl -any, parsec -any, regex-compat -any,
+                   regex-posix -any, system-filepath -any, template-haskell -any,
+                   text -any, utf8-string -any, xml-conduit -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

@@ -35,20 +35,20 @@ import SequenceMap
 --import JDebug
 
 leftFactor::Bool->SequenceMap->Sequence->Sequence
-leftFactor shouldExpandLinks sm = leftFactor' . (prepareForLeftFactor sm ? shouldExpandLinks)
+leftFactor shouldExpandLinks sm = leftFactor' shouldExpandLinks sm . (prepareForLeftFactor sm ? shouldExpandLinks)
     where
         f ? condition = if condition then f else id
 
-leftFactor'::Sequence->Sequence
-leftFactor' (Or []:rest) = leftFactor' rest
-leftFactor' (Or [sq]:rest) = leftFactor' (sq ++ rest)
-leftFactor' (Or items:rest) =
-    orify (recombine <$> sortAndGroupUsing factorClass (splitFirstTok <$> items)) ++ leftFactor' rest
+leftFactor'::Bool->SequenceMap->Sequence->Sequence
+leftFactor' shouldExpandLinks sm (Or []:rest) = leftFactor' shouldExpandLinks sm rest
+leftFactor' shouldExpandLinks sm (Or [sq]:rest) = leftFactor' shouldExpandLinks sm (sq ++ rest)
+leftFactor' shouldExpandLinks sm (Or items:rest) =
+    orify (recombine shouldExpandLinks sm <$> sortAndGroupUsing factorClass (splitFirstTok <$> items)) ++ leftFactor' shouldExpandLinks sm rest
     where
         factorClass fp = (firstTok fp, null $ outValue fp)  -- Used to fingerprint the token
 
-leftFactor' (x:rest) = x:leftFactor' rest
-leftFactor' [] = []
+leftFactor' shouldExpandLinks sm (x:rest) = x:leftFactor' shouldExpandLinks sm rest
+leftFactor' _ _ [] = []
 
 sortAndGroupUsing::(Eq b, Ord b)=>(a->b)->[a]->[[a]]
 sortAndGroupUsing f = groupBy ((==) `on` f) . sortBy (compare `on` f)
@@ -94,18 +94,18 @@ splitFirstTok sq = error ("Missing case in splitFirstTok: " ++ format sq)
 
 
 
-recombine::[FirstParsedSeq]->Sequence
-recombine [] = error "Huh, shouldn't be here"
-recombine fps =
+recombine::Bool->SequenceMap->[FirstParsedSeq]->Sequence
+recombine _ _ [] = error "Huh, shouldn't be here"
+recombine shouldExpandLinks sm fps =
     case (defltWSs, outs) of
         ([Just defltWS], [outVal]) -> outify outVal ++ [WhiteSpace defltWS]
-            ++ leftFactor' (orify (theRemainder <$> fps))
+            ++ leftFactor shouldExpandLinks sm (orify (theRemainder <$> fps))
         ([Just defltWS], _) -> [Out [FutureItem Nothing], WhiteSpace defltWS]
-            ++ leftFactor' (orify ((\fp -> Out [ItemInfo (outValue fp)]:theRemainder fp) <$> fps))
+            ++ leftFactor shouldExpandLinks sm (orify ((\fp -> Out [ItemInfo (outValue fp)]:theRemainder fp) <$> fps))
         (_, [outVal]) -> outify outVal ++ maybeToList uniqueFirstTok
-            ++ leftFactor' (orify ((\fp -> outify (DelayedWS <$> (maybeToList $ defltWSValue fp)) ++ theRemainder fp) <$> fps))
+            ++ leftFactor shouldExpandLinks sm (orify ((\fp -> outify (DelayedWS <$> (maybeToList $ defltWSValue fp)) ++ theRemainder fp) <$> fps))
         (_, _) -> [Out [FutureItem Nothing]] ++ maybeToList uniqueFirstTok
-            ++ leftFactor' (orify ((\fp -> Out ([ItemInfo (outValue fp)] ++ (DelayedWS <$> (maybeToList $ defltWSValue fp))):theRemainder fp) <$> fps))
+            ++ leftFactor shouldExpandLinks sm (orify ((\fp -> Out ([ItemInfo (outValue fp)] ++ (DelayedWS <$> (maybeToList $ defltWSValue fp))):theRemainder fp) <$> fps))
     where
         defltWSs = nub (defltWSValue <$> fps)
         outs = nub (outValue <$> fps)
@@ -152,7 +152,7 @@ prepareForLeftFactor _ sq = sq
 
 getFirst::Sequence->Maybe [Expression]
 getFirst [] = Nothing
-getFirst (Or seqs:_) = concat <$> sequence (getFirst <$> seqs)
+getFirst (Or seqs:rest) = concat <$> sequence (getFirst <$> (++ rest) <$> seqs)
 getFirst (expr@(Link _):_) = Just [expr]
 getFirst (expr@(TextMatch _ _):_) = Just [expr]
 getFirst (expr@(Character _ _):_) = Just [expr]

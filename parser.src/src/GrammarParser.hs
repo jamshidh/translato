@@ -89,7 +89,7 @@ parseFullClass =
             parseSeparator
             <|> parseLeft
             <|> parseRight
-            <|> parseOperators
+            <|> try parseOperators
             <|> parseRule
             <|> parseComment) spaces
         spaces

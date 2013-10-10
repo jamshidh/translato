@@ -5,7 +5,8 @@ build-type: Simple
 license: AllRightsReserved
 license-file: ""
 description:  
-data-dir: ""
+data-files: greenBall.png redBall.png
+data-dir: resources
 extra-source-files: ""
  
 executable parser

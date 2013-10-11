@@ -15,6 +15,7 @@ module Parser (
 import Prelude hiding (lookup)
 
 import Control.Lens
+import Control.Monad
 import Data.Char hiding (Space)
 import Data.Functor
 import Data.Graph.Inductive.Query.Monad
@@ -22,9 +23,12 @@ import Data.Maybe
 import Data.Tree
 import Data.List as L hiding (union, lookup, insert)
 import Data.Map hiding (map, foldl, filter)
+import System.Directory
+import System.FilePath
 import System.IO
 import Text.Regex
 
+import Paths_parser
 
 import ArgOpts
 import CharSet
@@ -187,25 +191,24 @@ createParserWithErrors g s = mapFst enhancedString2String (createEParserWithErro
 
 ---------
 
-data Options = Options { specFileName::Maybe String, inputFileName::Maybe String }
-deflt = Options { specFileName = Nothing, inputFileName=Nothing }
+data Options = Options { specName::Maybe String, inputFileName::Maybe String }
+deflt = Options { specName = Nothing, inputFileName=Nothing }
 
 parseMain::[String]->IO ()
 parseMain args = do
     let options = $(arg2Opts ''Options ["inputFileName"]) args deflt
-    let specFileName' =
-            case specFileName options of
-                Nothing ->
-                    case inputFileName options of
-                        Nothing -> error "You have to supply the spec filename"
-                        Just fileName -> "specs/" ++ extension ++ ".spec"
-                            where
-                                extension =
-                                    case matchRegex (mkRegex "\\.([^\\.]+$)") fileName of
-                                        Just [x] -> x
-                                        _ -> error "You need to supply the spec filename when the inputFileName doesn't have an extension"
-                Just x -> x
-    grammar<-loadGrammarAndSimplifyForParse specFileName'
+
+    specFileName <- case msum [specName options, inputFileName options >>= getFileExtension] of
+                    Just x -> getDataFileName ("specs/" ++ x ++ ".spec")
+                    _ -> error "You need to supply the spec filename when the inputFileName doesn't have an extension"
+
+    specFileExists <- doesFileExist specFileName
+
+    case specFileExists of
+        False -> error ("Spec file does not exist: " ++ specFileName)
+        _ -> return ()
+
+    grammar<-loadGrammarAndSimplifyForParse specFileName
     case inputFileName options of
         Just fileName -> do
                 fileHandle <- openFile fileName ReadMode
@@ -213,8 +216,10 @@ parseMain args = do
                 putStr $ createParser grammar input
         Nothing -> interact $ createParser grammar
 
-
-
+getFileExtension x =
+    case takeExtension x of
+        ('.':ext) -> Just ext
+        _ -> Nothing
 
 
 

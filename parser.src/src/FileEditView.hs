@@ -37,8 +37,8 @@ import System.Glib.GObject
 import System.IO
 import System.IO.Unsafe
 
-import Signals
-import Threading
+import FromGtk2Hs.Signals
+import FromGtk2Hs.Threading
 
 import DOM
 import WidgetSizes()

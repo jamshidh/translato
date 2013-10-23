@@ -25,7 +25,7 @@ executable parser
                    Format LString Main GrammarParser ParseError ToolBar StupidSetGet
                    EnhancedString EStringTools Shower Quoter CharSet ListView Menu
                    Generator ParseElements Context LeftFactoring GrammarTools
-                   TreeTools Generator WidgetSizes Signals Threading
+                   TreeTools Generator WidgetSizes FromGtk2Hs.Signals FromGtk2Hs.Threading
  
 test-suite test-parser
     build-depends: base -any, bindings-gobject -any, bytestring -any,

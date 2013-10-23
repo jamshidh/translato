@@ -5,7 +5,8 @@ build-type: Simple
 license: AllRightsReserved
 license-file: ""
 description:  
-data-dir: ""
+data-files: greenBall.png redBall.png specs/html.spec
+data-dir: resources
 extra-source-files: ""
  
 executable parser
@@ -14,7 +15,7 @@ executable parser
                    glib -any, gtk -any, lens -any, missing-foreign -any, mtl -any,
                    parsec -any, regex-compat -any, regex-posix -any,
                    system-filepath -any, template-haskell -any, text -any,
-                   utf8-string -any, xml-conduit -any
+                   utf8-string -any, xml-conduit -any, directory -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
@@ -32,7 +33,7 @@ test-suite test-parser
                    glib -any, gtk -any, lens -any, missing-foreign -any, mtl -any,
                    parsec -any, regex-compat -any, regex-posix -any,
                    system-filepath -any, template-haskell -any, text -any,
-                   utf8-string -any, xml-conduit -any
+                   utf8-string -any, xml-conduit -any, directory -any, 
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

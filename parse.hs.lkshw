@@ -1,10 +1,10 @@
 Version of workspace file format:
                1
 Time of storage:
-               "Fri Feb  1 21:36:25 PST 2013"
+               "Fri Oct 11 15:09:02 PDT 2013"
 Name of the workspace:
                "parse.hs"
 File paths of contained packages:
-               ["parser.src/parser.cabal"]
+               ["Translator/Translator.cabal","parser.src/parser.cabal"]
 Maybe file path of an active package:
                Just "parser.src/parser.cabal"

@@ -30,6 +30,8 @@ import Graphics.UI.Gtk hiding (Range)
 import System.IO
 import Text.Regex
 
+import Paths_parser
+
 import ArgOpts
 import DOM
 import qualified EnhancedString as E
@@ -91,6 +93,9 @@ edit g generatorGrammar fileNameString = do
     fileNameRef <- newIORef fileNameString
     clipboard <- clipboardGet selectionPrimary
 
+    redBall <- getDataFileName "redBall.png"
+    greenBall <- getDataFileName "greenBall.png"
+
     let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
     let doValidate = do
         ids <- getIDs domR
@@ -131,7 +136,7 @@ edit g generatorGrammar fileNameString = do
                 Item (Stock stockQuit) (Just "Quit the program") mainQuit,
                 Item (Stock stockFind) (Just "Find....") mainQuit,
                 Item (Stock stockAbout) (Just "About") showAboutDialog,
-                Item (File "redBall.png") (Just "Validate") doValidate
+                Item (File redBall) (Just "Validate") doValidate
             ]
         )
 
@@ -181,7 +186,7 @@ edit g generatorGrammar fileNameString = do
                             button [CAtr $ boxChildPacking #= PackNatural],
                             boxSpacer,
                             label [ID "positionLabel", CAtr $ boxChildPacking #= PackNatural] "Line 0, Col 0",
-                            image [ID "validImage", Atr $ imageFile := "resources/redBall.png", CAtr $ boxChildPacking #= PackNatural]
+                            image [ID "validImage", Atr $ imageFile := redBall, CAtr $ boxChildPacking #= PackNatural]
                         ]
 
 --                    checkButton [Atr $ buttonLabel := "the button label"
@@ -269,10 +274,12 @@ validate g validImage textView errorStore parseStore parseView = do
     start <- textBufferGetStartIter buff
     end <- textBufferGetEndIter buff
     bufferString <- textBufferGetByteString buff start end False
+    redBall <- getDataFileName "redBall.png"
+    greenBall <- getDataFileName "greenBall.png"
     let (res, errorList) = createEParserWithErrors g (toString bufferString)
     if null errorList
-        then imageSetFromFile validImage "resources/greenBall.png"
-        else imageSetFromFile validImage "resources/redBall.png"
+        then imageSetFromFile validImage greenBall
+        else imageSetFromFile validImage redBall
     listStoreClear errorStore
     treeStoreClear parseStore
     textBufferRemoveAllTags buff start end

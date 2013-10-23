@@ -19,6 +19,7 @@ module Editor (
     editMain
 ) where
 
+import Control.Monad
 import Data.ByteString.UTF8 hiding (break)
 import Data.Functor
 import Data.IORef
@@ -27,29 +28,10 @@ import Data.Maybe
 import qualified Data.Text.Lazy as TL
 import Data.Tree
 import Graphics.UI.Gtk hiding (Range)
-import System.IO
-import Text.Regex
-
-
---import Control.Lens
-import Control.Monad
---import Data.Char hiding (Space)
---import Data.Functor
---import Data.Graph.Inductive.Query.Monad
---import Data.Maybe
---import Data.Tree
---import Data.List as L hiding (union, lookup, insert)
---import Data.Map hiding (map, foldl, filter)
 import System.Directory
 import System.FilePath
 import System.IO
---import Text.Regex
-
-
-
-
-
-
+import Text.Regex
 
 import Paths_parser
 

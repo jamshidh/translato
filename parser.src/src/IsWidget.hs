@@ -18,8 +18,13 @@ module IsWidget (
 
 import Graphics.UI.Gtk
 
+import FileEditView
+
 class IsWidget a where
     fromWidget::Widget->a
+
+instance IsWidget FileEditView where
+    fromWidget w = castToFileEditView w
 
 instance IsWidget Object where
     fromWidget w = castToObject w

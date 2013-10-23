@@ -23,6 +23,7 @@ module DOM (
 
     --Creator helpers
     applyModifiers,
+    simpleWidget,
 
     --List of creators
     window,
@@ -59,6 +60,7 @@ module DOM (
     WidgetModifier(..)
 ) where
 
+import Control.Applicative
 import Control.Monad
 --import Data.HList
 import Data.Maybe
@@ -98,6 +100,7 @@ boxPacking = newAttr
 
 applyModifiers::WidgetClass a=>a->[WidgetModifier p a]->IO [(String, Widget)]
 applyModifiers widget attModifiers = do
+    sequence ([attr|Mod attr <- attModifiers] <*> [widget])
     set widget [attr|Atr attr <- attModifiers]
     mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
     let ids = case [(name, castToWidget widget)|ID name <- attModifiers] of
@@ -193,7 +196,7 @@ boxSpacer = label [CAtr $ (\c -> boxChildPacking c := PackGrow)] " "
 
 x #= y = (:= y) . x
 
-data WidgetModifier p a = ID String | Atr (AttrOp a) | CAtr (a->AttrOp p) | Sig (Signal a (IO())) (IO())
+data WidgetModifier p a = ID String | Atr (AttrOp a) | CAtr (a->AttrOp p) | Sig (Signal a (IO())) (IO()) | Mod (a->IO (ConnectId a))
 
 _main = fmap ((:[]) . castToWindow . widget) . readIORef
 

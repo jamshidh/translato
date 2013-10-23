@@ -33,6 +33,7 @@ import Text.Regex
 import ArgOpts
 import DOM
 import qualified EnhancedString as E
+import FileEditView
 import Generator
 import Grammar
 import GrammarTools
@@ -52,7 +53,7 @@ makeGenerator g contents = generateFromText g (TL.pack $ createParser g contents
 
 data IDs = IDs{
     mainWindow::Window,
-    mainTextView::TextView,
+    mainTextView::FileEditView,
     outputNotebook::Notebook,
     validImage::Image,
     positionLabel::Label,
@@ -147,7 +148,12 @@ edit g generatorGrammar fileNameString = do
                         (
                             hPaned [ID "outputPaned"]
                                 (
-                                    scrolledWindow [] (textView [ID "mainTextView"]),
+                                    scrolledWindow [] (
+                                        fileEditView [
+                                            ID "mainTextView",
+                                            Atr $ editFileName := fileNameString
+                                        ]
+                                    ),
                                     notebook [ID "outputNotebook", Atr $ notebookTabPos := PosRight]
                                         [
                                             ("tree", scrolledWindow []
@@ -193,7 +199,10 @@ edit g generatorGrammar fileNameString = do
 
     ids <- getIDs domR
 
-    loadBuffer fileNameString ids
+    on (mainTextView ids) fileNameStringSet (\fileName -> do ids <- getIDs domR; windowSetTitle (mainWindow ids) fileName)
+
+
+--    loadBuffer fileNameString ids
 
 ----------------------------------
 
@@ -254,7 +263,7 @@ updatePositionLabel positionLabel textBuffer=do
     labelSetText positionLabel ("Line " ++ show line ++ ", Col " ++ show col)
 
 
-validate::Grammar->Image->TextView->ListStore ParseError->TreeStore String->TreeView->IO()
+validate::Grammar->Image->FileEditView->ListStore ParseError->TreeStore String->TreeView->IO()
 validate g validImage textView errorStore parseStore parseView = do
     buff <- textViewGetBuffer textView
     start <- textBufferGetStartIter buff
@@ -337,7 +346,7 @@ validate g validImage textView errorStore parseStore parseView = do
             end <- textBufferGetIterAtLineOffset buff line2 column2
             textBufferApplyTag buff tag start end
 
-saveBuffer::IORef String->TextView->IO ()
+saveBuffer::IORef String->FileEditView->IO ()
 saveBuffer fileNameRef tv =
     do
         txtBuff <- textViewGetBuffer tv
@@ -367,12 +376,7 @@ saveBufferAs fileNameRef ids =
 loadBuffer::String->IDs->IO ()
 loadBuffer fileName ids =
     do
-        fileHandle<-openFile fileName ReadMode
-        contents<-hGetContents fileHandle
-
-        buf <- textViewGetBuffer (mainTextView ids)
-        textBufferSetText buf contents
-        hClose fileHandle
+        set (mainTextView ids) [editFileName := fileName]
 
         windowSetTitle (mainWindow ids) fileName
 

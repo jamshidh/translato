@@ -33,7 +33,7 @@ test-suite test-parser
                    glib -any, gtk -any, lens -any, missing-foreign -any, mtl -any,
                    parsec -any, regex-compat -any, regex-posix -any,
                    system-filepath -any, template-haskell -any, text -any,
-                   utf8-string -any, xml-conduit -any, directory -any, 
+                   utf8-string -any, xml-conduit -any, directory -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

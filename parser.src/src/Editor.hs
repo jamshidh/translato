@@ -30,6 +30,27 @@ import Graphics.UI.Gtk hiding (Range)
 import System.IO
 import Text.Regex
 
+
+--import Control.Lens
+import Control.Monad
+--import Data.Char hiding (Space)
+--import Data.Functor
+--import Data.Graph.Inductive.Query.Monad
+--import Data.Maybe
+--import Data.Tree
+--import Data.List as L hiding (union, lookup, insert)
+--import Data.Map hiding (map, foldl, filter)
+import System.Directory
+import System.FilePath
+import System.IO
+--import Text.Regex
+
+
+
+
+
+
+
 import Paths_parser
 
 import ArgOpts
@@ -475,27 +496,54 @@ doFind=do
 
 -----------------------
 
-data Options = Options { specFileName::Maybe String, fileName::String, qqqq::Int } deriving (Show, Read)
-deflt = Options { specFileName=Nothing, fileName="fred", qqqq=1 }
+data Options = Options { specName::Maybe String, fileName::String, qqqq::Int } deriving (Show, Read)
+deflt = Options { specName=Nothing, fileName="fred", qqqq=1 }
 
 getExtension x =
     case matchRegex (mkRegex "\\.([^\\.]+$)") x of
         Just [x] -> x
         _ -> error "You need to supply the spec filename when the inputFileName doesn't have an extension"
 
-fixOptions::Options->Options
-fixOptions o@Options{specFileName=Nothing} = o{specFileName=Just specFileName}
-    where
-        specFileName = "specs/" ++ getExtension (fileName o) ++ ".spec"
-
 editMain::[String]->IO ()
 editMain args = do
-    let options =
-            fixOptions
-                ($(arg2Opts ''Options ["fileName"]) args deflt)
-    grammar <- loadGrammarAndSimplifyForParse (fromJust $ specFileName options)
-    generatorGrammar <- loadGrammarAndSimplifyForGenerate (fromJust $ specFileName options)
+    let options = $(arg2Opts ''Options ["fileName"]) args deflt
+
+    specFileName <- case msum [specName options, getFileExtension $ fileName options] of
+                    Just x -> getDataFileName ("specs/" ++ x ++ ".spec")
+                    _ -> error "You need to supply the spec filename when the inputFileName doesn't have an extension"
+
+    specFileExists <- doesFileExist specFileName
+    case specFileExists of
+        False -> error ("Spec file does not exist: " ++ specFileName)
+        _ -> return ()
+
+    grammar <- loadGrammarAndSimplifyForParse specFileName
+    generatorGrammar <- loadGrammarAndSimplifyForGenerate specFileName
     Editor.edit grammar generatorGrammar (fileName options)
+
+
+
+
+
+
+getFileExtension x =
+    case takeExtension x of
+        ('.':ext) -> Just ext
+        _ -> Nothing
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

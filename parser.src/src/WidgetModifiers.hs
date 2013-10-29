@@ -16,8 +16,7 @@ module WidgetModifiers (
     WidgetModifier(..),
     applyModifiers,
     (@=),
-    (@==),
-    (#=)
+    (@==)
 ) where
 
 import Control.Applicative
@@ -36,8 +35,7 @@ applyModifiers widget attModifiers = do
                 [oneId] -> widgetSetName widget oneId
                 _ -> error "You can only have one ID in a widget"
 
-x #= y = (:= y) . x
-
 x @= y = Atr (x := y)
 
-x @== y = CAtr (\w -> (x w := y))
+x @== y = CAtr $ (:= y) . x
+

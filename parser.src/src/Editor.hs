@@ -74,7 +74,8 @@ $(list2Record ''IDs 'fromWidget)
 getIDs::IORef (DOM p)->IO IDs
 getIDs domR = do
     dom <- readIORef domR
-    return (list2IDs (ids dom))
+    idList <- getIDList dom
+    return (list2IDs idList)
 
 onStart::IORef (DOM p)->IO()
 onStart domR = do

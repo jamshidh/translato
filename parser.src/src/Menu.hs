@@ -42,14 +42,13 @@ menu attModifiers menu = do
 
 
     maybeMenubar <- uiManagerGetWidget uiManager "/ui/menubar"
-    let menuBar = case maybeMenubar of
+    let menuBar = castToMenuBar $ case maybeMenubar of
             (Just x) -> x
             Nothing -> error "Cannot get menubar from string."
-    let ids = case [(name, castToWidget menuBar)|ID name <- attModifiers] of
-                [] -> []
-                [oneId] -> [oneId]
-                _ -> error "You can only have one ID in a widget"
-    return DOM{widget=menuBar, childAttrs=[attr (castToMenuBar menuBar)|CAtr attr <- attModifiers], uiManagers=[uiManager], ids=ids}
+
+    applyModifiers menuBar attModifiers
+
+    return DOM{widget=castToWidget menuBar, childAttrs=[attr (castToMenuBar menuBar)|CAtr attr <- attModifiers], uiManagers=[uiManager]}
 
 
 menuTree2MenuData::[MenuTree]->IO (String, ActionGroup)

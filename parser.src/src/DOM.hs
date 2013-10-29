@@ -19,6 +19,8 @@ module DOM (
     createMainWindow,
     mainDOM,
 
+    getIDList,
+
     boxPacking,
 
     --Creator helpers
@@ -61,11 +63,14 @@ module DOM (
 ) where
 
 import Control.Applicative
+import Control.Arrow
 import Control.Monad
---import Data.HList
-import Data.Maybe
-import Data.IORef
+import qualified Data.Foldable as F
 import Data.Functor
+import Data.IORef
+import Data.Maybe
+import Data.Monoid
+import Data.Tree
 import Graphics.UI.Gtk
 
 --import JDebug
@@ -77,7 +82,29 @@ import Graphics.UI.Gtk
 --and a UIManager.  I have to pass around uimanagers so that the window can get accelerators from the menu.  This is ugly,
 --but I think it is the only way.
 
-data DOM p = DOM{widget::Widget, childAttrs::[AttrOp p], uiManagers::[UIManager], ids::[(String, Widget)]}
+data DOM p = DOM{widget::Widget, childAttrs::[AttrOp p], uiManagers::[UIManager]}
+
+--instance F.Foldable DOM where
+--    foldMap f dom | widget dom `isA` gTypeContainer = f widget `mappend` F.foldMap f (containerGetChildren (castToContainer widget))
+--    foldMap f dom = f (widget dom)
+
+getWidgetTree::WidgetClass a=>a->IO (Tree Widget)
+getWidgetTree widget = do
+    children <- if widget `isA` gTypeContainer
+                    then containerGetChildren (castToContainer widget)
+                    else return []
+    childrenForest <- sequence (getWidgetTree <$> children)
+    return Node{rootLabel=castToWidget widget, subForest=childrenForest}
+
+getIDList::DOM p->IO [(String, Widget)]
+getIDList dom = do
+    widgetTree <- getWidgetTree (widget dom)
+    let widgetList = flatten widgetTree
+    nameAndWidget <- sequence (getNameAndWidget <$> widgetList)
+    return (filter (not.null.fst) nameAndWidget)
+        where
+            getNameAndWidget::Widget->IO (String, Widget)
+            getNameAndWidget w = widgetGetName w >>= \name -> return (name, w)
 
 -----------------------------------
 
@@ -98,16 +125,15 @@ boxPacking = newAttr
 ----------------------------------------
 -- Widget creation
 
-applyModifiers::WidgetClass a=>a->[WidgetModifier p a]->IO [(String, Widget)]
+applyModifiers::WidgetClass a=>a->[WidgetModifier p a]->IO ()
 applyModifiers widget attModifiers = do
     sequence ([attr|Mod attr <- attModifiers] <*> [widget])
     set widget [attr|Atr attr <- attModifiers]
     mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    let ids = case [(name, castToWidget widget)|ID name <- attModifiers] of
-                [] -> []
-                [oneId] -> [oneId]
+    case [name|ID name <- attModifiers] of
+                [] -> return ()
+                [oneId] -> widgetSetName widget oneId
                 _ -> error "You can only have one ID in a widget"
-    return ids
 
 
 simpleWidget::WidgetClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->IO (DOM p)
@@ -117,8 +143,8 @@ simpleWidget maybeLabelInfo widgetCreator attModifiers = do
                 Nothing -> []
                 Just (name, labelAttr) -> [Atr $ labelAttr := name]
     widget <- widgetCreator
-    ids <- applyModifiers widget attModifiers
-    let dom = DOM{widget=castToWidget widget, childAttrs=[attr widget|CAtr attr <- attModifiers], uiManagers=[], ids=ids}
+    applyModifiers widget attModifiers
+    let dom = DOM{widget=castToWidget widget, childAttrs=[attr widget|CAtr attr <- attModifiers], uiManagers=[]}
     return dom
 
 containerWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->[IO (DOM a)]->IO (DOM p)
@@ -126,11 +152,9 @@ containerWidget maybeLabelInfo widgetCreator attModifiers childCreators = do
     childDOMs <- sequence childCreators
     let extraAttModifiers = Atr <$> (((containerChild :=) <$> widget <$> childDOMs)
                                 ++ (childAttrs =<< childDOMs))
-    let extraIds = concat (ids <$> childDOMs)
---    let extraAttModifiers2 = Atr <$> (\dom -> (boxChildPacking (widget dom) := childBoxPacking dom)) <$> childDOMs
     dom <- simpleWidget maybeLabelInfo widgetCreator (attModifiers ++ extraAttModifiers)
     let childUIManagers = uiManagers =<< childDOMs
-    return dom{ids = ids dom ++ extraIds, uiManagers=childUIManagers}
+    return dom{uiManagers=childUIManagers}
 
 
 binWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->IO (DOM a)->IO (DOM p)
@@ -184,10 +208,9 @@ notebook attModifiers pages = do
         childDOM <- snd page
         notebookInsertPage notebook (widget childDOM) (fst page) 0
         return childDOM)
-    let extraIds = ids <$> childDOMs
     let childUIManagers = uiManagers =<< childDOMs
-    ids <- applyModifiers notebook attModifiers
-    return DOM{widget=castToWidget notebook, childAttrs=[attr notebook|CAtr attr <- attModifiers], uiManagers=childUIManagers, ids = ids ++ concat extraIds}
+    applyModifiers notebook attModifiers
+    return DOM{widget=castToWidget notebook, childAttrs=[attr notebook|CAtr attr <- attModifiers], uiManagers=childUIManagers}
 
 
 

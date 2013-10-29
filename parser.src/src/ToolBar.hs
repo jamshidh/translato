@@ -48,11 +48,9 @@ toolbar attModifiers menu = do
     toolbar <- toolbarNew
     toolbarSetStyle toolbar ToolbarIcons
     mapM_ (addToolButton toolbar) menu
-    let ids = case [(name, castToWidget toolbar)|ID name <- attModifiers] of
-                [] -> []
-                [oneId] -> [oneId]
-                _ -> error "You can only have one ID in a widget"
-    return DOM{widget=castToWidget toolbar, childAttrs=[attr toolbar|CAtr attr <- attModifiers], uiManagers=[], ids=ids}
+    applyModifiers toolbar attModifiers
+
+    return DOM{widget=castToWidget toolbar, childAttrs=[attr toolbar|CAtr attr <- attModifiers], uiManagers=[]}
 
     where
         addToolButton::Toolbar->Item a->IO ()

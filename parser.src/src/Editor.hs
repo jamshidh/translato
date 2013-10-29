@@ -20,6 +20,7 @@ module Editor (
 ) where
 
 import Control.Monad
+import Control.Monad.IO.Class
 import Data.ByteString.UTF8 hiding (break)
 import Data.Functor
 import Data.IORef
@@ -147,7 +148,7 @@ edit g generatorGrammar fileNameString = do
     createMainWindow domR (
             window fileNameString [ID "mainWindow",
                                     Atr $ containerBorderWidth := 4,
-                                    --Sig destroyEvent (do mainQuit; return True),
+                                    Mod (flip (`on` unrealize) mainQuit),
                                     Atr $ windowDefaultWidth := 1400,
                                     Atr $ windowDefaultHeight := 900] (
                 vBox [] [
@@ -229,8 +230,6 @@ edit g generatorGrammar fileNameString = do
 --    statusbarPush statusBar id "qqqq"
 
 ----------------
-
-    (`onDestroy` mainQuit) =<< head <$> _main domR
 
     doValidate
     generateOutput outputTextBuffer textBuffer doGenerate

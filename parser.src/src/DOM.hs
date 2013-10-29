@@ -53,11 +53,6 @@ module DOM (
     boxSpacer,
 
     --widget modifier tools
-    setM,
-    _main,
-    _vBox,
-    _label,
-    _item,
     (#=),
     WidgetModifier(..)
 ) where
@@ -65,13 +60,15 @@ module DOM (
 import Control.Applicative
 import Control.Arrow
 import Control.Monad
-import qualified Data.Foldable as F
+--import qualified Data.Foldable as F
 import Data.Functor
 import Data.IORef
 import Data.Maybe
 import Data.Monoid
 import Data.Tree
 import Graphics.UI.Gtk
+
+import WidgetModifiers
 
 --import JDebug
 
@@ -124,16 +121,6 @@ boxPacking = newAttr
 
 ----------------------------------------
 -- Widget creation
-
-applyModifiers::WidgetClass a=>a->[WidgetModifier p a]->IO ()
-applyModifiers widget attModifiers = do
-    sequence ([attr|Mod attr <- attModifiers] <*> [widget])
-    set widget [attr|Atr attr <- attModifiers]
-    mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
-    case [name|ID name <- attModifiers] of
-                [] -> return ()
-                [oneId] -> widgetSetName widget oneId
-                _ -> error "You can only have one ID in a widget"
 
 
 simpleWidget::WidgetClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->IO (DOM p)
@@ -217,20 +204,8 @@ notebook attModifiers pages = do
 boxSpacer::BoxClass p=>IO (DOM p)
 boxSpacer = label [CAtr $ (\c -> boxChildPacking c := PackGrow)] " "
 
-x #= y = (:= y) . x
 
-data WidgetModifier p a = ID String | Atr (AttrOp a) | CAtr (a->AttrOp p) | Sig (Signal a (IO())) (IO()) | Mod (a->IO (ConnectId a))
 
-_main = fmap ((:[]) . castToWindow . widget) . readIORef
-
-_vBox = fmap (map castToVBox . filter (`isA` gTypeVBox) . concat) . sequence . fmap containerGetChildren
-_label = fmap (map castToLabel . filter (`isA` gTypeLabel) . concat) . sequence . fmap containerGetChildren
-
-_item x = return . (:[]) . (!!x)
-
-setM x y = do
-    widget <- x
-    set (head widget) y
 
 
 initDOM::IO (IORef (DOM p))
@@ -250,8 +225,3 @@ createMainWindow::IORef (DOM p)->IO (DOM p)->IO()
 createMainWindow domR createDOM = do
     dom <- createDOM
     writeIORef domR dom
-
--------------
-
-changeSecondLabel::IORef (DOM p)->IO()
-changeSecondLabel domR = setM (_main domR >>= _vBox >>= _label >>= _item 1) [labelLabel := "qqqq"]

@@ -21,6 +21,7 @@ module ToolBar (
 import Graphics.UI.Gtk
 
 import DOM
+import WidgetModifiers
 
 --import JDebug
 

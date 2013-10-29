@@ -53,8 +53,10 @@ module DOM (
     boxSpacer,
 
     --widget modifier tools
+    (@=),
+    (@==),
     (#=),
-    WidgetModifier(..)
+    WidgetModifier(ID, Mod)
 ) where
 
 import Control.Applicative
@@ -128,7 +130,7 @@ simpleWidget maybeLabelInfo widgetCreator attModifiers = do
     let extraAttModifiers =
             case maybeLabelInfo of
                 Nothing -> []
-                Just (name, labelAttr) -> [Atr $ labelAttr := name]
+                Just (name, labelAttr) -> [labelAttr @= name]
     widget <- widgetCreator
     applyModifiers widget attModifiers
     let dom = DOM{widget=castToWidget widget, childAttrs=[attr widget|CAtr attr <- attModifiers], uiManagers=[]}
@@ -137,9 +139,9 @@ simpleWidget maybeLabelInfo widgetCreator attModifiers = do
 containerWidget::ContainerClass a=>Maybe (String, Attr a String)->IO a->[WidgetModifier p a]->[IO (DOM a)]->IO (DOM p)
 containerWidget maybeLabelInfo widgetCreator attModifiers childCreators = do
     childDOMs <- sequence childCreators
-    let extraAttModifiers = Atr <$> (((containerChild :=) <$> widget <$> childDOMs)
-                                ++ (childAttrs =<< childDOMs))
-    dom <- simpleWidget maybeLabelInfo widgetCreator (attModifiers ++ extraAttModifiers)
+    let extraAttModifiers = ((containerChild :=) <$> widget <$> childDOMs)
+                                ++ (childAttrs =<< childDOMs)
+    dom <- simpleWidget maybeLabelInfo widgetCreator (attModifiers ++ (Atr <$> extraAttModifiers))
     let childUIManagers = uiManagers =<< childDOMs
     return dom{uiManagers=childUIManagers}
 
@@ -202,7 +204,7 @@ notebook attModifiers pages = do
 
 
 boxSpacer::BoxClass p=>IO (DOM p)
-boxSpacer = label [CAtr $ (\c -> boxChildPacking c := PackGrow)] " "
+boxSpacer = label [boxChildPacking @== PackGrow] " "
 
 
 
@@ -211,7 +213,7 @@ boxSpacer = label [CAtr $ (\c -> boxChildPacking c := PackGrow)] " "
 initDOM::IO (IORef (DOM p))
 initDOM = do
     initGUI
-    dom <- window "<No Title>" [Atr $ windowDefaultWidth := 400, Atr $ windowDefaultHeight := 300] (label [] "empty content")
+    dom <- window "<No Title>" [windowDefaultWidth @= 400, windowDefaultHeight @= 300] (label [] "empty content")
     newIORef dom
 
 mainDOM::IORef (DOM p)->(IORef (DOM p)->IO())->IO()

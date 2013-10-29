@@ -26,6 +26,7 @@ import Data.Functor
 import Graphics.UI.Gtk
 
 import DOM
+import WidgetModifiers
 
 treeView::(TreeModelClass (model row), TypedTreeModelClass model)=>
                 [WidgetModifier p TreeView]->[model row->IO TreeViewColumn]->model row->IO (DOM p)

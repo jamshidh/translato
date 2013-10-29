@@ -106,7 +106,7 @@ edit g generatorGrammar fileNameString = do
         ids <- getIDs domR
         validate g (validImage ids) (mainTextView ids) errorStore parseStore (parseTreeView ids)
 
-    editorMenu <- menu [CAtr $ boxChildPacking #= PackNatural]
+    editorMenu <- menu [boxChildPacking @== PackNatural]
             [
                 TrSubMenu "_File"
                     [
@@ -132,7 +132,7 @@ edit g generatorGrammar fileNameString = do
                     ] True
             ]
 
-    editorToolbar <- toolbar [CAtr $ (\c -> boxChildPacking c := PackNatural)]
+    editorToolbar <- toolbar [boxChildPacking @== PackNatural]
         (
             [
                 Item (Stock stockOpen) (Just "Open File") (do ids <- getIDs domR; promptAndLoadBuffer ids),
@@ -147,30 +147,30 @@ edit g generatorGrammar fileNameString = do
 
     createMainWindow domR (
             window fileNameString [ID "mainWindow",
-                                    Atr $ containerBorderWidth := 4,
+                                    containerBorderWidth @= 4,
                                     Mod (flip (`on` unrealize) mainQuit),
-                                    Atr $ windowDefaultWidth := 1400,
-                                    Atr $ windowDefaultHeight := 900] (
+                                    windowDefaultWidth @= 1400,
+                                    windowDefaultHeight @= 900] (
                 vBox [] [
                     return editorMenu,
                     return editorToolbar,
-                    vPaned [ID "errorPaned", CAtr $ boxChildPacking #= PackGrow]
+                    vPaned [ID "errorPaned", boxChildPacking @== PackGrow]
                         (
                             hPaned [ID "outputPaned"]
                                 (
                                     scrolledWindow [] (
                                         fileEditView [
                                             ID "mainTextView",
-                                            Atr $ editFileName := fileNameString
+                                            editFileName @= fileNameString
                                         ]
                                     ),
-                                    notebook [ID "outputNotebook", Atr $ notebookTabPos := PosRight]
+                                    notebook [ID "outputNotebook", notebookTabPos @= PosRight]
                                         [
                                             ("tree", scrolledWindow []
                                                         (
                                                             treeView [ID "parseTreeView",
-                                                                    Atr $ treeViewEnableTreeLines := True,
-                                                                    Atr $ treeViewHeadersVisible := False]
+                                                                    treeViewEnableTreeLines @= True,
+                                                                    treeViewHeadersVisible @= False]
                                                                 [treeViewColumn [cellRendererText id]]
                                                                 parseStore
                                                         )
@@ -184,14 +184,14 @@ edit g generatorGrammar fileNameString = do
                                         ("Message", DataExtractor message)
                                     ]
                         ),
-                    hBox [CAtr $ boxChildPacking #= PackNatural]
+                    hBox [boxChildPacking @== PackNatural]
                         [
-                            statusbar [CAtr $ boxChildPacking #= PackNatural],
-                            statusbar [CAtr $ boxChildPacking #= PackNatural],
-                            button [CAtr $ boxChildPacking #= PackNatural],
+                            statusbar [boxChildPacking @== PackNatural],
+                            statusbar [boxChildPacking @== PackNatural],
+                            button [boxChildPacking @== PackNatural],
                             boxSpacer,
-                            label [ID "positionLabel", CAtr $ boxChildPacking #= PackNatural] "Line 0, Col 0",
-                            image [ID "validImage", Atr $ imageFile := redBall, CAtr $ boxChildPacking #= PackNatural]
+                            label [ID "positionLabel", boxChildPacking @== PackNatural] "Line 0, Col 0",
+                            image [ID "validImage", imageFile @= redBall, boxChildPacking @== PackNatural]
                         ]
 
 --                    checkButton [Atr $ buttonLabel := "the button label"

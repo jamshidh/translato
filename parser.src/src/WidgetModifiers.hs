@@ -15,6 +15,8 @@
 module WidgetModifiers (
     WidgetModifier(..),
     applyModifiers,
+    (@=),
+    (@==),
     (#=)
 ) where
 
@@ -35,3 +37,7 @@ applyModifiers widget attModifiers = do
                 _ -> error "You can only have one ID in a widget"
 
 x #= y = (:= y) . x
+
+x @= y = Atr (x := y)
+
+x @== y = CAtr (\w -> (x w := y))

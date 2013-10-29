@@ -20,6 +20,7 @@ module Menu (
 import Graphics.UI.Gtk
 
 import DOM
+import WidgetModifiers
 
 --import JDebug
 

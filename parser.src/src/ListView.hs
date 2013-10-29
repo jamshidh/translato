@@ -23,6 +23,7 @@ import Data.CaseInsensitive
 import Graphics.UI.Gtk
 
 import DOM
+import WidgetModifiers
 
 class Format a where
     format::a->String

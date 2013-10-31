@@ -29,8 +29,8 @@ data WidgetModifier p a = ID String | Atr (AttrOp a) | CAtr (a->AttrOp p) | Sig 
 
 applyModifiers::WidgetClass a=>a->[WidgetModifier p a]->IO ()
 applyModifiers widget attModifiers = do
-    sequence ([attr|Mod attr <- attModifiers] <*> [widget])
     set widget [attr|Atr attr <- attModifiers]
+    sequence ([attr|Mod attr <- attModifiers] <*> [widget])
     mapM_ (uncurry (widget `on`)) [(signal, handler)|Sig signal handler <- attModifiers]
     case [name|ID name <- attModifiers] of
                 [] -> return ()

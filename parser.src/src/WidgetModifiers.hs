@@ -16,7 +16,9 @@ module WidgetModifiers (
     WidgetModifier(..),
     applyModifiers,
     (@=),
-    (@==)
+    (@==),
+    beforeDo,
+    afterDo
 ) where
 
 import Control.Applicative
@@ -39,3 +41,6 @@ x @= y = Atr (x := y)
 
 x @== y = CAtr $ (:= y) . x
 
+beforeDo signal handler = Mod (\w -> on w signal handler)
+
+afterDo signal handler = Mod (\w -> after w signal handler)

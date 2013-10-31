@@ -148,7 +148,7 @@ edit g generatorGrammar fileNameString = do
     createMainWindow domR (
             window fileNameString [ID "mainWindow",
                                     containerBorderWidth @= 4,
-                                    Mod (flip (`on` unrealize) mainQuit),
+                                    unrealize `beforeDo` mainQuit,
                                     windowDefaultWidth @= 1400,
                                     windowDefaultHeight @= 900] (
                 vBox [] [

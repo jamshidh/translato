@@ -55,6 +55,8 @@ module DOM (
     --widget modifier tools
     (@=),
     (@==),
+    beforeDo,
+    afterDo,
     WidgetModifier(ID, Mod)
 ) where
 

@@ -147,6 +147,7 @@ edit g generatorGrammar fileNameString = do
 
     createMainWindow domR (
             window fileNameString [ID "mainWindow",
+                                    windowTitle @= "qqqq",
                                     containerBorderWidth @= 4,
                                     unrealize `beforeDo` mainQuit,
                                     windowDefaultWidth @= 1400,

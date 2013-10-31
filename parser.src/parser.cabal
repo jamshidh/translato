@@ -8,32 +8,34 @@ description:
 data-files: greenBall.png redBall.png specs/html.spec
 data-dir: resources
 extra-source-files: ""
-
+ 
 executable parser
-    build-depends: base -any, bindings-gobject -any, bytestring -any,
-                   case-insensitive -any, containers -any, directory -any, fgl -any,
-                   filepath -any, glib -any, gtk -any, lens -any,
-                   missing-foreign -any, mtl -any, parsec -any, regex-compat -any,
-                   regex-posix -any, system-filepath -any, template-haskell -any,
-                   text -any, transformers -any, utf8-string -any, xml-conduit -any
+    build-depends: DOM -any, base -any, bindings-gobject -any,
+                   bytestring -any, case-insensitive -any, containers -any,
+                   directory -any, fgl -any, filepath -any, glib -any, gtk -any,
+                   lens -any, missing-foreign -any, mtl -any, parsec -any,
+                   regex-compat -any, regex-posix -any, system-filepath -any,
+                   template-haskell -any, text -any, transformers -any,
+                   utf8-string -any, xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: DOM ArgOpts OperatorNames IsWidget List2Record
-                   SequenceMap JDebug Grammar CmdOptions WidgetModifiers Colors
-                   FakeColors Parser TreeView Editor XPath SMShower Editor2 LText
-                   FileEditView Lookahead Format LString Main GrammarParser ParseError
-                   ToolBar StupidSetGet EnhancedString EStringTools Shower Quoter
-                   CharSet ListView Menu Generator ParseElements Context LeftFactoring
-                   GrammarTools TreeTools Generator FromGtk2Hs.Threading WidgetSizes FromGtk2Hs.Signals
+    other-modules: ArgOpts OperatorNames IsWidget List2Record
+                   SequenceMap JDebug Grammar CmdOptions Colors FakeColors Parser
+                   TreeView Editor XPath SMShower Editor2 LText FileEditView Lookahead
+                   Format LString Main GrammarParser ParseError ToolBar StupidSetGet
+                   EnhancedString EStringTools Shower Quoter CharSet ListView Menu
+                   Generator ParseElements Context LeftFactoring GrammarTools
+                   TreeTools Generator FromGtk2Hs.Threading
  
 test-suite test-parser
-    build-depends: base -any, bindings-gobject -any, bytestring -any,
-                   case-insensitive -any, containers -any, directory -any, fgl -any,
-                   filepath -any, glib -any, gtk -any, lens -any,
-                   missing-foreign -any, mtl -any, parsec -any, regex-compat -any,
-                   regex-posix -any, system-filepath -any, template-haskell -any,
-                   text -any, transformers -any, utf8-string -any, xml-conduit -any
+    build-depends: DOM -any, base -any, bindings-gobject -any,
+                   bytestring -any, case-insensitive -any, containers -any,
+                   directory -any, fgl -any, filepath -any, glib -any, gtk -any,
+                   lens -any, missing-foreign -any, mtl -any, parsec -any,
+                   regex-compat -any, regex-posix -any, system-filepath -any,
+                   template-haskell -any, text -any, transformers -any,
+                   utf8-string -any, xml-conduit -any
     type: exitcode-stdio-1.0
     main-is: Main.hs
     buildable: True

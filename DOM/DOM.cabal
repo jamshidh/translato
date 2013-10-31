@@ -1,0 +1,15 @@
+name: DOM
+version: 0.0.1
+cabal-version: >=1.2
+build-type: Simple
+license: AllRightsReserved
+license-file: ""
+description:  
+data-dir: ""
+ 
+library
+    build-depends: containers -any, gtk -any, base -any
+    exposed-modules: DOM WidgetModifiers
+    exposed: True
+    buildable: True
+    hs-source-dirs: src

@@ -181,7 +181,6 @@ window title attModifier widgetCreator = do
                     accelGroup <- uiManagerGetAccelGroup uiManager
                     windowAddAccelGroup (castToWindow $ widget dom) accelGroup
         _ -> error "You can only have one menu in a window"
---    onDestroy window mainQuit
     return dom
 
 vBox = containerWidget Nothing (vBoxNew False 0)

@@ -390,13 +390,7 @@ loadBuffer::String->IDs->IO ()
 loadBuffer fileName ids =
     do
         set (mainTextView ids) [editFileName := fileName]
-
-        windowSetTitle (mainWindow ids) fileName
-
-        {--txtBuff <- textViewGetBuffer tv
-        startIt <- textBufferGetStartIter txtBuff
-        endIt <- textBufferGetEndIter txtBuff
-        textBufferSetByteString txtBuff startIt endIt True--}
+--        windowSetTitle (mainWindow ids) fileName
 
 generateOutput::TextBuffer->TextBuffer->(String->String)->IO ()
 generateOutput outputTextBuffer txtBuff doGenerate = do

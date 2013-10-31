@@ -161,7 +161,9 @@ edit g generatorGrammar fileNameString = do
                                     scrolledWindow [] (
                                         fileEditView [
                                             ID "mainTextView",
-                                            editFileName @= fileNameString
+                                            editFileName @= fileNameString,
+                                            keyPressEvent `beforeDo` onKeyPressed,
+                                            moveCursor `afterDo` onCursorMoved domR
                                         ]
                                     ),
                                     notebook [ID "outputNotebook", notebookTabPos @= PosRight]
@@ -219,8 +221,6 @@ edit g generatorGrammar fileNameString = do
     outputTextBuffer <- textViewGetBuffer (outputTextView ids)
 
     textBuffer <- textViewGetBuffer $ mainTextView ids;
-    after (mainTextView ids) moveCursor (onCursorMoved (positionLabel ids) textBuffer)
-    on (mainTextView ids) keyPressEvent onKeyPressed
     after textBuffer bufferChanged (do ids <- getIDs domR; textBuffer <- textViewGetBuffer $ mainTextView ids; onBuffChanged (positionLabel ids) textBuffer outputTextBuffer doValidate doGenerate)
     start <- textBufferGetStartIter textBuffer
     textBufferPlaceCursor textBuffer start
@@ -246,8 +246,11 @@ edit g generatorGrammar fileNameString = do
 
 
 
-onCursorMoved::Label->TextBuffer->MovementStep->Int->Bool->IO()
-onCursorMoved positionLabel textBuffer _ _ _ = updatePositionLabel positionLabel textBuffer
+onCursorMoved::IORef (DOM p)->MovementStep->Int->Bool->IO()
+onCursorMoved domR _ _ _ = do
+    ids <- getIDs domR
+    textBuffer <- textViewGetBuffer $ mainTextView ids;
+    updatePositionLabel (positionLabel ids) textBuffer
 
 onKeyPressed::EventM EKey Bool
 onKeyPressed = do

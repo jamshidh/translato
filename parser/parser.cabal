@@ -22,11 +22,11 @@ executable parser
     hs-source-dirs: src
     other-modules: ArgOpts OperatorNames IsWidget List2Record
                    SequenceMap JDebug Grammar CmdOptions Colors FakeColors Parser
-                   TreeView Editor XPath SMShower Editor2 LText FileEditView Lookahead
-                   Format LString Main GrammarParser ParseError ToolBar StupidSetGet
-                   EnhancedString EStringTools Shower Quoter CharSet ListView Menu
+                   Editor XPath SMShower Editor2 LText FileEditView Lookahead
+                   Format LString Main GrammarParser ParseError StupidSetGet
+                   EnhancedString EStringTools Shower Quoter CharSet
                    Generator ParseElements Context LeftFactoring GrammarTools
-                   TreeTools Generator WidgetSizes FromGtk2Hs.Threading FromGtk2Hs.Signals
+                   TreeTools Generator WidgetSizes
  
 test-suite test-parser
     build-depends: DOM -any, base -any, bindings-gobject -any,

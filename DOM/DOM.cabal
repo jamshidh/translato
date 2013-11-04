@@ -8,10 +8,11 @@ description:
 data-dir: ""
  
 library
-    build-depends: base -any, containers -any, gtk -any, glib -any,
-                   case-insensitive -any
-    exposed-modules: DOM FromGtk2Hs.Threading ListView Menu ToolBar
-                     TreeView WidgetModifiers
+    build-depends: base -any, case-insensitive -any, containers -any,
+                   glib -any, gtk -any, template-haskell -any
+    exposed-modules: DOM FromGtk2Hs.Threading IsWidget List2Record
+                     ListView Menu ToolBar TreeView WidgetModifiers
+                     WidgetSizes FromGtk2Hs.Signals
     exposed: True
     buildable: True
     hs-source-dirs: src

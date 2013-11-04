@@ -235,6 +235,17 @@ edit g generatorGrammar fileNameString = do
     doValidate
     generateOutput outputTextBuffer textBuffer doGenerate
 
+    value <- get (mainTextView ids) dog
+    print value
+
+    mainTextView ids `on` notify_dog $ \x -> putStrLn "dog changed"
+
+    set (mainTextView ids) [dog:=1]
+    set (mainTextView ids) [fileEditViewFileName:="newFilename"]
+
+    value <- get (mainTextView ids) dog
+    print value
+
     mainDOM domR onStart
 
 

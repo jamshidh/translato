@@ -21,10 +21,10 @@ module FileEditView (
     toFileEditView,
     fileEditView,
     castToFileEditView,
-    editFileName,
+    --editFileName,
     fileNameStringSet,
     notify_dog,
-    dog,
+    fileEditViewDog,
     fileEditViewFileName
 ) where
 
@@ -48,7 +48,9 @@ import DOM
 import IsWidget
 import WidgetSizes()
 
---import JDebug
+import RecordTypes
+
+import JDebug
 
 instance IsWidget FileEditView where
     fromWidget w = castToFileEditView w
@@ -127,14 +129,21 @@ instance Storable FullFileEditViewData where
         padding2 = align sz (alignment (undefined::Ptr FileEditViewData)) - sz
     alignment _ = max (alignment (undefined::TextView)) (alignment (undefined::Ptr FileEditViewData))
 
-getPrivateR::FileEditView -> IO (IORef FileEditViewData)
-getPrivateR ptr = do
-    let myObjPtr = unsafeForeignPtrToPtr $ castForeignPtr $ unFileEditView ptr
-    privateR <- peekByteOff myObjPtr privateOffset >>= deRefStablePtr
-    return privateR
+--getPrivateR::FileEditView -> IO (IORef FileEditViewData)
+--getPrivateR ptr = do
+--    let myObjPtr = unsafeForeignPtrToPtr $ castForeignPtr $ unFileEditView ptr
+--    privateR <- peekByteOff myObjPtr privateOffset >>= deRefStablePtr
+--    return privateR
 
-getPrivate::FileEditView -> IO FileEditViewData
-getPrivate ptr = getPrivateR ptr >>= readIORef
+getPropRef::Ptr C'GObject -> IO (IORef FileEditViewProps)
+getPropRef c'GObjectPtr = do
+    foreignPtr <- newForeignPtr_ c'GObjectPtr
+    let myObjPtr = unsafeForeignPtrToPtr $ castForeignPtr foreignPtr
+    propR <- peekByteOff myObjPtr privateOffset >>= deRefStablePtr
+    return propR
+
+--getPrivate::FileEditView -> IO FileEditViewData
+--getPrivate ptr = getPrivateR ptr >>= readIORef
 
 fileNameStringSet::FileEditViewClass self => Signal self (String->IO ())
 fileNameStringSet = Signal (connect_STRING__NONE "fileNameStringSet")
@@ -175,8 +184,6 @@ changeTheFileName2 c'GObjectPtr fileName = do
         let gObject = (GObject . castForeignPtr) foreignPtr
         let theFileEditView = castToFileEditView gObject
         emitSignal theFileEditView fileName
-        privateR <- getPrivateR theFileEditView
-        modifyIORef privateR (\x -> x{fileNameString=fileName})
 
         fileHandle<-openFile fileName ReadMode
         contents<-hGetContents fileHandle
@@ -184,31 +191,31 @@ changeTheFileName2 c'GObjectPtr fileName = do
         textBufferSetText buf contents
         hClose fileHandle
         return ()
+--
+--changeTheFileName::FileEditViewClass a=>a->String->IO ()
+--changeTheFileName objectPtr fileName = do
+--        let theFileEditView = castToFileEditView objectPtr
+--        emitSignal theFileEditView fileName
+--        privateR <- getPrivateR theFileEditView
+--        modifyIORef privateR (\x -> x{fileNameString=fileName})
+--
+--        fileHandle<-openFile fileName ReadMode
+--        contents<-hGetContents fileHandle
+--        buf <- textViewGetBuffer theFileEditView
+--        textBufferSetText buf contents
+--        hClose fileHandle
+--        return ()
 
-changeTheFileName::FileEditViewClass a=>a->String->IO ()
-changeTheFileName objectPtr fileName = do
-        let theFileEditView = castToFileEditView objectPtr
-        emitSignal theFileEditView fileName
-        privateR <- getPrivateR theFileEditView
-        modifyIORef privateR (\x -> x{fileNameString=fileName})
-
-        fileHandle<-openFile fileName ReadMode
-        contents<-hGetContents fileHandle
-        buf <- textViewGetBuffer theFileEditView
-        textBufferSetText buf contents
-        hClose fileHandle
-        return ()
-
-editFileName::FileEditViewClass self => Attr self String
-editFileName = newAttr
-    (fmap fileNameString . getPrivate . castToFileEditView)
-    changeTheFileName
+--editFileName::FileEditViewClass self => Attr self String
+--editFileName = newAttr
+--    (fmap fileNameString . getPrivate . castToFileEditView)
+--    changeTheFileName
 
 notify_dog::FileEditViewClass self => Signal self (Int->IO ())
 notify_dog = Signal (connect_INT__NONE "notify::dog")
 
-dog :: FileEditViewClass self => Attr self Int
-dog = newAttrFromIntProperty "dog"
+fileEditViewDog :: FileEditViewClass self => Attr self Int
+fileEditViewDog = newAttrFromIntProperty "dog"
 
 fileEditViewFileName::FileEditViewClass self => Attr self String
 fileEditViewFileName = newAttrFromStringProperty "fileName"
@@ -217,13 +224,14 @@ c'GObjectPtrToGObjectPtr::Ptr C'GObject->Ptr GObject
 c'GObjectPtrToGObjectPtr x = castPtr x
 
 
-
+--TODO Important!  This probably wouldn't work on a 32 bit machine....
+--I am hard coding the int type as 64 bit.
 gParamSpecInt::String->String->String->Int->Int->Int->C'GParamFlags->IO (Ptr C'GParamSpec)
 gParamSpecInt name nick blurb minimum maximum defaultValue flags = do
     withCString name $ \cName ->
         withCString nick $ \cNick ->
             withCString blurb $ \cBlurb ->
-                c'g_param_spec_int cName cNick cBlurb (fromIntegral minimum) (fromIntegral maximum) (fromIntegral defaultValue) flags
+                c'g_param_spec_int64 cName cNick cBlurb (fromIntegral minimum) (fromIntegral maximum) (fromIntegral defaultValue) flags
 
 gParamSpecString::String->String->String->String->C'GParamFlags->IO (Ptr C'GParamSpec)
 gParamSpecString name nick blurb defaultValue flags = do
@@ -237,6 +245,57 @@ gObjectClassInstallProperty::Ptr C'GObjectClass->[IO (Ptr C'GParamSpec)]->IO ()
 gObjectClassInstallProperty klass specCreators = do
     specs <- sequence specCreators
     sequence_ (uncurry (c'g_object_class_install_property klass) <$> zip [1..] specs)
+
+
+data FileEditViewProps = FileEditViewProps {
+    dog::Int,
+    fileName::String}
+
+defaultFileEditViewProps = FileEditViewProps {dog=0, fileName="qqqq"}
+
+fileEditViewPropTypes = $(recordTypes ''FileEditViewProps)
+
+
+
+specs =
+    field2Spec <$> fileEditViewPropTypes
+        where
+            field2Spec (name, theType) =
+                case theType of
+                    "ConT GHC.Types.Int" ->
+                        jtrace ("name for int is " ++ name) $
+                        jtrace ("minBound is " ++ show (minBound::Int)) $
+                        jtrace ("maxBound is " ++ show (maxBound::Int)) $
+                        gParamSpecInt name "" "" minBound maxBound 0 c'G_PARAM_READWRITE
+                    "ConT GHC.Base.String" -> gParamSpecString name "" "" "" c'G_PARAM_READWRITE
+
+propertyGetter::Ptr C'GObject->CUInt->Ptr C'GValue->Ptr C'GParamSpec->IO ()
+propertyGetter objectPtr property_id gValuePtr pSpecPtr = do
+    propR <- getPropRef objectPtr
+    properties <- readIORef propR
+    case snd (fileEditViewPropTypes !! ((fromIntegral property_id) - 1)) of
+        "ConT GHC.Types.Int" -> c'g_value_set_int64 gValuePtr (fromIntegral $ dog properties)
+        "ConT GHC.Base.String" -> do
+                withCString (fileName properties) $ \a ->
+                    c'g_value_set_string gValuePtr a
+        _ -> c'G_OBJECT_WARN_INVALID_PROPERTY_ID objectPtr property_id pSpecPtr
+
+propertySetter::Ptr C'GObject->CUInt->Ptr C'GValue->Ptr C'GParamSpec->IO ()
+propertySetter objectPtr property_id gValuePtr pSpecPtr = do
+    propR <- getPropRef objectPtr
+    properties <- readIORef propR
+    case snd (fileEditViewPropTypes !! ((fromIntegral property_id) - 1)) of
+        "ConT GHC.Types.Int" -> do
+                                    val <- c'g_value_get_int64 gValuePtr
+                                    writeIORef propR properties{dog=fromIntegral val}
+        "ConT GHC.Base.String" -> do
+                        val <- c'g_value_get_string gValuePtr
+                        newFileName <- peekCString val
+                        putStrLn newFileName
+                        changeTheFileName2 objectPtr newFileName
+                        writeIORef propR properties{fileName=newFileName}
+        _ -> c'G_OBJECT_WARN_INVALID_PROPERTY_ID objectPtr property_id pSpecPtr
+
 
 
 registerFileEditViewType::IO C'GType
@@ -274,49 +333,22 @@ registerFileEditViewType = do
 
         finalize <- mk'GObjectClass_finalize $ \myObj -> do
             --let privateOffset = align (fromIntegral instanceSize) (alignment (undefined::Ptr FileEditViewData))
-            priv <- peekByteOff myObj privateOffset :: IO (StablePtr (IORef FileEditViewData))
+            priv <- peekByteOff myObj privateOffset :: IO (StablePtr (IORef FileEditViewProps))
             _ <- deRefStablePtr priv >>= readIORef
             freeStablePtr priv
         poke (p'GObjectClass'finalize klass) finalize
 
-        get_property <- mk'GObjectClass_get_property $ \objectPtr property_id gValuePtr pSpecPtr -> do
-            case property_id of
-                1 -> c'g_value_set_int gValuePtr 4
-                2 -> do
-                        withCString "abcd" $ \a ->
-                            c'g_value_set_string gValuePtr a
-                _ -> c'G_OBJECT_WARN_INVALID_PROPERTY_ID objectPtr property_id pSpecPtr
-            putStrLn "get_property"
-
-        set_property <- mk'GObjectClass_set_property $ \objectPtr property_id gValuePtr pSpecPtr -> do
-            case property_id of
-                1 -> do
-                        val <- c'g_value_get_int gValuePtr
-                        print val
-                2 -> do
-                        val <- c'g_value_get_string gValuePtr
-                        newFileName <- peekCString val
-                        putStrLn newFileName
-                        changeTheFileName2 objectPtr newFileName
-                _ -> c'G_OBJECT_WARN_INVALID_PROPERTY_ID objectPtr property_id pSpecPtr
-            putStrLn "set_property"
-
+        get_property <- mk'GObjectClass_get_property propertyGetter
         poke (p'GObjectClass'get_property klass) get_property
+        set_property <- mk'GObjectClass_set_property propertySetter
         poke (p'GObjectClass'set_property klass) set_property
-
-
-        let specs =
-                [
-                    gParamSpecInt "dog" "The dog value" "set/get the dog value " 1 100 20 c'G_PARAM_READWRITE,
-                    gParamSpecString "fileName" "The filename" "get/set the filename" "qqqq" c'G_PARAM_READWRITE
-                ]
 
         gObjectClassInstallProperty klass specs
 
         return ()
 
     instanceInit <- mk'GInstanceInitFunc $ \myObj _ -> do
-        priv <- newIORef (FileEditViewData "hello") >>= newStablePtr
+        priv <- newIORef defaultFileEditViewProps >>= newStablePtr
         --let privateOffset = align (fromIntegral parentInstanceSize) (alignment (undefined::Ptr FileEditViewData))
         pokeByteOff myObj privateOffset priv
 

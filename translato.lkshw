@@ -1,10 +1,10 @@
 Version of workspace file format:
                1
 Time of storage:
-               "Sun Nov  3 09:28:32 PST 2013"
+               "Mon Nov  4 11:27:20 PST 2013"
 Name of the workspace:
                "translato"
 File paths of contained packages:
                ["DOM/DOM.cabal","parser/parser.cabal"]
 Maybe file path of an active package:
-               Just "DOM/DOM.cabal"
+               Just "parser/parser.cabal"

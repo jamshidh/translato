@@ -4,7 +4,6 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
-description:  
 data-files: greenBall.png redBall.png specs/html.spec
 data-dir: resources
 extra-source-files: ""
@@ -20,13 +19,12 @@ executable parser
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: ArgOpts OperatorNames
-                   SequenceMap JDebug Grammar CmdOptions Colors FakeColors Parser
-                   Editor XPath SMShower Editor2 LText FileEditView Lookahead
-                   Format LString Main GrammarParser ParseError StupidSetGet
-                   EnhancedString EStringTools Shower Quoter CharSet
-                   Generator ParseElements Context LeftFactoring GrammarTools
-                   TreeTools Generator
+    other-modules: RecordTypes ArgOpts OperatorNames SequenceMap JDebug
+                   Grammar CmdOptions Colors FakeColors Parser Editor XPath SMShower
+                   Editor2 LText FileEditView Lookahead Format LString Main
+                   GrammarParser ParseError StupidSetGet EnhancedString EStringTools
+                   Shower Quoter CharSet Generator ParseElements Context LeftFactoring
+                   GrammarTools TreeTools Generator
  
 test-suite test-parser
     build-depends: DOM -any, base -any, bindings-gobject -any,

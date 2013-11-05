@@ -162,7 +162,7 @@ edit g generatorGrammar fileNameString = do
                                     scrolledWindow [] (
                                         fileEditView [
                                             ID "mainTextView",
-                                            editFileName @= fileNameString,
+                                            fileEditViewFileName @= fileNameString,
                                             keyPressEvent `beforeDo` onKeyPressed,
                                             moveCursor `afterDo` onCursorMoved domR
                                         ]
@@ -235,16 +235,29 @@ edit g generatorGrammar fileNameString = do
     doValidate
     generateOutput outputTextBuffer textBuffer doGenerate
 
-    value <- get (mainTextView ids) dog
-    print value
-
     mainTextView ids `on` notify_dog $ \x -> putStrLn "dog changed"
 
-    set (mainTextView ids) [dog:=1]
+
+
+    value <- get (mainTextView ids) fileEditViewDog
+    putStrLn ("Before: " ++ show value)
+
+    set (mainTextView ids) [fileEditViewDog:=1]
+
+    value <- get (mainTextView ids) fileEditViewDog
+    putStrLn ("After: " ++ show value)
+
+
+
+
+
+
+
+
     set (mainTextView ids) [fileEditViewFileName:="newFilename"]
 
-    value <- get (mainTextView ids) dog
-    print value
+    value <- get (mainTextView ids) fileEditViewFileName
+    putStrLn ("fileName is " ++ value)
 
     mainDOM domR onStart
 
@@ -401,7 +414,7 @@ saveBufferAs fileNameRef ids =
 loadBuffer::String->IDs->IO ()
 loadBuffer fileName ids =
     do
-        set (mainTextView ids) [editFileName := fileName]
+        set (mainTextView ids) [fileEditViewFileName := fileName]
 --        windowSetTitle (mainWindow ids) fileName
 
 generateOutput::TextBuffer->TextBuffer->(String->String)->IO ()

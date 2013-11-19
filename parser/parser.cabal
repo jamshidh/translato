@@ -20,11 +20,11 @@ executable parser
     buildable: True
     hs-source-dirs: src
     other-modules: RecordTypes ArgOpts OperatorNames SequenceMap JDebug
-                   Grammar CmdOptions Colors FakeColors Parser Editor XPath SMShower
-                   Editor2 LText FileEditView Lookahead Format LString Main
-                   GrammarParser ParseError StupidSetGet EnhancedString EStringTools
-                   Shower Quoter CharSet Generator ParseElements Context LeftFactoring
-                   GrammarTools TreeTools Generator
+                   Grammar Colors FakeColors Parser Editor XPath SMShower Editor2
+                   LText FileEditView Lookahead Format LString Main GrammarParser
+                   ParseError EnhancedString EStringTools Shower Quoter CharSet
+                   Generator ParseElements Context LeftFactoring GrammarTools
+                   TreeTools Generator
  
 test-suite test-parser
     build-depends: DOM -any, base -any, bindings-gobject -any,

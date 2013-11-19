@@ -26,7 +26,7 @@ import Data.Map hiding (filter, map)
 import Data.Tree
 
 import CharSet
-import Context
+--import Context
 import EnhancedString
 import Grammar
 import LeftFactoring

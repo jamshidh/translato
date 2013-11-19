@@ -33,7 +33,6 @@ import qualified Data.Set as Set
 import Colors hiding (reverse)
 import CharSet
 import EnhancedString
-import XPath
 import Grammar
 
 import JDebug

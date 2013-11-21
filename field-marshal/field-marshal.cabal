@@ -1,0 +1,22 @@
+name: field-marshal
+version: 0.0.1
+cabal-version: >=1.2
+build-type: Simple
+license: AllRightsReserved
+license-file: ""
+data-dir: ""
+ 
+executable field-marshal
+    build-depends: QuickCheck -any, base -any, template-haskell -any
+    main-is: Main.hs
+    buildable: True
+    hs-source-dirs: src
+    other-modules: HasBlankSlate FieldMarshal Convertable
+ 
+test-suite test-field-marshal
+    build-depends: QuickCheck -any, base -any, template-haskell -any
+    type: exitcode-stdio-1.0
+    main-is: Main.hs
+    buildable: True
+    cpp-options: -DMAIN_FUNCTION=testMain
+    hs-source-dirs: src

@@ -4,14 +4,23 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
+description:  
 data-dir: ""
+ 
+library
+    build-depends: QuickCheck -any, base -any, template-haskell -any
+    exposed-modules: Convertable FieldMarshal
+    exposed: True
+    buildable: True
+    cpp-options: -DMAIN_FUNCTION=testMain
+    hs-source-dirs: src
  
 executable field-marshal
     build-depends: QuickCheck -any, base -any, template-haskell -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: HasBlankSlate FieldMarshal Convertable
+    other-modules: FieldMarshal Convertable HasBlankSlate
  
 test-suite test-field-marshal
     build-depends: QuickCheck -any, base -any, template-haskell -any

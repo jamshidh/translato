@@ -32,18 +32,20 @@ import HasBlankSlate
 
 class FieldMarshal record value where
     setField::String->value->record->record
+    getField::String->record->Either String value
 
 deriveFieldMarshal::Name->Name->DecsQ
 deriveFieldMarshal recordTypeName marshalTypeName = do
     fields <- getTHFields =<< reify recordTypeName
     setFieldClauses <- sequence (makeSetFieldClause <$> (fst <$> fields))
-    return (instanceDecl recordTypeName marshalTypeName setFieldClauses)
+    getFieldClauses <- sequence (makeGetFieldClause <$> (fst <$> fields))
+    return (instanceDecl recordTypeName marshalTypeName setFieldClauses getFieldClauses)
 
 -- Makes instance declaration of form:
 --       instance FieldMarshal <recordName> <marshalTypeName> where
 --                 setField = <clause>
-instanceDecl::Name->Name->[Clause]->[Dec]
-instanceDecl recordName marshalTypeName setFieldClauses =
+instanceDecl::Name->Name->[Clause]->[Clause]->[Dec]
+instanceDecl recordName marshalTypeName setFieldClauses getFieldClauses =
     [
         InstanceD
             []
@@ -56,7 +58,10 @@ instanceDecl recordName marshalTypeName setFieldClauses =
                     )
                     (ConT marshalTypeName)
             )
-            [FunD (mkName "setField") setFieldClauses]
+            [
+                FunD (mkName "setField") setFieldClauses,
+                FunD (mkName "getField") getFieldClauses
+            ]
     ]
 
 -- Makes clauses of form:
@@ -91,6 +96,34 @@ setFields ((name, val):rest) record = setFields rest (setField name val record)
 
 createRecord::(HasBlankSlate r, FieldMarshal r v)=>[(String, v)]->r
 createRecord fields = setFields fields blankSlate
+
+-- Makes clauses of form:
+--          \"fieldName" record -> Right $ fieldName record
+makeGetFieldClause::Name->Q Clause
+makeGetFieldClause fieldName= do
+    recordVariable <- newName "record"
+    let fieldNameString = nameBase fieldName
+    return
+        (
+            Clause
+                [
+                    LitP (StringL fieldNameString),
+                    VarP recordVariable
+                ]
+                (
+                    NormalB
+                        (
+                            AppE
+                                (ConE $ 'Right)
+                                (AppE
+                                    (VarE $ mkName "convert")
+                                    (AppE
+                                        (VarE $ mkName (nameBase fieldName))
+                                        (VarE recordVariable)))
+                        )
+                )
+                []
+        )
 
 --------------
 

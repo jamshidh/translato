@@ -2,6 +2,8 @@
 {-# LANGUAGE FlexibleInstances #-}
 {-# LANGUAGE MultiParamTypeClasses #-}
 
+import Data.Either
+
 import Convertable
 import FieldMarshal
 import HasBlankSlate
@@ -14,6 +16,11 @@ instance Convertable Object Int where
 instance Convertable Object String where
     convert (StringObject x) = x
 
+instance Convertable Int Object where
+    convert = IntObject
+
+instance Convertable String Object where
+    convert = StringObject
 
 data Record = Record {dog::Int, cat::String} deriving (Show)
 

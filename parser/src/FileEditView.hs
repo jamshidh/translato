@@ -1,4 +1,5 @@
-{-# LANGUAGE ForeignFunctionInterface, CPP, TemplateHaskell #-}
+{-# LANGUAGE ForeignFunctionInterface, CPP, TemplateHaskell, TypeSynonymInstances, FlexibleInstances, ExistentialQuantification #-}
+{-# LANGUAGE MultiParamTypeClasses #-}
 -- {-# OPTIONS -Wall #-}
 -----------------------------------------------------------------------------
 --
@@ -31,6 +32,7 @@ module FileEditView (
 import Bindings.GObject
 import Data.Functor
 import Data.IORef
+import Data.Ix
 import Foreign hiding (unsafeForeignPtrToPtr)
 import Foreign.C
 import Foreign.ForeignPtr.Unsafe
@@ -41,16 +43,31 @@ import System.Glib.Properties
 import System.IO
 import System.IO.Unsafe
 
+import Convertable
+import FieldMarshal
 import FromGtk2Hs.Signals
 import FromGtk2Hs.Threading
 
 import DOM
+import GValue
 import IsWidget
 import WidgetSizes()
 
 import RecordTypes
 
 import JDebug
+
+
+data FileEditViewProps = FileEditViewProps {
+    dog::Int,
+    fileName::String}
+
+$(deriveFieldMarshal ''FileEditViewProps ''GValue)
+
+defaultFileEditViewProps = FileEditViewProps {dog=0, fileName="qqqq"}
+
+fileEditViewPropTypes = $(recordTypes ''FileEditViewProps)
+
 
 instance IsWidget FileEditView where
     fromWidget w = castToFileEditView w
@@ -177,15 +194,14 @@ emitSignal object fileName = do
 
         c'g_signal_emitv array signalId 0 ret
 
-changeTheFileName2::Ptr C'GObject->String->IO ()
-changeTheFileName2 c'GObjectPtr fileName = do
+changeTheFileName2::Ptr C'GObject->FileEditViewProps->IO ()
+changeTheFileName2 c'GObjectPtr props = do
         let gObjectPtr = castPtr c'GObjectPtr
         foreignPtr <- newForeignPtr_ c'GObjectPtr
         let gObject = (GObject . castForeignPtr) foreignPtr
         let theFileEditView = castToFileEditView gObject
-        emitSignal theFileEditView fileName
 
-        fileHandle<-openFile fileName ReadMode
+        fileHandle<-openFile (fileName props) ReadMode
         contents<-hGetContents fileHandle
         buf <- textViewGetBuffer theFileEditView
         textBufferSetText buf contents
@@ -247,13 +263,6 @@ gObjectClassInstallProperty klass specCreators = do
     sequence_ (uncurry (c'g_object_class_install_property klass) <$> zip [1..] specs)
 
 
-data FileEditViewProps = FileEditViewProps {
-    dog::Int,
-    fileName::String}
-
-defaultFileEditViewProps = FileEditViewProps {dog=0, fileName="qqqq"}
-
-fileEditViewPropTypes = $(recordTypes ''FileEditViewProps)
 
 
 
@@ -269,33 +278,40 @@ specs =
                         gParamSpecInt name "" "" minBound maxBound 0 c'G_PARAM_READWRITE
                     "ConT GHC.Base.String" -> gParamSpecString name "" "" "" c'G_PARAM_READWRITE
 
+
+converterSetter::Ptr C'GValue->FileEditViewProps->String->IO FileEditViewProps
+converterSetter val fileEditViewProps fieldName = do
+    gValue <- c'GValueToGValue val
+    return (setField fieldName gValue fileEditViewProps)
+
 propertyGetter::Ptr C'GObject->CUInt->Ptr C'GValue->Ptr C'GParamSpec->IO ()
 propertyGetter objectPtr property_id gValuePtr pSpecPtr = do
-    propR <- getPropRef objectPtr
-    properties <- readIORef propR
-    case snd (fileEditViewPropTypes !! ((fromIntegral property_id) - 1)) of
-        "ConT GHC.Types.Int" -> c'g_value_set_int64 gValuePtr (fromIntegral $ dog properties)
-        "ConT GHC.Base.String" -> do
-                withCString (fileName properties) $ \a ->
-                    c'g_value_set_string gValuePtr a
-        _ -> c'G_OBJECT_WARN_INVALID_PROPERTY_ID objectPtr property_id pSpecPtr
+    properties <- getPropRef objectPtr >>= readIORef
+    if inRange (1, length specs) (fromIntegral property_id)
+        then do
+            let name = fst (fileEditViewPropTypes !! ((fromIntegral property_id) - 1))
+            case getField name properties of
+                Right x -> setC'GValue x gValuePtr
+                Left err -> error err
+        else c'G_OBJECT_WARN_INVALID_PROPERTY_ID objectPtr property_id pSpecPtr
 
 propertySetter::Ptr C'GObject->CUInt->Ptr C'GValue->Ptr C'GParamSpec->IO ()
 propertySetter objectPtr property_id gValuePtr pSpecPtr = do
     propR <- getPropRef objectPtr
     properties <- readIORef propR
-    case snd (fileEditViewPropTypes !! ((fromIntegral property_id) - 1)) of
-        "ConT GHC.Types.Int" -> do
-                                    val <- c'g_value_get_int64 gValuePtr
-                                    writeIORef propR properties{dog=fromIntegral val}
-        "ConT GHC.Base.String" -> do
-                        val <- c'g_value_get_string gValuePtr
-                        newFileName <- peekCString val
-                        putStrLn newFileName
-                        changeTheFileName2 objectPtr newFileName
-                        writeIORef propR properties{fileName=newFileName}
-        _ -> c'G_OBJECT_WARN_INVALID_PROPERTY_ID objectPtr property_id pSpecPtr
+    if inRange (1, length specs) (fromIntegral property_id)
+        then do
+            let name = fst (fileEditViewPropTypes !! ((fromIntegral property_id) - 1))
 
+            newProperties <- converterSetter gValuePtr properties name
+            writeIORef propR newProperties
+            putStrLn ("fieldname is " ++ name)
+            case name of
+                "fileName" -> do
+                                changeTheFileName2 objectPtr newProperties
+                _ -> return ()
+
+        else c'G_OBJECT_WARN_INVALID_PROPERTY_ID objectPtr property_id pSpecPtr
 
 
 registerFileEditViewType::IO C'GType

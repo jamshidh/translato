@@ -254,7 +254,7 @@ edit g generatorGrammar fileNameString = do
 
 
 
-    set (mainTextView ids) [fileEditViewFileName:="newFilename"]
+--    set (mainTextView ids) [fileEditViewFileName:="newFilename"]
 
     value <- get (mainTextView ids) fileEditViewFileName
     putStrLn ("fileName is " ++ value)

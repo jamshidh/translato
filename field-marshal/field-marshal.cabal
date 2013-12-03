@@ -9,7 +9,7 @@ data-dir: ""
  
 library
     build-depends: QuickCheck -any, base -any, template-haskell -any
-    exposed-modules: Convertable FieldMarshal
+    exposed-modules: Convertable FieldMarshal HasBlankSlate
     exposed: True
     buildable: True
     cpp-options: -DMAIN_FUNCTION=testMain

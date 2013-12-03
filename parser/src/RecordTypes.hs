@@ -22,10 +22,9 @@ import Language.Haskell.TH
 recordTypes :: Name -> Q Exp
 recordTypes recordType = do
     rfs <- getRecordFields <$> reify recordType
-    return (ListE (qqqq <$> rfs))
+    return (ListE (nameAndType <$> rfs))
         where
-            qqqq (name, theType) = TupE [LitE (stringL name), LitE (stringL $ show theType)]
---    litE . stringL $ show rfs
+            nameAndType (name, theType) = TupE [LitE (stringL name), LitE (stringL $ show theType)]
 
 getRecordFields :: Info -> [(String, Type)]
 getRecordFields (TyConI (DataD _ _ _ [con] _)) = getRF' con

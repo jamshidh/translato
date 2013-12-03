@@ -19,11 +19,12 @@ executable parser
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: GValue ArgOpts OperatorNames SequenceMap JDebug
-                   Grammar Colors FakeColors Parser Editor RecordTypes SMShower
-                   Editor2 FileEditView Lookahead Format LString Main GrammarParser
-                   ParseError EnhancedString EStringTools Shower CharSet Generator
-                   ParseElements LeftFactoring GrammarTools TreeTools
+    other-modules: WidgetRegister GValue ArgOpts OperatorNames
+                   SequenceMap JDebug Grammar Colors FakeColors Parser Editor
+                   RecordTypes SMShower Editor2 FileEditView Lookahead Format LString
+                   Main GrammarParser ParseError EnhancedString EStringTools Shower
+                   CharSet Generator ParseElements LeftFactoring GrammarTools
+                   TreeTools
  
 test-suite test-parser
     build-depends: DOM -any, base -any, bindings-gobject -any,

@@ -20,7 +20,8 @@ module FieldMarshal (
     FieldMarshal(..),
     deriveFieldMarshal,
     setFields,
-    createRecord
+    createRecord,
+    module HasBlankSlate
 ) where
 
 import Data.Functor
@@ -37,8 +38,8 @@ class FieldMarshal record value where
 deriveFieldMarshal::Name->Name->DecsQ
 deriveFieldMarshal recordTypeName marshalTypeName = do
     fields <- getTHFields =<< reify recordTypeName
-    setFieldClauses <- sequence (makeSetFieldClause <$> (fst <$> fields))
-    getFieldClauses <- sequence (makeGetFieldClause <$> (fst <$> fields))
+    setFieldClauses <- sequence ((makeSetFieldClause <$> fst <$> fields) ++ [defaultErrorClause "Unknown fieldname in setField" 3])
+    getFieldClauses <- sequence ((makeGetFieldClause <$> fst <$> fields) ++ [defaultErrorClause "qqqq" 2])
     return (instanceDecl recordTypeName marshalTypeName setFieldClauses getFieldClauses)
 
 -- Makes instance declaration of form:
@@ -94,7 +95,7 @@ setFields::FieldMarshal r val=>[(String, val)]->r->r
 setFields [] record = record
 setFields ((name, val):rest) record = setFields rest (setField name val record)
 
-createRecord::(HasBlankSlate r, FieldMarshal r v)=>[(String, v)]->r
+createRecord::(Record r, FieldMarshal r v)=>[(String, v)]->r
 createRecord fields = setFields fields blankSlate
 
 -- Makes clauses of form:
@@ -120,6 +121,23 @@ makeGetFieldClause fieldName= do
                                     (AppE
                                         (VarE $ mkName (nameBase fieldName))
                                         (VarE recordVariable)))
+                        )
+                )
+                []
+        )
+
+defaultErrorClause::String->Int->Q Clause
+defaultErrorClause message numVars = do
+    return
+        (
+            Clause
+                (replicate numVars WildP)
+                (
+                    NormalB
+                        (
+                            AppE
+                                (VarE $ mkName "error")
+                                (LitE $ stringL message)
                         )
                 )
                 []

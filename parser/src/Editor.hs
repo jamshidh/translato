@@ -34,6 +34,25 @@ import System.FilePath
 import System.IO
 import Text.Regex
 
+
+--import Bindings.GObject
+----import Data.Char
+--import Data.Functor
+--import Data.IORef
+--import Foreign hiding (unsafeForeignPtrToPtr)
+--import Foreign.ForeignPtr.Unsafe
+--import Graphics.UI.Gtk
+----import Numeric
+--import System.Glib.GType
+--import System.Glib.GObject
+import Bindings.GObject
+import Foreign.C
+import System.Glib.Properties
+--import System.IO
+--import System.IO.Unsafe
+
+
+
 import Paths_parser
 
 import ArgOpts
@@ -106,7 +125,7 @@ edit g generatorGrammar fileNameString = do
         ids <- getIDs domR
         validate g (validImage ids) (mainTextView ids) errorStore parseStore (parseTreeView ids)
 
-    editorMenu <- menu [boxChildPacking @== PackNatural]
+    let editorMenu = menu [boxChildPacking @== PackNatural]
             [
                 TrSubMenu "_File"
                     [
@@ -132,29 +151,29 @@ edit g generatorGrammar fileNameString = do
                     ] True
             ]
 
-    editorToolbar <- toolbar [boxChildPacking @== PackNatural]
-        (
-            [
-                Item (Stock stockOpen) (Just "Open File") (do ids <- getIDs domR; promptAndLoadBuffer ids),
-                Item (Stock stockSave) (Just "Save File") (do ids <- getIDs domR; saveBuffer fileNameRef (mainTextView ids)),
-                Item (Stock stockSaveAs) (Just "Save File As....") (do ids <- getIDs domR; saveBufferAs fileNameRef ids),
-                Item (Stock stockQuit) (Just "Quit the program") mainQuit,
-                Item (Stock stockFind) (Just "Find....") mainQuit,
-                Item (Stock stockAbout) (Just "About") showAboutDialog,
-                Item (File redBall) (Just "Validate") doValidate
-            ]
-        )
+    let editorToolbar = toolbar [boxChildPacking @== PackNatural]
+            (
+                [
+                    Item (Stock stockOpen) (Just "Open File") (do ids <- getIDs domR; promptAndLoadBuffer ids),
+                    Item (Stock stockSave) (Just "Save File") (do ids <- getIDs domR; saveBuffer fileNameRef (mainTextView ids)),
+                    Item (Stock stockSaveAs) (Just "Save File As....") (do ids <- getIDs domR; saveBufferAs fileNameRef ids),
+                    Item (Stock stockQuit) (Just "Quit the program") mainQuit,
+                    Item (Stock stockFind) (Just "Find....") mainQuit,
+                    Item (Stock stockAbout) (Just "About") showAboutDialog,
+                    Item (File redBall) (Just "Validate") doValidate
+                ]
+            )
 
     createMainWindow domR (
             window fileNameString [ID "mainWindow",
-                                    windowTitle @= "qqqq",
+                                    windowTitle @= "abcd",
                                     containerBorderWidth @= 4,
                                     unrealize `beforeDo` mainQuit,
                                     windowDefaultWidth @= 1400,
                                     windowDefaultHeight @= 900] (
                 vBox [] [
-                    return editorMenu,
-                    return editorToolbar,
+                    editorMenu,
+                    editorToolbar,
                     vPaned [ID "errorPaned", boxChildPacking @== PackGrow]
                         (
                             hPaned [ID "outputPaned"]
@@ -212,7 +231,7 @@ edit g generatorGrammar fileNameString = do
 
     ids <- getIDs domR
 
-    on (mainTextView ids) fileNameStringSet (\fileName -> do ids <- getIDs domR; windowSetTitle (mainWindow ids) fileName)
+--    on (mainTextView ids) fileNameStringSet (\fileName -> do ids <- getIDs domR; windowSetTitle (mainWindow ids) fileName)
 
 
 --    loadBuffer fileNameString ids
@@ -235,18 +254,24 @@ edit g generatorGrammar fileNameString = do
     doValidate
     generateOutput outputTextBuffer textBuffer doGenerate
 
-    mainTextView ids `on` notify_dog $ \x -> putStrLn "dog changed"
+--    mainTextView ids `on` notify_dog $ \x -> putStrLn "dog changed"
+--
+--
+--
+--    value <- get (mainTextView ids) fileEditViewDog
+--    putStrLn ("Before: " ++ show value)
+--
+--    set (mainTextView ids) [fileEditViewDog:=1]
+--
+--    value <- get (mainTextView ids) fileEditViewDog
+--    putStrLn ("After: " ++ show value)
 
-
-
-    value <- get (mainTextView ids) fileEditViewDog
-    putStrLn ("Before: " ++ show value)
-
-    set (mainTextView ids) [fileEditViewDog:=1]
-
-    value <- get (mainTextView ids) fileEditViewDog
-    putStrLn ("After: " ++ show value)
-
+    mainTextView ids `on` notify_fileEditViewFileName $ \gParamSpecPtr -> do
+                    cName <- c'g_param_spec_get_name gParamSpecPtr
+                    name <- peekCString cName
+                    value <- objectGetPropertyString name (mainTextView ids)
+--                    putStrLn ("fileName changed, new value is " ++ show value)
+                    windowSetTitle (mainWindow ids) value
 
 
 
@@ -255,9 +280,9 @@ edit g generatorGrammar fileNameString = do
 
 
 --    set (mainTextView ids) [fileEditViewFileName:="newFilename"]
-
-    value <- get (mainTextView ids) fileEditViewFileName
-    putStrLn ("fileName is " ++ value)
+--
+--    value <- get (mainTextView ids) fileEditViewFileName
+--    putStrLn ("fileName is " ++ value)
 
     mainDOM domR onStart
 

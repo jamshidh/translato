@@ -22,20 +22,21 @@ instance Convertable Int Object where
 instance Convertable String Object where
     convert = StringObject
 
-data Record = Record {dog::Int, cat::String} deriving (Show)
+data Properties = Properties {dog::Int, cat::String} deriving (Show)
 
-$(deriveFieldMarshal ''Record ''String)
-$(deriveFieldMarshal ''Record ''Int)
-$(deriveFieldMarshal ''Record ''Object)
-$(deriveHasBlankSlate ''Record)
+$(deriveFieldMarshal ''Properties ''String)
+$(deriveFieldMarshal ''Properties ''Int)
+$(deriveFieldMarshal ''Properties ''Object)
+$(deriveRecord ''Properties)
 
 main = do
-    print (setFields [("dog", "1"), ("cat", "c")] blankSlate::Record)
-    print (createRecord [("dog", "1"), ("cat", "c")]::Record)
-    let record = setField "dog" (1::Int) $ setField "cat" "c" blankSlate::Record
-    print $ ((setField "dog" (1::Int) $ setField "cat" "c" blankSlate)::Record)
-    print (createRecord [("dog", IntObject 10), ("cat", StringObject "abcd")]::Record)
-    print $ setField "dog" (IntObject 10) $ setField "cat" (StringObject "abcd") (blankSlate::Record)
+    print $ fieldInfo (undefined::Properties)
+    print (setFields [("dog", "1"), ("cat", "c")] blankSlate::Properties)
+    print (createRecord [("dog", "1"), ("cat", "c")]::Properties)
+    let record = setField "dog" (1::Int) $ setField "cat" "c" blankSlate::Properties
+    print $ ((setField "dog" (1::Int) $ setField "cat" "c" blankSlate)::Properties)
+    print (createRecord [("dog", IntObject 10), ("cat", StringObject "abcd")]::Properties)
+    print $ setField "dog" (IntObject 10) $ setField "cat" (StringObject "abcd") (blankSlate::Properties)
 
 
 

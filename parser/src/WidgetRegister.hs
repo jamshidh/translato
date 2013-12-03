@@ -1,3 +1,4 @@
+{-# LANGUAGE ExistentialQuantification #-}
 {-# LANGUAGE FlexibleContexts #-}
 -----------------------------------------------------------------------------
 --
@@ -135,8 +136,23 @@ propertySetter theType objectPtr property_id gValuePtr pSpecPtr = do
 
         else c'G_OBJECT_WARN_INVALID_PROPERTY_ID objectPtr property_id pSpecPtr
 
-registerWidget::(FieldMarshal prop GValue, Record prop, Storable fullData)=>String->GType->a->prop->fullData->(Ptr C'GTypeInstance->IO())->IO C'GType
-registerWidget widgetName parentGType widgetData defaultProps fullDataStruct initHandler = do
+data FullData p props = Storable p=>FullData {
+  parent::p,
+  private::StablePtr (IORef props)
+  }
+
+-- some magic to ensure both the parent and private fields are always aligned
+instance Storable p=>Storable (FullData p props) where
+    sizeOf x = sz + padding2
+        where
+        sz = sizeOf (parent x) + padding1 + sizeOf (undefined::Ptr props)
+        padding1 = align (sizeOf (parent x)) (alignment (undefined::Ptr props))
+                                - sizeOf (parent x)
+        padding2 = align sz (alignment (undefined::Ptr props)) - sz
+    alignment x = max (alignment (parent x)) (alignment (undefined::Ptr props))
+
+registerWidget::(FieldMarshal prop GValue, Record prop, Storable parent)=>String->GType->parent->a->prop->(Ptr C'GTypeInstance->IO())->IO C'GType
+registerWidget widgetName parentGType parent widgetData defaultProps initHandler = do
     c'g_type_init
 
     (parentClassSize, parentInstanceSize) <- with (C'GTypeQuery 0 nullPtr 0 0) $ \tq -> do
@@ -144,7 +160,7 @@ registerWidget widgetName parentGType widgetData defaultProps fullDataStruct ini
         q <- peek tq
         return (c'GTypeQuery'class_size q, c'GTypeQuery'instance_size q)
 
-    let instanceSize = parentInstanceSize + (fromIntegral $ sizeOf fullDataStruct)
+    let instanceSize = parentInstanceSize + (fromIntegral $ sizeOf parent)
 
     classInit <- mk'GClassInitFunc $ \ptr _ -> do
         let klass = castPtr ptr

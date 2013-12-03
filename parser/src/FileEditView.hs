@@ -76,9 +76,9 @@ instance IsWidget FileEditView where
 --  }
 --  deriving Show
 
-data FullFileEditViewData = FullFileEditViewData {
-  parent::TextView,
-  private::StablePtr (IORef FileEditViewProps)
+data FullData p props = Storable p=>FullData {
+  parent::p,
+  private::StablePtr (IORef props)
   }
 
 -------------------------
@@ -124,15 +124,14 @@ initFileEditView x = do
                     cName <- c'g_param_spec_get_name gParamSpecPtr
                     name <- peekCString cName
                     value <- objectGetPropertyString name fev
---                    putStrLn ("fileName changed, new value is " ++ show value)
-                    changeTheFileName3 value fev
+                    changeTheFileName value fev
     return ()
 
 gTypeFileEditView :: GType
 gTypeFileEditView = fromIntegral $ System.IO.Unsafe.unsafePerformIO (do
     gType <- withCString "FileEditView" c'g_type_from_name
     if gType == 0
-        then registerWidget "FileEditView" gTypeTextView (undefined::Ptr FileEditViewProps) defaultFileEditViewProps (undefined::FullFileEditViewData) initFileEditView
+        then registerWidget "FileEditView" gTypeTextView (undefined::Ptr FileEditViewProps) defaultFileEditViewProps (undefined::FullData TextView FileEditViewProps) initFileEditView
         else return gType
     )
 
@@ -148,19 +147,17 @@ align addr al =
 
 
 -- some magic to ensure both the parent and private fields are always aligned
-instance Storable FullFileEditViewData where
-    sizeOf _ = sz + padding2
+instance Storable p=>Storable (FullData p props) where
+    sizeOf x = sz + padding2
         where
-        sz = sizeOf (undefined::TextView) + padding1 + sizeOf (undefined::Ptr FileEditViewProps)
-        padding1 = align (sizeOf (undefined::TextView)) (alignment (undefined::Ptr FileEditViewProps)) - sizeOf (undefined::TextView)
-        padding2 = align sz (alignment (undefined::Ptr FileEditViewProps)) - sz
-    alignment _ = max (alignment (undefined::TextView)) (alignment (undefined::Ptr FileEditViewProps))
+        sz = sizeOf (parent x) + padding1 + sizeOf (undefined::Ptr props)
+        padding1 = align (sizeOf (parent x)) (alignment (undefined::Ptr props))
+                                - sizeOf (parent x)
+        padding2 = align sz (alignment (undefined::Ptr props)) - sz
+    alignment x = max (alignment (parent x)) (alignment (undefined::Ptr props))
 
---fileNameStringSet::FileEditViewClass self => Signal self (String->IO ())
---fileNameStringSet = Signal (connect_STRING__NONE "fileNameStringSet")
-
-changeTheFileName3::String->FileEditView->IO ()
-changeTheFileName3 newFileName theFileEditView = do
+changeTheFileName::String->FileEditView->IO ()
+changeTheFileName newFileName theFileEditView = do
         fileHandle<-openFile newFileName ReadMode
         contents<-hGetContents fileHandle
         buf <- textViewGetBuffer theFileEditView
@@ -168,84 +165,15 @@ changeTheFileName3 newFileName theFileEditView = do
         hClose fileHandle
         return ()
 
---changeTheFileName2::Ptr C'GObject->FileEditViewProps->IO ()
---changeTheFileName2 c'GObjectPtr props = do
---        --let gObjectPtr = castPtr c'GObjectPtr
---        foreignPtr <- newForeignPtr_ c'GObjectPtr
---        let gObject = (GObject . castForeignPtr) foreignPtr
---        let theFileEditView = castToFileEditView gObject
---
---        fileHandle<-openFile (fileName props) ReadMode
---        contents<-hGetContents fileHandle
---        buf <- textViewGetBuffer theFileEditView
---        textBufferSetText buf contents
---        hClose fileHandle
---        return ()
---
---changeTheFileName::FileEditViewClass a=>a->String->IO ()
---changeTheFileName objectPtr fileName = do
---        let theFileEditView = castToFileEditView objectPtr
---        emitSignal theFileEditView fileName
---        privateR <- getPrivateR theFileEditView
---        modifyIORef privateR (\x -> x{fileNameString=fileName})
---
---        fileHandle<-openFile fileName ReadMode
---        contents<-hGetContents fileHandle
---        buf <- textViewGetBuffer theFileEditView
---        textBufferSetText buf contents
---        hClose fileHandle
---        return ()
-
---editFileName::FileEditViewClass self => Attr self String
---editFileName = newAttr
---    (fmap fileNameString . getPrivate . castToFileEditView)
---    changeTheFileName
-
-
 fileEditViewDog :: FileEditViewClass self => Attr self Int
 fileEditViewDog = newAttrFromIntProperty "dog"
 
 fileEditViewFileName::FileEditViewClass self => Attr self String
 fileEditViewFileName = newAttrFromStringProperty "fileName"
 
---c'GObjectPtrToGObjectPtr::Ptr C'GObject->Ptr GObject
---c'GObjectPtrToGObjectPtr x = castPtr x
-
-
-----TODO Important!  This probably wouldn't work on a 32 bit machine....
-----I am hard coding the int type as 64 bit.
---gParamSpecInt::String->String->String->Int->Int->Int->C'GParamFlags->IO (Ptr C'GParamSpec)
---gParamSpecInt name nick blurb minimum maximum defaultValue flags = do
---    withCString name $ \cName ->
---        withCString nick $ \cNick ->
---            withCString blurb $ \cBlurb ->
---                c'g_param_spec_int64 cName cNick cBlurb (fromIntegral minimum) (fromIntegral maximum) (fromIntegral defaultValue) flags
---
---gParamSpecString::String->String->String->String->C'GParamFlags->IO (Ptr C'GParamSpec)
---gParamSpecString name nick blurb defaultValue flags = do
---    withCString name $ \cName ->
---        withCString nick $ \cNick ->
---            withCString blurb $ \cBlurb ->
---                withCString defaultValue $ \cDefaultValue ->
---                    c'g_param_spec_string cName cNick cBlurb cDefaultValue flags
-
-
-
-
-
-
-
-
-
 fileEditViewNew::IO FileEditView
 fileEditViewNew =
     castToFileEditView <$> (makeNewGObject mkGObject $ castPtr <$> c'g_object_newv (fromIntegral gTypeFileEditView) 0 nullPtr)
-
---            case name of
---                "fileName" -> do
---                                changeTheFileName2 objectPtr newProperties
---                _ -> return ()
-
 
 
 
@@ -258,23 +186,7 @@ notify_fileEditViewFileName::FileEditViewClass self => Signal self (Ptr C'GParam
 notify_fileEditViewFileName = Signal (connect_PTR__NONE "notify::fileName")
 
 fileEditView::[WidgetModifier p FileEditView]->IO (DOM p)
-fileEditView widgetModifiers = do
-    theWidget <- simpleWidget Nothing fileEditViewNew widgetModifiers
-
---    _ <- castToFileEditView (widget theWidget) `after` notify_dog $ \gParamSpecPtr -> do
---                    cName <- c'g_param_spec_get_name gParamSpecPtr
---                    name <- peekCString cName
---                    value <- objectGetPropertyInt64 name (widget theWidget)
---                    putStrLn ("dog changed, new value is " ++ show value)
---
---    _ <- castToFileEditView (widget theWidget) `after` notify_fileEditViewFileName $ \gParamSpecPtr -> do
---                    cName <- c'g_param_spec_get_name gParamSpecPtr
---                    name <- peekCString cName
---                    value <- objectGetPropertyString name (widget theWidget)
---                    putStrLn ("dog changed, new value is " ++ show value)
---                    changeTheFileName3 value (castToFileEditView $ widget theWidget)
-
-    return theWidget
+fileEditView = simpleWidget Nothing fileEditViewNew
 
 --  p2 <- getPrivate myObj2
 --  writeIORef p1 $ FileEditViewData 321 "!!!"

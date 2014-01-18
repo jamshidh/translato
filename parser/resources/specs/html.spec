@@ -4,7 +4,7 @@ file =>
 ;
 
 
-ident => [a-zA-Z]\w*;
+ident => [$a-zA-Z]\w*;
 
 
 ====[attribute]===============
@@ -120,11 +120,11 @@ variable => @name;
 
 operators: '.'
 
-function => {lvalue}\({expression}*\);
+function => {lvalue}\(_{expression}*_\);
 
 arrayIndex => {lvalue}\[{expression}\];
 
-lambda => function () {body};
+lambda => function \(\) {body};
 
 ====[/lvalue]=================
 

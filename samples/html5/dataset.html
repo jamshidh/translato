@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+
+<?xml-stylesheet type="text/xsl" href="html5.xsl" ?>
+
+<html>
+
+  <head>
+
+  </head>
+
+  <body>  
+
+    <img id="catimage1" data-a="alpha" data-b="beta" src="634556562_7de4049b57_m.jpg" /><br />
+
+    <button onclick="javascript:alert(jQuery('#catimage1').dataset('a'));">get cat "dataset a" value</button><br />
+
+
+    <form id="form1">
+      <input id="datasetvalue" type="text" />
+    </form>
+    <button onclick="javascript:var v = document.forms[0]['datasetvalue'].value; jQuery('#catimage1').dataset('a', v); alert('Value has been set to ' + v);">Set the cat value of "dataset a"</button><br />
+    
+  </body>
+  
+</html>

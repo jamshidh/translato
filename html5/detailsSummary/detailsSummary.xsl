@@ -17,10 +17,9 @@
       
       <xsl:apply-templates select="*" />
 
-      <script src="js/jquery.details.min.js?v=0.0.6"></script>
-      <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
-      
       <link rel="stylesheet" type="text/css" href="css/detailsSummary.css"/>
+      <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
+      <script src="js/jquery.details.min.js?v=0.0.6"></script>
       
     </xsl:copy>
   </xsl:template>
@@ -29,7 +28,7 @@
 
     <xsl:copy>
       <xsl:apply-templates select="*" />
-      
+
       <script>
 
 	  window.console || (window.console = { 'log': alert });

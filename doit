@@ -1,0 +1,11 @@
+
+set -e
+
+mkdir -p webroot/css
+mkdir -p webroot/js
+
+cp html5/detailsSummary/*.css webroot/css/
+cp html5/detailsSummary/*.js webroot/js/
+
+cat samples/html5/detailssummary.html5 | xmlstarlet tr html5/detailsSummary/detailsSummary.xsl > webroot/detailssummary.html
+

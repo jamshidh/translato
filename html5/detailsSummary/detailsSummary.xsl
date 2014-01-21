@@ -17,15 +17,11 @@
       
       <xsl:apply-templates select="*" />
 
+      <script src="js/jquery.details.min.js?v=0.0.6"></script>
       <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
       
-      <link rel="stylesheet" type="text/css" href="css/skin1.css"/>
       <link rel="stylesheet" type="text/css" href="css/detailsSummary.css"/>
       
-      <link rel="stylesheet" href="css/default.css" type="text/css" media="screen" />
-
-      <script src="lib/jquery.dataset.js"></script>
-
     </xsl:copy>
   </xsl:template>
 
@@ -33,33 +29,34 @@
 
     <xsl:copy>
       <xsl:apply-templates select="*" />
-      <!--script src="http://ajax.googleapis.com/ajax/libs/jquery/1/jquery.min.js"></script -->
       
-      <script src="js/jquery.details.min.js?v=0.0.6"></script>
       <script>
+
 	  window.console || (window.console = { 'log': alert });
+
 	  jQuery(function() {
 	  
-	  // Add conditional classname based on support
-	  jQuery('html').addClass(jQuery.fn.details.support ? 'details' : 'no-details');
+	    // Add conditional classname based on support
+	    jQuery('html').addClass(jQuery.fn.details.support ? 'details' : 'no-details');
 	  
-	  // Show a message based on support
-	  jQuery('body').prepend(jQuery.fn.details.support ? 'Native support detected; the plugin will only add ARIA annotations and fire custom open/close events.' : 'Emulation active; you are watching the plugin in action!');
+	    // Show a message based on support
+	    jQuery('body').prepend(jQuery.fn.details.support ? 'Native support detected; the plugin will only add ARIA annotations and fire custom open/close events.' : 'Emulation active; you are watching the plugin in action!');
 	  
-	  // Emulate &lt;details&gt; where necessary and enable open/close event handlers
-	  jQuery('details').details();
+	    // Emulate &lt;details&gt; where necessary and enable open/close event handlers
+	    jQuery('details').details();
 	  
-	  // Bind some example event handlers
-	  jQuery('details').on({
-	  'open.details': function() {
-	  console.log('opened');
-	  },
-	  'close.details': function() {
-	  console.log('closed');
-	  }
+	    // Bind some example event handlers
+	    jQuery('details').on({
+	      'open.details': function() {
+	        console.log('opened');
+	      },
+	      'close.details': function() {
+	        console.log('closed');
+	      }
+	    });
+	  
 	  });
-	  
-	  });
+
       </script>
     </xsl:copy>
   </xsl:template>

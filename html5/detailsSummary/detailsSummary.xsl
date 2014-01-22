@@ -18,8 +18,8 @@
       <xsl:apply-templates select="*" />
 
       <link rel="stylesheet" type="text/css" href="css/detailsSummary.css"/>
-      <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.7/jquery.min.js"></script>
-      <script src="js/jquery.details.min.js?v=0.0.6"></script>
+      <script src="http://ajax.googleapis.com/ajax/libs/jquery/1.10.2/jquery.min.js"></script>
+      <script src="js/jquery.details.min.js"></script>
       
     </xsl:copy>
   </xsl:template>

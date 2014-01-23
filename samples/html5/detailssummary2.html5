@@ -1,0 +1,48 @@
+
+<html>
+
+  <head>
+
+    <script>
+      function openOrCloseDetails() {
+        var detsum = document.getElementById('detsum');
+
+        if (detsum.open) alert('Closing details/summary');
+        else alert('Opening details/summary');
+
+        detsum.open = !detsum.open;
+
+      }
+
+    </script>
+
+  </head>
+
+  <body>  
+
+    <section class="progress window">
+      <h1>Copying “Really Achieving Your Childhood Dreams” (<code>details</code> with <code>summary</code>)</h1>
+      <details id="detsum">
+	<summary>Copying… <progress max="375505392" value="97543282"></progress> 25%</summary>
+	<dl>
+	  <dt>Transfer rate:</dt>
+	  <dd>452KB/s</dd>
+	  <dt>Local filename:</dt>
+	  <dd>/home/rpausch/raycd.m4v</dd>
+	  <dt>Remote filename:</dt>
+	  <dd>/var/www/lectures/raycd.m4v</dd>
+	  <dt>Duration:</dt>
+	  <dd>01:16:27</dd>
+	  <dt>Color profile:</dt>
+	  <dd>SD (6-1-6)</dd>
+	  <dt>Dimensions:</dt>
+	  <dd>320×240</dd>
+	</dl>
+      </details>
+    </section>
+
+    <button onclick="openOrCloseDetails();">Open or close details/summary.</button>
+
+  </body>
+  
+</html>

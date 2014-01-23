@@ -1,49 +1,27 @@
 /*! http://mths.be/details v0.1.0 by @mathias | includes http://mths.be/noselect v1.0.3 */
 ;(function(document, $) {
 
-	var proto = $.fn,
-	    details,
-	    // :'(
-	    isOpera = Object.prototype.toString.call(window.opera) == '[object Opera]',
-	    // Feature test for native `<details>` support
-	    isDetailsSupported = (function(doc) {
-	    	var el = doc.createElement('details'),
-	    	    fake,
-	    	    root,
-	    	    diff;
-	    	if (!('open' in el)) {
-	    		return false;
-	    	}
-	    	root = doc.body || (function() {
-	    		var de = doc.documentElement;
-	    		fake = true;
-	    		return de.insertBefore(doc.createElement('body'), de.firstElementChild || de.firstChild);
-	    	}());
-	    	el.innerHTML = '<summary>a</summary>b';
-	    	el.style.display = 'block';
-	    	root.appendChild(el);
-	    	diff = el.offsetHeight;
-	    	el.open = true;
-	    	diff = diff != el.offsetHeight;
-	    	root.removeChild(el);
-	    	if (fake) {
-	    		root.parentNode.removeChild(root);
-	    	}
-	    	return diff;
-	    }(document)),
-	    toggleOpen = function($details, $detailsSummary, $detailsNotSummary, toggle) {
-	    	var isOpen = $details.prop('open'),
-	    	    close = isOpen && toggle || !isOpen && !toggle;
-	    	if (close) {
-	    		$details.removeClass('open').prop('open', false).triggerHandler('close.details');
-	    		$detailsSummary.attr('aria-expanded', false);
-	    		$detailsNotSummary.hide();
-	    	} else {
-	    		$details.addClass('open').prop('open', true).triggerHandler('open.details');
-	    		$detailsSummary.attr('aria-expanded', true);
-	    		$detailsNotSummary.show();
-	    	}
-	    };
+    var proto = $.fn,
+            details,
+            // :'(
+            isOpera = Object.prototype.toString.call(window.opera) == '[object Opera]',
+    getDetailsNotSummary = function($details) {
+	return $details.children(':not(summary)');
+    },
+    closeIt = function($details) {
+	$detailsNotSummary = getDetailsNotSummary($details);
+	$detailsSummary = $('summary', $details).first();
+	$details.removeClass('open').triggerHandler('close.details');
+	$detailsSummary.attr('aria-expanded', false);
+	$detailsNotSummary.hide();
+    },
+    openIt = function($details) {
+	$detailsNotSummary = getDetailsNotSummary($details);
+	$detailsSummary = $('summary', $details).first();
+	$details.addClass('open').triggerHandler('open.details');
+	$detailsSummary.attr('aria-expanded', true);
+	$detailsNotSummary.show();
+    };
 
 	/* http://mths.be/noselect v1.0.3 */
 	proto.noSelect = function() {
@@ -64,30 +42,6 @@
 
 	};
 
-	// Execute the fallback only if there’s no native `details` support
-	if (isDetailsSupported) {
-
-		details = proto.details = function() {
-
-			return this.each(function() {
-				var $details = $(this),
-				    $summary = $('summary', $details).first();
-				$summary.attr({
-					'role': 'button',
-					'aria-expanded': $details.prop('open')
-				}).on('click', function() {
-					// the value of the `open` property is the old value
-					var close = $details.prop('open');
-					$summary.attr('aria-expanded', !close);
-					$details.triggerHandler((close ? 'close' : 'open') + '.details');
-				});
-			});
-
-		};
-
-		details.support = isDetailsSupported;
-
-	} else {
 
 		details = proto.details = function() {
 
@@ -101,8 +55,9 @@
 				    // Do the same for the info within the `details` element
 				    $detailsNotSummary = $details.children(':not(summary)'),
 				    // This will be used later to look for direct child text nodes
-				    $detailsNotSummaryContents = $details.contents(':not(summary)');
-
+			            $detailsNotSummaryContents = $details.contents(':not(summary)'),
+			            theDetailsElement = this;
+			    
 				// If there is no `summary` in the current `details` element…
 				if (!$detailsSummary.length) {
 					// …create one with default text
@@ -123,14 +78,14 @@
 
 				// Hide content unless there’s an `open` attribute
 				$details.prop('open', typeof $details.attr('open') == 'string');
-				toggleOpen($details, $detailsSummary, $detailsNotSummary);
+				closeIt($details);
 
 				// Add `role=button` and set the `tabindex` of the `summary` element to `0` to make it keyboard accessible
 				$detailsSummary.attr('role', 'button').noSelect().prop('tabIndex', 0).on('click', function() {
 					// Focus on the `summary` element
 					$detailsSummary.focus();
 					// Toggle the `open` and `aria-expanded` attributes and the `open` property of the `details` element and display the additional info
-					toggleOpen($details, $detailsSummary, $detailsNotSummary, true);
+				        theDetailsElement.open = ! theDetailsElement.open;
 				}).keyup(function(event) {
 					if (32 == event.keyCode || (13 == event.keyCode && !isOpera)) {
 						// Space or Enter is pressed — trigger the `click` event on the `summary` element
@@ -140,12 +95,52 @@
 					}
 				});
 
+/*			      Object.defineProperty(this, 'open2', {
+				  configurable: true,
+				  enumerable: true,
+				  set: function(value) {
+				    internalOpen = value;
+				    if (value) openIt($details);
+				    else closeIt($details);
+				  },
+				  get: function() {
+				    return internalOpen;
+				  }
+			      });
+*/
+
+
+      Object.defineProperty(this, "open", {
+        configurable: true,
+        set: function(value) {
+          if (value) this.setAttribute("open", "");
+          else this.removeAttribute("open");
+        },
+        get: function() {
+          if (this.getAttribute("open") == undefined) return false;
+          else return true;
+        }
+      });
+
+      this.setAttribute = function(name, value) { 
+        if (name == "open") {
+	    var needToOpen = value != null;
+	    if (needToOpen) openIt($details);
+	    else closeIt($details);
+        }
+        this.__proto__.setAttribute.call(this, name, value); 
+      }
+
+      this.removeAttribute = function(name) { 
+        if (name == "open") closeIt($details);
+        this.__proto__.removeAttribute.call(this, name); 
+      }
+
+
 			});
 
 		};
 
-		details.support = isDetailsSupported;
 
-	}
 
 }(document, jQuery));

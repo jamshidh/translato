@@ -14,6 +14,16 @@
 
       }
 
+      function showStatusOnLabel() {
+        var detsum = document.getElementById('detsum');
+        var label = document.getElementById('label');
+
+        if (detsum.open) label.innerHTML = "opened";
+        else label.innerHTML = "closed";
+      }
+
+      
+
     </script>
 
   </head>
@@ -42,6 +52,15 @@
     </section>
 
     <button onclick="openOrCloseDetails();">Open or close details/summary.</button>
+
+    <h1 id="label">Opened</h1>
+
+    <script>
+
+      document.getElementById('detsum').addEventListener('open.details', showStatusOnLabel, false);
+      document.getElementById('detsum').addEventListener('close.details', showStatusOnLabel, false);
+
+    </script>
 
   </body>
   

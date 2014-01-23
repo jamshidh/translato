@@ -1,6 +1,12 @@
 /*! http://mths.be/details v0.1.0 by @mathias | includes http://mths.be/noselect v1.0.3 */
 ;(function(document, $) {
 
+    var openEvt = document.createEvent("Event");
+    openEvt.initEvent("open.details",true,true);
+    var closeEvt = document.createEvent("Event");
+    closeEvt.initEvent("close.details",true,true);
+
+
     var proto = $.fn,
             details,
             // :'(
@@ -8,20 +14,29 @@
     getDetailsNotSummary = function($details) {
 	return $details.children(':not(summary)');
     },
-    closeIt = function($details) {
+    closeIt = function($details, el) {
 	$detailsNotSummary = getDetailsNotSummary($details);
 	$detailsSummary = $('summary', $details).first();
-	$details.removeClass('open').triggerHandler('close.details');
+	$details.removeClass('open');
 	$detailsSummary.attr('aria-expanded', false);
 	$detailsNotSummary.hide();
+	el.dispatchEvent(closeEvt);
     },
-    openIt = function($details) {
+    openIt = function($details, el) {
 	$detailsNotSummary = getDetailsNotSummary($details);
 	$detailsSummary = $('summary', $details).first();
-	$details.addClass('open').triggerHandler('open.details');
+	$details.addClass('open');
 	$detailsSummary.attr('aria-expanded', true);
 	$detailsNotSummary.show();
+	el.dispatchEvent(openEvt);
     };
+
+
+
+    
+    
+
+
 
 	/* http://mths.be/noselect v1.0.3 */
 	proto.noSelect = function() {
@@ -78,7 +93,7 @@
 
 				// Hide content unless there’s an `open` attribute
 				$details.prop('open', typeof $details.attr('open') == 'string');
-				closeIt($details);
+			    closeIt($details, this);
 
 				// Add `role=button` and set the `tabindex` of the `summary` element to `0` to make it keyboard accessible
 				$detailsSummary.attr('role', 'button').noSelect().prop('tabIndex', 0).on('click', function() {
@@ -123,17 +138,17 @@
       });
 
       this.setAttribute = function(name, value) { 
+        this.__proto__.setAttribute.call(this, name, value); 
         if (name == "open") {
 	    var needToOpen = value != null;
-	    if (needToOpen) openIt($details);
+	    if (needToOpen) openIt($details, this);
 	    else closeIt($details);
         }
-        this.__proto__.setAttribute.call(this, name, value); 
       }
 
       this.removeAttribute = function(name) { 
-        if (name == "open") closeIt($details);
         this.__proto__.removeAttribute.call(this, name); 
+        if (name == "open") closeIt($details, this);
       }
 
 

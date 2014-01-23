@@ -2,6 +2,10 @@
 <html>
 
   <head>
+    <style>
+      details > summary { transition: color 1s; color: black; }
+      details[open] > summary { color: red; }
+    </style>
 
     <script>
       function openOrCloseDetails() {

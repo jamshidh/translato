@@ -31,28 +31,13 @@
 
       <script>
 
-	  window.console || (window.console = { 'log': alert });
-
 	  jQuery(function() {
 	  
 	    // Add conditional classname based on support
 	    jQuery('html').addClass(jQuery.fn.details.support ? 'details' : 'no-details');
 	  
-	    // Show a message based on support
-	    jQuery('body').prepend(jQuery.fn.details.support ? 'Native support detected; the plugin will only add ARIA annotations and fire custom open/close events.' : 'Emulation active; you are watching the plugin in action!');
-	  
 	    // Emulate &lt;details&gt; where necessary and enable open/close event handlers
 	    jQuery('details').details();
-	  
-	    // Bind some example event handlers
-	    jQuery('details').on({
-	      'open.details': function() {
-	        console.log('opened');
-	      },
-	      'close.details': function() {
-	        console.log('closed');
-	      }
-	    });
 	  
 	  });
 

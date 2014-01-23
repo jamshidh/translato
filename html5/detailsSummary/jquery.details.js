@@ -129,7 +129,9 @@
 		this.__proto__.removeAttribute.call(this, name); 
 		if (name == "open") closeIt($details, this);
 	    }
-	    
+
+	    this.addEventListener("open.details", function () { eval(this.getAttribute("onopen.details")) });
+	    this.addEventListener("close.details", function () { eval(this.getAttribute("onclose.details")) });
 	    
 	});
 	

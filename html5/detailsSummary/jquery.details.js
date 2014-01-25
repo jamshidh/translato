@@ -1,5 +1,12 @@
 /*! http://mths.be/details v0.1.0 by @mathias | includes http://mths.be/noselect v1.0.3 */
 ;(function(document, $) {
+
+
+
+    //[IE]
+    document.createElement('details');
+    document.createElement('summary');
+
     
     var openEvt = document.createEvent("Event");
     openEvt.initEvent("open.details",true,true);
@@ -117,7 +124,8 @@
 	    });
 	    
 	    this.setAttribute = function(name, value) { 
-		this.__proto__.setAttribute.call(this, name, value); 
+		Object.getPrototypeOf(this).setAttribute.call(this, name, value); 
+
 		if (name == "open") {
 		    var needToOpen = value != null;
 		    if (needToOpen) openIt($details, this);
@@ -126,7 +134,7 @@
 	    }
 	    
 	    this.removeAttribute = function(name) { 
-		this.__proto__.removeAttribute.call(this, name); 
+		Object.getPrototypeOf(this).removeAttribute.call(this, name); 
 		if (name == "open") closeIt($details, this);
 	    }
 

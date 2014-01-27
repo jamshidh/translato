@@ -230,12 +230,13 @@ removeEQuoteFromClass g =
 replaceEQuote::Grammar->Expression->Sequence
 replaceEQuote g (EQuote minCount sq) =
     (seq2Left g sq' >>= replaceEQuote g)
-    ++ [SepBy minCount sq (seq2Separator g sq >>= replaceEQuote g)]
+    ++ [SepBy minCount sq' (seq2Separator g sq' >>= replaceEQuote g)]
     ++ (seq2Right g sq' >>= replaceEQuote g)
     where
         sq' = sq >>= replaceEQuote g
 replaceEQuote g (List minCount sq) = [List minCount (sq >>= replaceEQuote g)]
 replaceEQuote g (Or seqs) = [Or ((>>= replaceEQuote g) <$> seqs)]
+replaceEQuote g (Option sq) = [Option $ sq >>= replaceEQuote g]
 replaceEQuote _ x = [x]
 
 seq2Separator::Grammar->Sequence->Sequence
@@ -262,6 +263,7 @@ replaceSepBy::Expression->Sequence
 replaceSepBy (SepBy minCount sq sep) = repeatWithSeparator minCount sq (replaceSepBy =<< sep)
 replaceSepBy (List minCount sq) = [List minCount (replaceSepBy =<< sq)]
 replaceSepBy (Or seqs) = [Or ((replaceSepBy =<<) <$> seqs)]
+replaceSepBy (Option sq) = [Option $ sq >>= replaceSepBy]
 replaceSepBy x = [x]
 
 repeatWithSeparator::Int->Sequence->Sequence->Sequence

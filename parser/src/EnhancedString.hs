@@ -31,6 +31,7 @@ module EnhancedString (
 import Control.Monad.State
 import Data.Char
 import Data.Functor
+import Data.Map as M
 
 import Colors
 import Format
@@ -47,7 +48,7 @@ data DefaultWS = WSString String | FutureWS | EmptyWS | NoDefaultWS deriving (Eq
 
 data EChar =
     Ch Char
-    | EStart String [String]
+    | EStart String (M.Map String Bool) --The Bool signifies that the attribute is optional (ie- it may not show up in the pattern).
     | FilledInEStart String [(String, Maybe String)]
         --The Maybe is for error reporting, value should be a string unless something has gone wrong
     | EEnd String
@@ -75,7 +76,10 @@ data EChar =
 instance Show EChar where
     show (Ch '\n') = "\\n"
     show (Ch c) = [c]
-    show (EStart tagName attributes) = cyan ("<" ++ tagName ++ concat (map (" " ++) attributes) ++ ">")
+    show (EStart tagName attributes) =
+        cyan ("<" ++ tagName ++ (toList attributes >>= formatAttName) ++ ">")
+        where
+            formatAttName (attName, optional) = " " ++ attName ++ if optional then "?" else ""
     show (FilledInEStart tagName atts) = cyan ("<" ++ tagName ++ concat ((" " ++) <$> (\(tagName', val) -> tagName' ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">")
     show (FutureItem _) = cyan ("<??>")
     show (ItemInfo eString) = cyan ("{itemInfo=" ++ show eString ++ "}")
@@ -112,7 +116,9 @@ chs2String (Fail err:rest) = red (format err) ++ chs2String rest
 chs2String (VOut attrName:rest) = green ("[" ++ attrName ++ "]") ++ chs2String rest
 chs2String (VStart attrName _:rest) = "{" ++ attrName ++ "=" ++ chs2String rest
 chs2String (VEnd:rest) = "}" ++ chs2String rest
-chs2String (EStart tagName atts:rest) = "<" ++ tagName ++ ((" "++) =<< atts) ++ ">" ++ chs2String rest
+chs2String (EStart tagName atts:rest) = "<" ++ tagName ++ (toList atts >>= formatAttName) ++ ">" ++ chs2String rest
+        where
+            formatAttName (attName, optional) = " " ++ attName ++ if optional then "?" else ""
 chs2String (FilledInEStart tagName atts:rest) = cyan ("<" ++ tagName ++ ((" " ++) =<< expandAttsWithVal <$> atts) ++ ">") ++ chs2String rest
 chs2String (EEnd tagName:rest) = "</" ++ tagName ++ ">" ++ chs2String rest
 chs2String (NestedItem s:rest) = yellow "<<<" ++ show s ++ yellow ">>>" ++ chs2String rest
@@ -224,8 +230,8 @@ expandElements (EEnd tagName:rest) = e("</" ++ tagName ++ ">") ++ expandElements
 expandElements (c:rest) = c:expandElements rest
 expandElements [] = []
 
-expandAtts::[String]->EString
-expandAtts atts = atts >>= (\attrName -> e (" " ++ attrName ++ "='") ++ [VOut ("@" ++ attrName)] ++ e "'")
+expandAtts::Map String Bool->EString
+expandAtts atts = toList atts >>= (\(attrName, _) -> e (" " ++ attrName ++ "='") ++ [VOut ("@" ++ attrName)] ++ e "'")
 
 expandAttsWithVal::(String, Maybe String)->String
 expandAttsWithVal (attrName, val) = attrName ++ "='" ++ (ampEscape =<< formatMaybe val) ++ "'"

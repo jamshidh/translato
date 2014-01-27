@@ -29,8 +29,7 @@ module GrammarTools (
 import Control.Arrow hiding (left, right, (+++))
 import Control.Lens
 import Data.Functor
-import Data.List
-import Data.Map as M hiding (filter, null)
+import qualified Data.Map as M hiding (filter, null, map, (\\))
 import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 import System.IO
@@ -47,7 +46,7 @@ import OperatorNames
 
 isA::Grammar->String->String->Bool
 isA _ className1 className2 | className1 == className2 = True
-isA g _ tagName | not (tagName `elem` (keys $ g^.classes)) = False -- If name2 doesn't refer to a class, then they must match exactly
+isA g _ tagName | not (tagName `elem` (M.keys $ g^.classes)) = False -- If name2 doesn't refer to a class, then they must match exactly
 isA g className1 className2
     | className1 `elem` className2Class g className2 ^.. rules.traversed.name = True
 --isA g className1 className2 | className1 `elem` (symbol2Name <$> symbol <$> (operators $ className2Class g className2)) = True
@@ -64,7 +63,7 @@ className2ParentNames g tagName =
     where
         ruleName2ClassName::[(String, String)]
         ruleName2ClassName = --TODO Shrink this if you can
-            (\cl -> ((^.name)&&&const (cl^.className)) <$> cl^.rules) =<< elems (g^.classes)
+            (\cl -> ((^.name)&&&const (cl^.className)) <$> cl^.rules) =<< M.elems (g^.classes)
 
 className2Class::Grammar->String->Class
 className2Class g clsName =
@@ -204,11 +203,22 @@ adjustPrioritiesByClassHiarchy g = (classes.mapped %~ adjustClass g) g
 addTagToRule::Rule->Rule
 addTagToRule r = (rawSequence %~ addTagToSequence (r^.name)) r
     where
-        seq2AttNames sq = nub [tagName|Out [VStart tagName Nothing]<-sq]
+        seq2AttInfoMap [] = M.empty
+        seq2AttInfoMap (Out [VStart tagName _]:rest) =
+            M.insertWith (||) tagName False (seq2AttInfoMap rest)
+        seq2AttInfoMap (Or seqs:rest) = M.unionWith (||) joinedAttInfoMap $ seq2AttInfoMap rest
+            where
+                joinedAttInfoMap = --optional only false if false in every option
+                    fmap ((/= length seqs) . length . (filter not))
+                        $ foldl (M.unionWith (++)) M.empty
+                        $ fmap (:[]) <$> attInfoMaps
+                attInfoMaps = seq2AttInfoMap <$> seqs
+        seq2AttInfoMap (_:rest) = seq2AttInfoMap rest
+
 
         addTagToSequence::String->Sequence->Sequence
         addTagToSequence tagName sq =
-            Out [EStart tagName (seq2AttNames sq)] `prepend` sq ++ [Out [EEnd tagName]]
+            Out [EStart tagName (seq2AttInfoMap sq)] `prepend` sq ++ [Out [EEnd tagName]]
 
 addTagsToGrammar::Grammar->Grammar
 addTagsToGrammar = classes.mapped.rules.mapped %~ addTagToRule
@@ -310,9 +320,9 @@ addTabs g = modifySeqsInGrammar addTabsToSeq g
 
         rebuildIt defltWS expr rest =
             case defltWS =~ "^(.*\n+)([^\\s]+)$" of
-                [] -> WhiteSpace (WSString defltWS):addTabsToSeq (expr:rest)
                 [[_, prefixWS, tabSpaces]] ->
                     Out [TabRight tabSpaces]:WhiteSpace (WSString prefixWS):expr:Out [TabLeft]:addTabsToSeq rest
+                _ -> WhiteSpace (WSString defltWS):addTabsToSeq (expr:rest)
 
 -----------------------
 

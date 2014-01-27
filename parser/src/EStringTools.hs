@@ -26,7 +26,7 @@ import Prelude hiding (lookup)
 
 import Data.Functor
 import Data.List hiding (lookup, insert)
-import Data.Map hiding (map, filter)
+import qualified Data.Map as M
 import Data.Tree
 
 import EnhancedString
@@ -75,12 +75,12 @@ fillInFutureItems (FutureItem (Just ls):rest) = addLocationString ls futureItem 
 fillInFutureItems (c:rest) = c:fillInFutureItems rest
 fillInFutureItems [] = []
 
-checkForVarConsistency::[Map String (Maybe String, LS.LString)]->EString->EString
-checkForVarConsistency vStack (e@(EStart _ _):rest) = e:checkForVarConsistency (empty:vStack) rest
+checkForVarConsistency::[M.Map String (Maybe String, LS.LString)]->EString->EString
+checkForVarConsistency vStack (e@(EStart _ _):rest) = e:checkForVarConsistency (M.empty:vStack) rest
 checkForVarConsistency (_:vStackRest) (e@(EEnd _):rest) = e:checkForVarConsistency vStackRest rest
 checkForVarConsistency (vars:vStackRest) (e@(VAssign name val s):rest) =
-    case lookup name vars of
-        Nothing -> e:checkForVarConsistency (insert name (val, s) vars:vStackRest) rest
+    case M.lookup name vars of
+        Nothing -> e:checkForVarConsistency (M.insert name (val, s) vars:vStackRest) rest
         Just (val2, s2) ->
             (if val == val2
                 then []
@@ -121,19 +121,31 @@ fillInAttributes::EString->EString
 fillInAttributes (EStart name atts:rest) =
     FilledInEStart name attributesWithValues:fillInAttributes restWithoutValues
     where
-        (attributesWithValues, restWithoutValues) = splitAtts 0 rest atts
-        splitAtts::Int->EString->[String]->([(String, Maybe String)], EString)
-        splitAtts _ rest [] = ([], rest)
-        splitAtts 0 (VAssign name value _:rest) neededAtts | name `elem` neededAtts = ((name, value):atts, rest2)
-            where (atts, rest2) = splitAtts 0 rest (filter (/= name) neededAtts)
---        splitAtts 0 (VAssign name value:rest) neededAtts = error "attribute value not needed"
-        splitAtts 0 (c@(EEnd _):rest) neededAtts = ([], c:rest)
-        splitAtts count (c@(EEnd _):rest) neededAtts = fmap (c:) (splitAtts (count-1) rest neededAtts)
-        splitAtts count (c@(EStart _ _):rest) neededAtts = fmap (c:) (splitAtts (count+1) rest neededAtts)
-        splitAtts count (c@(Fail _):rest) neededAtts =
-            ((\x -> (x, Nothing)) <$> neededAtts, [c])
-        splitAtts count (c:rest) neededAtts = fmap (c:) (splitAtts count rest neededAtts)
-        splitAtts count s neededAtts = error ("Missing case in splitAtts: " ++ show count ++ ", " ++ show s ++ ", " ++ show neededAtts)
+        (attributesWithValues, restWithoutValues) = splitAtts rest $ M.toList atts
+
+        splitAtts::EString->[(String, Bool)]->([(String, Maybe String)], EString)
+        splitAtts (VAssign name value _:rest) neededAtts | name `elem` (fst <$> neededAtts) =
+             ((name, value):atts, rest2)
+            where (atts, rest2) = splitAtts rest (filter ((/= name) . fst) neededAtts)
+        splitAtts (VAssign name value _:rest) neededAtts = error "attribute value not needed"
+        splitAtts (c@(EEnd _):rest) neededAtts | null $ filter (not . snd) neededAtts = ([], c:rest)
+        splitAtts rest [] = ([], rest)
+        splitAtts (EEnd _:_) neededAtts = error ("Error in splitAtts: missing attributes '" ++ show neededAtts ++ "'")
+        splitAtts (EStart _ _:rest) neededAtts = splitAtts (itemsAfterEEnd rest) neededAtts
+        splitAtts (c@(Fail _):rest) neededAtts = (fmap (const Nothing) <$> neededAtts, [c])
+        splitAtts (c:rest) neededAtts = fmap (c:) (splitAtts rest neededAtts)
+        splitAtts sq neededAtts =
+            error ("Missing case in splitAtts: sq = " ++ show sq ++ ", neededAtts = " ++ show neededAtts)
+
+        itemsAfterEEnd::EString->EString
+        itemsAfterEEnd [] = error ("Error in itemsAfterEEnd: hit end of estring without an EEnd")
+        itemsAfterEEnd (EEnd _:rest) = rest
+        itemsAfterEEnd (EStart _ _:rest) = itemsAfterEEnd $ itemsAfterEEnd rest
+        itemsAfterEEnd  (c@(Fail _):_) = [c]
+        itemsAfterEEnd (_:rest) = itemsAfterEEnd rest
+
+
+
 fillInAttributes (c:rest) = c:fillInAttributes rest
 fillInAttributes [] = []
 

@@ -1,14 +1,19 @@
 
 file =>
+{doctype}?
+
 {element}
 ;
+
+doctype => <!DOCTYPE @value>;
 
 
 ident => [$a-zA-Z]\w*;
 
-
 ====[attribute]===============
-attribute =>@name="@value([^"]*)";
+attribute =>@name([a-zA-Z\-]+)(="@value([^"]*)")?;
+
+#booleanAttribute => @name([a-zA-Z\-]+);
 
 separator: ' '
 ====[/attribute]==============
@@ -23,7 +28,7 @@ separator: '_, '
 
 
 
-word =>[^<> \n\r\t]+;
+word =>[^< \n\r\t]+;
 
 body => \{
   {command}*
@@ -69,6 +74,8 @@ comment => //[^\n]*[\n];
 
 if => if \({expression}\) {body}( else {body})?;
 
+if => if \({expression}\) {command}( else {command})?;
+
 try => try {body}
 catch\({expression}\) {body};
 
@@ -98,7 +105,11 @@ num => @value(\d+);
 
 string => "@value([^"]*)";
 
+singleQuoteString => '@value([^']*)';
+
 incrementor => {expression}\+\+;
+
+booleanNot => !{expression};
 
 array => \[_{expression}*_\];
 

@@ -369,6 +369,7 @@ unescape 'd' = Digit
 unescape 'n' = SingleChar '\n'
 unescape 'r' = SingleChar '\r'
 unescape 't' = SingleChar '\t'
+unescape '-' = SingleChar '-'
 unescape c = error ("Missing escape char in string2CharTypes " ++ [c])
 
 

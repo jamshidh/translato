@@ -48,6 +48,7 @@ formatSets (LowercaseChar:rest) = "[a-z]" ++ formatSets rest
 formatSets (SingleChar '\n':rest) = "\\n" ++ formatSets rest
 formatSets (SingleChar '\r':rest) = "\\r" ++ formatSets rest
 formatSets (SingleChar '\t':rest) = "\\t" ++ formatSets rest
+formatSets (SingleChar '-':rest) = "\\-" ++ formatSets rest
 formatSets (SingleChar c:rest) = c:formatSets rest
 formatSets (Space:rest) = "\\s" ++ formatSets rest
 formatSets (UppercaseChar:rest) = "[A-Z]" ++ formatSets rest

@@ -169,7 +169,7 @@ getChainOfFirsts sm sq = expr2ChainOfFirsts =<< firsts
             (++ [expr]) <$> getChainOfFirsts sm (linkName2Seq sm linkName)
         expr2ChainOfFirsts expr = [[expr]]
         firsts = case getFirst sq of
-            Nothing -> error ("Error calling getFirst with sq = " ++ format sq)
+            Nothing -> error ("Error calling getFirst (perhaps the grammer has a list of items that can be zero length) with sq = " ++ format sq)
             Just x -> x
 
 linkName2Seq::SequenceMap->String->Sequence

@@ -21,12 +21,14 @@ module Generator (
 
 import Prelude hiding (lookup)
 
+import Control.Arrow
 import Data.Char
 import Data.Functor
+import Data.Function
 import Data.List hiding (lookup)
-import Data.Map hiding (map, foldl, fromList, null)
-import Data.Set hiding (map, toList, null)
-import Data.Text hiding (map, concat, foldl1, foldl, head, intercalate, tail, dropWhile, length, null)
+import qualified Data.Map as M
+import qualified Data.Set as S
+import qualified Data.Text as T
 import Data.Text.Lazy.IO as TL hiding (putStrLn, interact)
 import Text.XML
 import Text.XML.Cursor
@@ -46,7 +48,7 @@ import SequenceMap
 ------------------------------
 
 name2String::Name->String
-name2String xmlName = unpack $ nameLocalName xmlName
+name2String xmlName = T.unpack $ nameLocalName xmlName
 
 tagName::Cursor->String
 --tagName (Cursor (NodeElement element)) = nameLocalName $ elementName element
@@ -59,8 +61,8 @@ showCursor c = case node c of
     NodeElement el ->
         "<" ++ tagName c ++ " "
             ++ (intercalate " "
-                    (map (\(attrName, text) -> name2String attrName ++ "=\"" ++ unpack text ++ "\"")
-                    ((toList . elementAttributes) el))) ++ ">"
+                    (map (\(attrName, text) -> name2String attrName ++ "=\"" ++ T.unpack text ++ "\"")
+                    ((M.toList . elementAttributes) el))) ++ ">"
     NodeContent text -> "Text: " ++ show text
     x -> error ("Missing case in showCursor: " ++ show x)
 
@@ -71,19 +73,19 @@ isTextNode c = case node c of
 
 getTextContent::Cursor->String
 getTextContent c = case node c of
-    NodeContent text -> unpack text
+    NodeContent text -> T.unpack text
     _ -> error ("getTextContent was called on a non text node")
 
 
 cursor2AttNames::Cursor->[String]
 cursor2AttNames c = case node c of
-    NodeElement el -> name2String <$> fst <$> (toList $ elementAttributes el)
+    NodeElement el -> name2String <$> fst <$> (M.toList $ elementAttributes el)
     _ -> error "cursor2AttNames called for a non element."
 
 cursor2AttValue::Cursor->String->String
 cursor2AttValue c attrName =
-    case attribute (Name (pack attrName) Nothing Nothing) c of
-        [text] -> unpack text
+    case attribute (Name (T.pack attrName) Nothing Nothing) c of
+        [text] -> T.unpack text
         _ -> error ("Missing attribute '" ++ attrName ++ "' in tag '" ++ tagName c ++ "'.")
 
 cShow::Cursor->[Cursor]->Expression->String
@@ -106,7 +108,7 @@ generate g c = enhancedString2String (cursor2String g sMap c)
 
 cursor2String::Grammar->SequenceMap->Cursor->EString
 cursor2String g sMap c =
-    case lookup (tagName c) sMap of
+    case M.lookup (tagName c) sMap of
         Just sq -> seq2EString g sMap sq c (child c)
         Nothing -> error ("Link '" ++ tagName c ++ "' doesn't exist in the grammar")
 
@@ -144,14 +146,14 @@ seq2EString g sMap (SepBy minCount sq sep:_) c remainingChildren =
     seq2EString g sMap (sq ++ sep ++ [SepBy (minCount - 1) sq sep]) c remainingChildren
 
 seq2EString _ _ (Or []:_) _ _ = error "No matching alternative in seq2EString Or case"
-seq2EString g sMap (Or (sq:otherSq):rest) c children =
-    --jtrace (show (length children)) $
-    --jtrace (show (cursorFingerprint c children)) $
-    --jtrace (format (sq ++ rest)) $
-    --jtrace (show (sequenceFingerprint (sq ++ rest))) $
-    if fingerprintMatches g (cursorFingerprint c children) (sequenceFingerprint (sq ++ rest))
-        then seq2EString g sMap (sq ++ rest) c children
-        else seq2EString g sMap (Or otherSq:rest) c children
+seq2EString g sMap (Or seqs:rest) c children =
+    seq2EString g sMap chosenSq c children
+    where
+        cursorFP = cursorFingerprint c children
+        sqFPs::[((S.Set String, [Maybe String]), Sequence)]
+        sqFPs = (sequenceFingerprint &&& id) <$> (++rest) <$> seqs
+        matchingSqFPs = filter (fingerprintMatches g cursorFP . fst) sqFPs
+        chosenSq = snd $ maximumBy (compare `on` S.size . fst . fst) matchingSqFPs
 
 seq2EString _ _ (Link linkName:_) _ [] =
     [Fail $ Error dummyRanges ("Looking for element with tagname '" ++ linkName ++ "', but there are no more elements")]
@@ -220,12 +222,12 @@ sep2String sq = error ("Missing case in sep2String: " ++ format sq)
 --performance reasons (ie- Listing *all* element tags could require that we read the
 --whole file before deciding what to do).  Nevertheless, I will keep the type signature
 --general for now.
-cursorFingerprint::Cursor->[Cursor]->(Set String, [String])
-cursorFingerprint c (firstChild:_)=(fromList $ cursor2AttNames c, [tagName firstChild])
-cursorFingerprint c []=(fromList $ cursor2AttNames c, [])
+cursorFingerprint::Cursor->[Cursor]->(S.Set String, [String])
+cursorFingerprint c (firstChild:_)=(S.fromList $ cursor2AttNames c, [tagName firstChild])
+cursorFingerprint c []=(S.fromList $ cursor2AttNames c, [])
 
-sequenceFingerprint::Sequence->(Set String, [Maybe String])
-sequenceFingerprint sq = (fromList $ getAttNames sq, getAllowedFirstLinkNames sq)
+sequenceFingerprint::Sequence->(S.Set String, [Maybe String])
+sequenceFingerprint sq = (S.fromList $ getAttNames sq, getAllowedFirstLinkNames sq)
 
 getAttNames::Sequence->[String]
 getAttNames [] = []
@@ -235,18 +237,18 @@ getAttNames (_:rest) = getAttNames rest
 getAllowedFirstLinkNames::Sequence->[Maybe String] --Returning a Nothing implies that an empty child list is allowed
 getAllowedFirstLinkNames [] = [Nothing]
 getAllowedFirstLinkNames (Out [VStart _ _]:rest) =
-    Just <$> getAttNames (dropWhile (/= Out [VEnd]) rest)
+    getAllowedFirstLinkNames $ dropWhile (/= Out [VEnd]) rest
 getAllowedFirstLinkNames (Link linkName:_) =
     [Just linkName] --Only return the first name for now (possibly forever)
 getAllowedFirstLinkNames (SepBy 0 [Link linkName] _:rest) =
     Just linkName:getAllowedFirstLinkNames rest --Only return the first name for now (possibly forever)
 getAllowedFirstLinkNames (SepBy _ [Link linkName] _:_) =
     [Just linkName] --Only return the first name for now (possibly forever)
-getAllowedFirstLinkNames (_:rest) = getAllowedFirstLinkNames rest
+getAllowedFirstLinkNames (x:rest) = getAllowedFirstLinkNames rest
 
-fingerprintMatches::Grammar->(Set String, [String])->(Set String, [Maybe String])->Bool
+fingerprintMatches::Grammar->(S.Set String, [String])->(S.Set String, [Maybe String])->Bool
 fingerprintMatches g (cursorAttNames, cursorTagNames) (seqAttNames, seqLinkNames) =
-    (seqAttNames `isSubsetOf` cursorAttNames) &&
+    (seqAttNames `S.isSubsetOf` cursorAttNames) &&
         case cursorTagNames of
             [] -> Nothing `elem` seqLinkNames
             [ctn] -> or(isA g ctn <$> [linkName|Just linkName<-seqLinkNames])

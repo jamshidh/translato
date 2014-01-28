@@ -35,7 +35,7 @@ import qualified LString as LS
 import ParseError
 import TreeTools
 
-import JDebug
+--import JDebug
 
 {--cleanTree::Tree EChar->Tree EString
 cleanTree (Node {rootLabel=c, subForest=[next]})=Node { rootLabel=c:rootLabel nextResult, subForest=subForest nextResult }
@@ -171,18 +171,23 @@ expandOperators (StartBlock:rest) = case fullBlock rest of
                 Right (inside, outside) -> Right (c:inside, outside)
                 Left e -> Left e
 
+--TODO- I think there is a bug when there are parentheses.  We remove all the block start/end infoBarAddActionWidget
+--      right off the bat, including that in parens, but this might be needed for parens.
+--      I am not sure though, and don't want to deal with this now.
 expandOperators (c:rest) = c:expandOperators rest
 expandOperators [] = []
 
 expandOperatorsInBlock::EString->EString
 expandOperatorsInBlock (FilledInEStart name atts:rest) =
-    expandOperatorsInBlock (NestedItem (FilledInEStart name atts:blockString):rest2)
+    expandOperatorsInBlock (NestedItem (FilledInEStart name atts:expandedBlockString ++ [endTag]):rest2)
     where
-        (blockString, rest2) = getNestedItem rest
+        (blockString, endTag, rest2) = getNestedItem rest
+        expandedBlockString = expandOperatorsInBlock blockString
 expandOperatorsInBlock (n@(NestedItem _):t@(InfixTag _):FilledInEStart name atts:rest) =
-    expandOperatorsInBlock (n:t:NestedItem (FilledInEStart name atts:blockString):rest2)
+    expandOperatorsInBlock (n:t:NestedItem (FilledInEStart name atts:expandedBlockString ++ [endTag]):rest2)
     where
-        (blockString, rest2) = getNestedItem rest
+        (blockString, endTag, rest2) = getNestedItem rest
+        expandedBlockString = expandOperatorsInBlock blockString
 
 expandOperatorsInBlock (NestedItem item:InfixTag InfixOp{opName=name,opAssociativity=UseEndCap}:rest) =
     expandOperatorsInBlock
@@ -192,13 +197,13 @@ expandOperatorsInBlock (NestedItem item:InfixTag InfixOp{opName=name,opAssociati
 
 expandOperatorsInBlock
     (NestedItem left:InfixTag o1:NestedItem right:InfixTag o2:rest)
-    = simplifyOpPair left o1 right o2 rest
+    =  simplifyOpPair left o1 right o2 rest
 expandOperatorsInBlock (NestedItem left:InfixTag InfixOp{opName=name}:NestedItem right:rest) =
     [FilledInEStart name []] ++ left ++ right ++ [EEnd name] ++ expandOperatorsInBlock rest
 expandOperatorsInBlock (NestedItem left:e@(FilledInEStart _ _):rest) =
     left ++ expandOperatorsInBlock (e:rest)
-expandOperatorsInBlock [NestedItem item] = item
-expandOperatorsInBlock [] = []
+expandOperatorsInBlock [NestedItem item] =  item
+expandOperatorsInBlock [] =  []
 expandOperatorsInBlock s =
     error ("Missing case in expandOperatorsInBlock: (" ++ show s)
 
@@ -237,14 +242,14 @@ splitByEndCap (c:rest) = (c:inside, outside)
     where (inside, outside) = splitByEndCap rest
 
 
-getNestedItem::EString->(EString, EString)
-getNestedItem (EEnd name:rest) = ([EEnd name], rest)
-getNestedItem (FilledInEStart name atts:rest) = ([FilledInEStart name atts] ++ inside1 ++ inside2, outside2)
+getNestedItem::EString->(EString, EChar, EString)
+getNestedItem (EEnd name:rest) = ([], EEnd name, rest)
+getNestedItem (FilledInEStart name atts:rest) = ([FilledInEStart name atts] ++ inside1 ++ endTag1:inside2, endTag2, outside2)
     where
-        (inside1, outside1) = getNestedItem rest
-        (inside2, outside2) = getNestedItem outside1
-getNestedItem (c:rest) = (c:inside, outside)
-    where (inside, outside) = getNestedItem rest
+        (inside1, endTag1, outside1) = getNestedItem rest
+        (inside2, endTag2, outside2) = getNestedItem outside1
+getNestedItem (c:rest) = (c:inside, endTag, outside)
+    where (inside, endTag, outside) = getNestedItem rest
 
 
 

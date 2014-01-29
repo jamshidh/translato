@@ -171,8 +171,8 @@ createParser g =
     . fillInAttributes
     . checkForVarConsistency []
     . fillInVariableAssignments
+    . cleanUpAfterError --has to happen after fillInFutureItems, as it counts tags, which might not be filled in until after that
     . fillInFutureItems
-    . cleanUpAfterError
     . rawParse (parseTree g (g^.main))
     . (createLString $)
 

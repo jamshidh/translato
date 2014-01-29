@@ -142,12 +142,16 @@ seq2EString g sMap (Out [VStart attrName _]:rest) c remainingChildren =
         where
             rest2 = tail (dropWhile (/=Out [VEnd]) rest)
 
-seq2EString g sMap (SepBy 0 [Link linkName] sep:rest) c children = result ++ seq2EString g sMap rest c otherChildren
+seq2EString g sMap (SepBy 0 [Link linkName] sep:rest) c children =
+    result ++ seq2EString g sMap rest c otherChildren
     where
         (result, otherChildren) = applyTemplates g sMap children linkName sep True
 
-seq2EString g sMap (SepBy minCount sq sep:_) c remainingChildren =
-    seq2EString g sMap (sq ++ sep ++ [SepBy (minCount - 1) sq sep]) c remainingChildren
+seq2EString g sMap (SepBy 0 sq sep:rest) c children =
+    seq2EString g sMap [Or [sq++(SepBy 0 sq sep:rest), rest]] c children
+
+seq2EString g sMap (SepBy minCount sq sep:rest) c remainingChildren =
+    seq2EString g sMap (sq ++ sep ++ (SepBy (minCount - 1) sq sep:rest)) c remainingChildren
 
 seq2EString _ _ (Or []:_) _ _ = error "No matching alternative in seq2EString Or case"
 seq2EString g sMap (Or seqs:rest) c children =

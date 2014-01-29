@@ -256,6 +256,7 @@ seq2Separator g [Link linkName] = case M.lookup linkName (g^.classes) of
     Just cl -> cl^.separator
 seq2Separator _ [Character _ _] = []
 seq2Separator _ [TextMatch _ _] = []
+seq2Separator _ sq | length sq > 1 = []
 seq2Separator _ sq = error ("Missing case in seq2Separator: " ++ format sq)
 
 -------------------------------
@@ -287,6 +288,7 @@ seq2Left g [Link linkName] = case M.lookup linkName (g^.classes) of
     Just cl -> cl^.left
 seq2Left _ [Character _ _] = []
 seq2Left _ [TextMatch _ _] = []
+seq2Left _ sq | length sq > 1 = []
 seq2Left _ sq = error ("Missing case in seq2Left: " ++ show sq)
 
 seq2Right::Grammar->Sequence->Sequence
@@ -295,6 +297,7 @@ seq2Right g [Link linkName] = case M.lookup linkName (g^.classes) of
     Just cl -> cl^.right
 seq2Right _ [Character _ _] = []
 seq2Right _ [TextMatch _ _] = []
+seq2Right _ sq | length sq > 1 = []
 seq2Right _ sq = error ("Missing case in seq2Separator: " ++ format sq)
 
 -------------------------------

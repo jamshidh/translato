@@ -45,7 +45,7 @@ import LeftFactoring
 import ParseError
 import SequenceMap
 
---import JDebug
+import JDebug
 
 ------------------------------
 
@@ -163,7 +163,11 @@ seq2EString g sMap (Or seqs:rest) c children =
         sqFPs::[((S.Set String, [Maybe String]), Sequence)]
         sqFPs = (sequenceFingerprint &&& id) <$> (++rest) <$> seqs
         matchingSqFPs = filter (fingerprintMatches g cursorFP . fst) sqFPs
-        chosenSq = snd $ maximumBy (compare `on` S.size . fst . fst) matchingSqFPs
+        allBestSeqs::[Sequence]
+        allBestSeqs = snd <$> maximumsUsing (S.size . fst . fst) matchingSqFPs
+        --Even after a fingerprint comparison, seqs can tie for suitability.
+        --In this case, just choose the simplest (ie- smallest) seq.
+        chosenSq = minimumBy (compare `on` length) allBestSeqs
 
 seq2EString _ _ (Link linkName:_) _ [] =
     [Fail $ Error dummyRanges ("Looking for element with tagname '" ++ linkName ++ "', but there are no more elements")]
@@ -284,10 +288,9 @@ generatorMain args = do
     let s = generateFromText grammar contents
     putStrLn s
 
-
-
-
-
+maximumsUsing::Ord b=>(a->b)->[a]->[a]
+maximumsUsing f list = filter (\x -> f x == max) list
+    where max = maximum (f <$> list)
 
 
 

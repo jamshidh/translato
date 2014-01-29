@@ -164,6 +164,7 @@ createEParser g = createEParserForClass (g^.main) g
 
 createParser::Grammar->Parser
 createParser g =
+--    show
     enhancedString2String
     . (>>= eAmpEscape)
     . expandOperators
@@ -171,6 +172,7 @@ createParser g =
     . checkForVarConsistency []
     . fillInVariableAssignments
     . fillInFutureItems
+    . cleanUpAfterError
     . rawParse (parseTree g (g^.main))
     . (createLString $)
 

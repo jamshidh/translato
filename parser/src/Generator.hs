@@ -118,6 +118,10 @@ dummyRanges = [(Position 0 0 "", Position 0 0 "")]
 seq2EString::Grammar->SequenceMap->Sequence->Cursor->[Cursor]->EString
 --seq2EString _ _ sq c children | jtrace ((showCursor =<< children) ++ ", [[[[" ++ formatSequence sq ++ "]]]]") $ False = undefined
 
+seq2EString _ _ [] c (firstTag:_) | tagName firstTag == "error" =
+        error $ red ("Error in file: " ++ concat (T.unpack <$> (child firstTag >>= content)))
+
+
 seq2EString g sMap sq c (firstChild:otherChildren) | isWhitespaceTextNode firstChild =
     seq2EString g sMap sq c otherChildren
         where

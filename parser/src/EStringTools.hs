@@ -19,6 +19,7 @@ module EStringTools (
     checkForVarConsistency,
     fillInVariableAssignments,
     fillInAttributes,
+    cleanUpAfterError,
     expandOperators
 ) where
 
@@ -75,6 +76,28 @@ fillInFutureItems (FutureItem (Just ls):rest) = addLocationString ls futureItem 
 fillInFutureItems (c:rest) = c:fillInFutureItems rest
 fillInFutureItems [] = []
 
+cleanUpAfterError::EString->EString
+cleanUpAfterError s = cleanUpAfterError' s ([], False)
+    where
+        cleanUpAfterError'::EString->([String], Bool)->EString
+        cleanUpAfterError' [] ([], False) = []
+        cleanUpAfterError' [] state =
+            error ("Error in cleanUpAgterError: string ended without closing all tags or ending values" ++ show state)
+        cleanUpAfterError' (c@(EStart name _):rest) (tagStack, inValue) =
+            c:cleanUpAfterError' rest (name:tagStack, inValue)
+        cleanUpAfterError' (c@(EEnd name):rest) (topName:restOfStack, inValue) =
+            c:cleanUpAfterError' rest (restOfStack, inValue)
+        cleanUpAfterError' (c@(VStart name _):rest) (tagStack, False) =
+            c:cleanUpAfterError' rest (name:tagStack, True)
+        cleanUpAfterError' (c@VEnd:rest) (topName:restOfStack, True) =
+            c:cleanUpAfterError' rest (restOfStack, False)
+        cleanUpAfterError' (c@(Fail _):rest) (tagStack, inValue) =
+            [c] ++ if inValue then [VEnd] else [] ++ (EEnd <$> tagStack)
+        cleanUpAfterError' (c:rest) (tagStack, inValue) =
+            c:cleanUpAfterError' rest (tagStack, inValue)
+        cleanUpAfterError' x _ = error ("Missing case in cleanUpAfterError: " ++ show x)
+
+
 checkForVarConsistency::[M.Map String (Maybe String, LS.LString)]->EString->EString
 checkForVarConsistency vStack (e@(EStart _ _):rest) = e:checkForVarConsistency (M.empty:vStack) rest
 checkForVarConsistency (_:vStackRest) (e@(EEnd _):rest) = e:checkForVarConsistency vStackRest rest
@@ -110,7 +133,6 @@ fillInVariableAssignments (VStart name (Just s):rest) =
             case splitVariableValue rest of
                 (Just value, rest2) -> (Just (c:value), rest2)
                 (Nothing, _) -> (Nothing, [])
-        splitVariableValue (Fail err:rest) = (Nothing, [Fail err])
         splitVariableValue (EStart _ _:rest) = splitVariableValue rest
         splitVariableValue (EEnd _:rest) = splitVariableValue rest
         splitVariableValue x = error ("Missing case in splitVariableValue: " ++ show x)
@@ -132,7 +154,6 @@ fillInAttributes (EStart name atts:rest) =
         splitAtts rest [] = ([], rest)
         splitAtts (EEnd _:_) neededAtts = error ("Error in splitAtts: missing attributes '" ++ show neededAtts ++ "'")
         splitAtts (EStart _ _:rest) neededAtts = splitAtts (itemsAfterEEnd rest) neededAtts
-        splitAtts (c@(Fail _):rest) neededAtts = (fmap (const Nothing) <$> neededAtts, [c])
         splitAtts (c:rest) neededAtts = fmap (c:) (splitAtts rest neededAtts)
         splitAtts sq neededAtts =
             error ("Missing case in splitAtts: sq = " ++ show sq ++ ", neededAtts = " ++ show neededAtts)
@@ -141,7 +162,6 @@ fillInAttributes (EStart name atts:rest) =
         itemsAfterEEnd [] = error ("Error in itemsAfterEEnd: hit end of estring without an EEnd")
         itemsAfterEEnd (EEnd _:rest) = rest
         itemsAfterEEnd (EStart _ _:rest) = itemsAfterEEnd $ itemsAfterEEnd rest
-        itemsAfterEEnd  (c@(Fail _):_) = [c]
         itemsAfterEEnd (_:rest) = itemsAfterEEnd rest
 
 

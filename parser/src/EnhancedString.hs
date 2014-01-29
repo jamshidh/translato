@@ -112,7 +112,7 @@ formatMaybe Nothing = "[Unknown]"
 
 chs2String::EString->String
 chs2String (Ch x:rest) = x:chs2String rest
-chs2String (Fail err:rest) = red (format err) ++ chs2String rest
+chs2String (Fail err:rest) = "<error>" ++ format err ++ "</error>" ++ chs2String rest
 chs2String (VOut attrName:rest) = green ("[" ++ attrName ++ "]") ++ chs2String rest
 chs2String (VStart attrName _:rest) = "{" ++ attrName ++ "=" ++ chs2String rest
 chs2String (VEnd:rest) = "}" ++ chs2String rest

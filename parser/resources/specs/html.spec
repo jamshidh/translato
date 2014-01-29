@@ -2,8 +2,147 @@
 file =>
 {doctype}?
 
-{element}
+{html}
 ;
+
+html=>
+<html>
+  {head}
+  {body}
+</html>
+;
+
+head=>
+<head>
+  {headElements}*
+</head>
+;
+
+body=>
+<body>
+  {widget}*
+</body>
+;
+
+====[headElements:script]========
+
+title=>
+<title>{word}*</title>
+;
+
+meta=><meta http-equiv="@httpequiv([^"]*)" content="@content([^"]*)" />;
+
+link=><link rel="@rel([^"]*)" type="@type@content([^"]*)" href="@href([^"]*)" />;
+
+style=>
+<style>
+  {declarationBlock}*
+</style>
+;
+
+separator: '\n'
+====[/headElements]==============
+
+====[declarationBlock]===============
+
+declarationBlock=>
+{selector} 
+\{ 
+  {declaration}* 
+\}
+;
+
+separator: '\n'
+
+====[/declarationBlock]==============
+
+====[declaration]===============
+
+transition=>transition: @value([^;]*)\;;
+color=>color: @value([^;]*)\;;
+
+separator: '\n'
+
+====[/declaration]==============
+
+====[selector]===============
+
+tagname=>@value;
+
+filter=>{selector}\[{qualifier}\];
+
+operators: ' > '
+
+====[/selector]==============
+
+====[qualifier]===============
+
+hasAtt=>@value;
+
+====[/qualifier]==============
+
+
+====[widget:script]========
+
+text => {word}+;
+
+button=>
+<button_{attribute}*_>{widget}*</button>
+;
+
+code=>
+<code>{widget}*</code>
+;
+
+details=>
+<details_{attribute}*_>
+  {summary}
+  {widget}*
+</details>
+;
+
+dl=>
+<dl>
+  ({dt} 
+  {dd}
+  )+
+</dl>
+;
+
+h1=>
+<h1_{attribute}*_>{widget}*</h1>
+;
+
+progress=>
+<progress_{attribute}*_>{widget}*</progress>
+;
+
+section=>
+<section_{attribute}*_>
+  {widget}*
+</section>
+;
+
+separator: '\n'
+====[/widget]==============
+
+dt=>
+<dt>{widget}*</dt>
+;
+
+dd=>
+<dd>{widget}*</dd>
+;
+
+
+summary=>
+<summary_{attribute}*_>
+  {widget}*
+</summary>
+;
+
+
+
 
 doctype => <!DOCTYPE @value>;
 
@@ -30,13 +169,13 @@ separator: '_, '
 
 word =>[^< \n\r\t]+;
 
-body => \{
+commandBody => \{
   {command}*
 \};
 
 
 
-====[node]======================
+====[script]======================
 
 script =><script_>
   {command}*
@@ -44,17 +183,19 @@ script =><script_>
 
 script =><script src="@src([^"]*)">_</script>;
 
+====[/script]=====================
+
+====[node]======================
+
 element =><@tagName_{attribute}*_/>;
 
-element =>{node}*;
+element =><@tagName_{attribute}*_>{node}*</@tagName>;
 
-text => {word}+;
+#left: <@tagName_{attribute}*_>
+#  ;
 
-left: <@tagName_{attribute}*_>
-  ;
-
-right: _
-</@tagName>;
+#right: _
+#</@tagName>;
 
 separator: '\n'
 
@@ -72,20 +213,20 @@ return => return( {expression})?_\;;
 
 comment => //[^\n]*[\n];
 
-if => if \({expression}\) {body}( else {body})?;
+if => if \({expression}\) {commandBody}( else {commandBody})?;
 
 if => if \({expression}\) {command}( else {command})?;
 
-try => try {body}
-catch\({expression}\) {body};
+try => try {commandBody}
+catch\({expression}\) {commandBody};
 
-for => for \({expression}_\; {expression}_\; {expression}\) {body};
+for => for \({expression}_\; {expression}_\; {expression}\) {commandBody};
 
-for => for \({varDeclaration}_ {expression}_\; {expression}\) {body};
+for => for \({varDeclaration}_ {expression}_\; {expression}\) {commandBody};
 
-iteratorFor => for \({variable} in {expression}_\) {body};
+iteratorFor => for \({variable} in {expression}_\) {commandBody};
 
-funcDeclaration => function @name\({parameter}*\) {body};
+funcDeclaration => function @name\({parameter}*\) {commandBody};
 
 separator: '\n'
 
@@ -115,7 +256,7 @@ array => \[_{expression}*_\];
 
 object => \{_{field}*_\};
 
-embeddedElement => {node}*;
+embeddedElement => {element};
 
 operators: ' == ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '*' ' / ' ' + ' '-'
 
@@ -135,7 +276,7 @@ function => {lvalue}\(_{expression}*_\);
 
 arrayIndex => {lvalue}\[{expression}\];
 
-lambda => function \(\) {body};
+lambda => function \(\) {commandBody};
 
 ====[/lvalue]=================
 

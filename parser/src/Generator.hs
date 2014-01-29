@@ -33,6 +33,8 @@ import Data.Text.Lazy.IO as TL hiding (putStrLn, interact)
 import Text.XML
 import Text.XML.Cursor
 
+import Paths_parser
+
 import ArgOpts
 import CharSet
 import Colors
@@ -264,17 +266,20 @@ fingerprintMatches g (cursorAttNames, cursorTagNames) (seqAttNames, seqLinkNames
 
 ----------------
 
-data Options = Options { specFileName::String }
+data Options = Options { specName::String }
 defaultOptions::Options
-defaultOptions = Options { specFileName = "file.spec" }
+defaultOptions = Options { specName = "file.spec" }
 
 deflt::Options
-deflt = Options{specFileName="qqqq.spec"}
+deflt = Options{specName="qqqq.spec"}
 
 generatorMain::[String]->IO ()
 generatorMain args = do
-    let options = $(arg2Opts ''Options ["specFileName"]) args deflt
-    grammar <- loadGrammarAndSimplifyForGenerate $ specFileName options
+    let options = $(arg2Opts ''Options ["specName"]) args deflt
+
+    specFileName <- getDataFileName ("specs/" ++ specName options ++ ".spec")
+
+    grammar <- loadGrammarAndSimplifyForGenerate specFileName
     contents<-TL.getContents
     let s = generateFromText grammar contents
     putStrLn s

@@ -340,7 +340,7 @@ matchLink =
 
 matchText =
     do
-        text<-many1 (noneOf ";*()[]-+{}@\\"
+        text<-many1 (noneOf ";*()[]+{}@\\"
             <|> (try (string "\\@") >> return '@')
             <|> (try (string "\\*") >> return '*')
             <|> (try (string "\\+") >> return '+')

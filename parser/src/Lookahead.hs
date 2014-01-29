@@ -1,3 +1,4 @@
+{-# OPTIONS_GHC -Wall #-}
 -----------------------------------------------------------------------------
 --
 -- Module      :  Lookahead
@@ -19,21 +20,14 @@ module Lookahead (
 import Prelude hiding (lookup)
 
 import Data.Char
-import Data.Function
 import Data.Functor
-import Data.List hiding (lookup)
-import Data.Map hiding (filter, map)
 import Data.Tree
 
 import CharSet
---import Context
-import EnhancedString
 import Grammar
-import LeftFactoring
 import qualified LString as LS
 import LString (LString)
 import ParseError
-import TreeTools
 
 import JDebug
 
@@ -41,24 +35,24 @@ data TreeInfo = TreeInfo { tree::Tree Expression, firstMatchers::[Expression], a
 
 getTreeInfos::Tree Expression->[TreeInfo]
 getTreeInfos t@
-    Node{rootLabel=TextMatch text1 name,
+    Node{rootLabel=TextMatch text1 n,
         subForest=[Node{rootLabel=WhiteSpace _,
             subForest=[Node{rootLabel=TextMatch text2 _}]}]} =
     [TreeInfo {
         tree=t,
-        firstMatchers=[TextMatch (text1++" "++text2) name],
+        firstMatchers=[TextMatch (text1++" "++text2) n],
         allowsWhiteSpace=False, isFallBack=False
     }]
-getTreeInfos t@Node{rootLabel=TextMatch text name} =
+getTreeInfos t@Node{rootLabel=TextMatch text n} =
     [TreeInfo {
         tree=t,
-        firstMatchers=[TextMatch text name],
+        firstMatchers=[TextMatch text n],
         allowsWhiteSpace=False, isFallBack=False
     }]
-getTreeInfos t@Node{rootLabel=Character charset name} =
+getTreeInfos t@Node{rootLabel=Character charset n} =
     [TreeInfo {
         tree=t,
-        firstMatchers=[Character charset name],
+        firstMatchers=[Character charset n],
         allowsWhiteSpace=False, isFallBack=False
     }]
 getTreeInfos t@Node{rootLabel=EOF} =
@@ -73,39 +67,39 @@ getTreeInfos t@Node{rootLabel=Out _, subForest=rest} =
     (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
 getTreeInfos t@Node{rootLabel=WhiteSpace _, subForest=rest} =
     (\treeInfo->treeInfo{ tree=t, allowsWhiteSpace=True }) <$> (rest >>= getTreeInfos)
-getTreeInfos tree =
-    error ("Missing case in getTreeInfos: " ++ safeDrawETree tree)
+getTreeInfos theTree =
+    error ("Missing case in getTreeInfos: " ++ safeDrawETree theTree)
 
 isPrefixTextMatch::String->String->Bool
-isPrefixTextMatch (' ':rest1) (' ':rest2) = isPrefixTextMatch (' ':rest1) rest2
+isPrefixTextMatch (' ':rest1) (c:rest2) | isSpace c = isPrefixTextMatch (' ':rest1) rest2
 isPrefixTextMatch (' ':rest1) (c2:rest2) = isPrefixTextMatch rest1 (c2:rest2)
 isPrefixTextMatch (c1:rest1) (c2:rest2) | c1 == c2 = isPrefixTextMatch rest1 rest2
 isPrefixTextMatch "" "" = True
 isPrefixTextMatch _ "" = False
-isPrefixTextMatch (c1:rest1) (c2:rest2) = False
-isPrefixTextMatch [] (c2:rest2) = True
+isPrefixTextMatch (_:_) (_:_) = False
+isPrefixTextMatch [] (_:_) = True
 
 
 eCheck::LString->Expression->Bool
 eCheck s (TextMatch text _) = text `isPrefixTextMatch` LS.string s
-eCheck s (Character charset _) | LS.null s = False
+eCheck s (Character _ _) | LS.null s = False
 eCheck s (Character charset _) = LS.head s `isIn` charset
 eCheck s EOF = LS.null s
 eCheck _ e =
     error ("Missing case in function 'eCheck': " ++ formatExpression e ++ ", ")
 
 check::LString->TreeInfo->Bool
-check s treeInfo@TreeInfo{allowsWhiteSpace=True} | LS.null s = check s treeInfo{allowsWhiteSpace=False}
-check s treeInfo@TreeInfo{allowsWhiteSpace=True} | isSpace (LS.head s) = check (LS.tail s) treeInfo
-check s treeInfo@TreeInfo{firstMatchers=e, allowsWhiteSpace=True} = check s treeInfo{allowsWhiteSpace=False}
+check s treeInfo@TreeInfo{allowsWhiteSpace=True} | LS.null s =
+    check s treeInfo{allowsWhiteSpace=False}
+check s treeInfo@TreeInfo{allowsWhiteSpace=True} | isSpace (LS.head s) =
+    check (LS.tail s) treeInfo
+check s treeInfo@TreeInfo{allowsWhiteSpace=True} =
+    check s treeInfo{allowsWhiteSpace=False}
 check s TreeInfo{firstMatchers=exps} = or (eCheck s <$> exps)
 --check s (FallBack, _, _) = False
 
-funcAnd::(a->Bool)->(a->Bool)->a->Bool
-funcAnd f1 f2 = \x -> f1 x && f2 x
-
 chooseOne::Forest Expression->LString->Either ParseError (Tree Expression)
-chooseOne [tree] s = Right tree
+chooseOne [theTree] _ = Right theTree
 chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length trees)) $
     --jtrace ("chooseOne: " ++ safeDrawEForest trees) $
     --jtrace ("string: " ++ show s) $
@@ -147,9 +141,12 @@ maximumsBy f list = filter ((== theMaximum) . f) list
         where theMaximum = maximum (f <$> list)
 
 addTextMatchSize::LS.LString->TreeInfo->(Int, TreeInfo)
-addTextMatchSize s treeInfo@TreeInfo{allowsWhiteSpace=True} | LS.null s = addTextMatchSize s treeInfo{allowsWhiteSpace=False}
-addTextMatchSize s treeInfo@TreeInfo{allowsWhiteSpace=True} | isSpace (LS.head s) = addTextMatchSize (LS.tail s) treeInfo
-addTextMatchSize s treeInfo = (maximum (textMatchMatchSize s <$> (firstMatchers treeInfo)), treeInfo)
+addTextMatchSize s treeInfo@TreeInfo{allowsWhiteSpace=True} | LS.null s =
+    addTextMatchSize s treeInfo{allowsWhiteSpace=False}
+addTextMatchSize s treeInfo@TreeInfo{allowsWhiteSpace=True} | isSpace (LS.head s) =
+    addTextMatchSize (LS.tail s) treeInfo
+addTextMatchSize s treeInfo =
+    (maximum (textMatchMatchSize s <$> (firstMatchers treeInfo)), treeInfo)
 
 removeTextMatchSize::(Int, a)->a
 removeTextMatchSize = snd
@@ -159,7 +156,3 @@ textMatchMatchSize::LS.LString->Expression->Int
 textMatchMatchSize s (TextMatch text _) | text `isPrefixTextMatch` LS.string s = length text
 textMatchMatchSize _ _ = 0
 
-
-maximumsUsing::Ord b=>(a->b)->[a]->[a]
-maximumsUsing f list = filter (\x -> f x == max) list
-    where max = maximum (f <$> list)

@@ -47,7 +47,7 @@
 
     <section class="progress window">
       <h1>Copying “Really Achieving Your Childhood Dreams” (<code>details</code> with <code>summary</code>)</h1>
-      <details id="detsum" onopen="paintLabelGreen();" onclose="paintLabelRed();">
+      <details id="detsum" open onopen="paintLabelGreen();" onclose="paintLabelRed();">
 	<summary>Copying… <progress max="375505392" value="97543282"></progress> 25%</summary>
 	<dl>
 	  <dt>Transfer rate:</dt>

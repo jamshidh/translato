@@ -57,7 +57,7 @@ parseGrammar =
 
         return (Grammar
                     mainClassName
-                    (M.fromList (((^.className)&&&id) <$> classList)))
+                    (M.fromListWithKey (\k _ _ -> error ("The grammar has a repeat element: " ++ k)) (((^.className)&&&id) <$> classList)))
 
 
 parseClass = parseFullClass <|> parseSimpleClass

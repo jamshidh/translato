@@ -30,9 +30,11 @@ title=>
 <title>{word}*</title>
 ;
 
-meta=><meta http-equiv="@httpequiv([^"]*)" content="@content([^"]*)" />;
+meta=><meta http-equiv="@httpequiv([^"]*)" content="@content([^"]*)"_/?>;
 
-link=><link rel="@rel([^"]*)" type="@type@content([^"]*)" href="@href([^"]*)" />;
+link=><link rel="@rel([^"]*)" type="@type@content([^"]*)" href="@href([^"]*)"_/?>;
+
+#area, base, br, col, embed, hr, img, input, keygen, param, source, track, wbr
 
 style=>
 <style>

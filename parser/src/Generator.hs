@@ -123,18 +123,21 @@ seq2EString::Grammar->SequenceMap->Sequence->Cursor->[Cursor]->EString
 seq2EString _ _ [] c (firstTag:_) | tagName firstTag == "error" =
         error $ red ("Error in file: " ++ concat (T.unpack <$> (child firstTag >>= content)))
 
+seq2EString g sMap (TextMatch text _:rest) c children = e text ++ seq2EString g sMap rest c children
 
 seq2EString g sMap sq c (firstChild:otherChildren) | isWhitespaceTextNode firstChild =
     seq2EString g sMap sq c otherChildren
         where
             isWhitespaceTextNode x = isTextNode x && and(isSpace <$> getTextContent x)
 seq2EString g sMap sq c (firstChild:otherChildren) | isTextNode firstChild =
-    e s ++ seq2EString g sMap (useTextNode s sq) c otherChildren
+    e s ++ seq2EString g sMap remainingSeq c (newInput ++ otherChildren)
     where
         s = getTextContent firstChild
-        remainingSeq = useTextNode
+        (remainingChars, remainingSeq) = --jtrace ("remaining: " ++ remainingChars) $
+            consumeTextNode s sq
+        newInput = if remainingChars == "" then [] else [fromNode $ NodeContent $ T.pack remainingChars]
 
-seq2EString _ _ (Character _ _:_) _ _ = error ("expected Character, found a node")
+seq2EString _ _ (c@(Character _ _):_) _ _ = error ("expected Character (" ++ show c ++ "), found a node")
 
 
 
@@ -176,7 +179,6 @@ seq2EString g sMap (Link linkName:rest) c (firstChild:otherChildren) | isA g (ta
 seq2EString _ _ (Link linkName:_) _ (firstChild:_) =
         [Fail $ Error dummyRanges ("Expecting element with tagname '" ++ linkName ++ "', found " ++ showCursor firstChild)]
 
-seq2EString g sMap (TextMatch text _:rest) c children = e text ++ seq2EString g sMap rest c children
 seq2EString g sMap (WhiteSpace defltWS:rest) c children = WSItem defltWS:seq2EString g sMap rest c children
 --seq2EString g sMap (WhiteSpace (WSString defltWS):rest) c children = e defltWS  ++ seq2EString g sMap rest c children
 seq2EString g sMap (Out [TabRight tabString]:rest) c children = TabRight tabString:seq2EString g sMap rest c children
@@ -192,17 +194,21 @@ seq2EString _ _ [] c children =
 seq2EString _ _ sq c children =
         error ("Missing case in seq2EString:\n    tag = " ++ tagName c ++ ",\n    sequence = " ++ format sq  ++ ",\n    children = " ++ intercalate "\n" (showCursor <$> children))
 
-useTextNode::String->Sequence->Sequence
-useTextNode [] (SepBy 0 [Character charset _] sep:rest) = rest
-useTextNode [] sq = sq
-useTextNode (c:cs) (Character charset _:rest) | c `isIn` charset =
-    useTextNode cs rest
-useTextNode (c:cs) sq@(SepBy 0 [Character charset _] sep:rest) | c `isIn` charset =
-    useTextNode cs sq --Just keep consuming the string until the next character doesn't match
-useTextNode s (SepBy minCount sq sep:rest) =
-    useTextNode s (sq ++ SepBy (minCount-1) sq sep:rest)
-useTextNode s sq =
-    error ("Missing case in useTextNode:\n    string=" ++ show s ++ "\n    sequence=" ++ format sq)
+--
+consumeTextNode::String->Sequence->(String, Sequence)
+consumeTextNode [] (SepBy 0 [Character charset _] sep:rest) = ([], rest)
+consumeTextNode [] sq = ([], sq)
+consumeTextNode s [] = (s, [])
+consumeTextNode (c:cs) (Character charset _:rest) | c `isIn` charset =
+    consumeTextNode cs rest
+consumeTextNode (c:cs) sq@(SepBy 0 [Character charset _] sep:rest) | c `isIn` charset =
+    consumeTextNode cs sq --Just keep consuming the string until the next character doesn't match
+consumeTextNode s sq@(SepBy 0 [Character charset _] sep:rest) =
+    consumeTextNode s rest --Just keep consuming the string until the next character doesn't match
+consumeTextNode s (SepBy minCount sq sep:rest) =
+    consumeTextNode s (sq ++ SepBy (minCount-1) sq sep:rest)
+consumeTextNode s sq =
+    error ("Missing case in consumeTextNode:\n    string=" ++ show s ++ "\n    sequence=" ++ format sq)
 
 --TODO add the separator between elements
 applyTemplates::Grammar->SequenceMap->[Cursor]->String->Sequence->Bool->(EString, [Cursor])

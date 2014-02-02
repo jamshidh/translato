@@ -4,7 +4,7 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
-data-files: greenBall.png redBall.png specs/html.spec
+data-files: greenBall.png redBall.png specs/html.spec specs/html5.spec
 data-dir: resources
 extra-source-files: ""
  

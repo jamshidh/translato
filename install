@@ -1,0 +1,8 @@
+
+set -e
+
+mkdir -p ~/GlowApps/html5/shims
+
+cp -a html5/shims/* ~/GlowApps/html5/shims/
+
+cp html5/GlowApp/* ~/GlowApps/html5/

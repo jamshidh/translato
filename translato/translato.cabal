@@ -1,0 +1,24 @@
+name: translato
+version: 0.0.1
+cabal-version: >=1.2
+build-type: Simple
+license: AllRightsReserved
+license-file: ""
+data-files: reorganize.xsl
+data-dir: resources
+ 
+executable translato
+    build-depends: json >=0.7 && <0.8, filepath >=1.3.0.1 && <1.4,
+                   directory >=1.2.0.1 && <1.3, process >=1.2.0.0 && <1.3,
+                   QuickCheck -any, base -any
+    main-is: Main.hs
+    buildable: True
+    hs-source-dirs: src
+ 
+test-suite test-translato
+    build-depends: QuickCheck -any, base -any
+    type: exitcode-stdio-1.0
+    main-is: Main.hs
+    buildable: True
+    cpp-options: -DMAIN_FUNCTION=testMain
+    hs-source-dirs: src

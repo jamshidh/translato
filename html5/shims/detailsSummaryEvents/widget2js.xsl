@@ -42,11 +42,15 @@
 
   <xsl:template match="attribute">
     el.setAttribute = function(name, value) { 
-      <xsl:value-of select="setter/text()" />
+      if (name == "<xsl:value-of select="@name" />") {
+        <xsl:value-of select="setter/text()" />
+      }
       Object.getPrototypeOf(el).setAttribute.call(el, name, value); 
     }
     el.removeAttribute = function(name) { 
-      <xsl:value-of select="remover/text()" />
+      if (name == "<xsl:value-of select="@name" />") {
+        <xsl:value-of select="remover/text()" />
+      }
       Object.getPrototypeOf(el).removeAttribute.call(el, name); 
     }
   </xsl:template>

@@ -41,17 +41,15 @@
     })
   </constructor>
 
-  <attribute>
+  <attribute name="open">
     <setter>
-      if (name == "open") {
-        var needToOpen = value != null;
-	if (needToOpen) openIt($details, detailsEl);
-	else closeIt($details);
-      }
+      var needToOpen = value != null;
+      if (needToOpen) openIt($details, detailsEl);
+      else closeIt($details);
     </setter>
 
     <remover>
-      if (name == "open") closeIt($details, detailsEl);
+      closeIt($details, detailsEl);
     </remover>
   </attribute>
 

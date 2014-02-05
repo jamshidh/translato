@@ -30,9 +30,9 @@
   </property>
 
 
-  <attribute>
+  <attribute name="open">
     <setter>
-      if (name == "open") el.dispatchEvent(openEvt);
+      el.dispatchEvent(openEvt);
     </setter>
 
     <remover>

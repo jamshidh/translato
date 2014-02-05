@@ -1,0 +1,61 @@
+
+<widget>
+
+  <code>
+    function closeIt(detailsEl) {
+      $detailsNotSummary = getDetailsNotSummary($details);
+      $detailsSummary = $('summary', $details).first();
+      $details.removeClass('open');
+      $detailsSummary.attr('aria-expanded', false);
+      $detailsNotSummary.hide();
+      el.dispatchEvent(closeEvt);
+    }
+
+    function openIt(detailsEl) {
+      $detailsNotSummary = getDetailsNotSummary($details);
+      $detailsSummary = $('summary', $details).first();
+      $details.addClass('open');
+      $detailsSummary.attr('aria-expanded', true);
+      $detailsNotSummary.show();
+      el.dispatchEvent(openEvt);
+    };
+
+    function getDetailsNotSummary(detailsEl) {
+      return detailsE.children(':not(summary)');
+    }
+
+  </code>
+
+  <constructor>
+    var summaryEls = detailsEl.getElementsByTagName("summary");
+	
+    if (summaryEls.length != 1) {
+      console.log("qqqq");
+    }
+
+    var summaryEl = summaryEls[0];
+
+    summaryEl.addEventListener('click', function() {
+      //summaryEl.focus();
+      detailsEl.open = !detailsEl.open;
+    })
+  </constructor>
+
+  <attribute>
+    <setter>
+      if (name == "open") {
+        var needToOpen = value != null;
+	if (needToOpen) openIt($details, detailsEl);
+	else closeIt($details);
+      }
+    </setter>
+
+    <remover>
+      if (name == "open") closeIt($details, detailsEl);
+    </remover>
+  </attribute>
+
+</widget>
+
+
+

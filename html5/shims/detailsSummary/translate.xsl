@@ -8,7 +8,7 @@
   </xsl:template>
 
   <xsl:template match="details">
-    <library src="detailsSummary.js" />
+    <library src="details.js" />
     <xsl:copy>
       <xsl:apply-templates select="*|@*|text()" />
     </xsl:copy>

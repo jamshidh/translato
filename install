@@ -6,3 +6,7 @@ mkdir -p ~/GlowApps/html5/shims
 cp -a html5/shims/* ~/GlowApps/html5/shims/
 
 cp html5/GlowApp/* ~/GlowApps/html5/
+
+mkdir -p ~/GlowApps/html5/widgetLib
+
+generateWidgetLibs html5/shims/ ~/GlowApps/html5/widgetLib/

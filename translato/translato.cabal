@@ -4,7 +4,7 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
-data-files: reorganize.xsl
+data-files: reorganize.xsl widget2js.xsl
 data-dir: resources
  
 executable translato
@@ -16,8 +16,8 @@ executable translato
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: WidgetMerger WidgetFormatter Format WidgetParser
-                   Widget Merger
+    other-modules: MergerMain WidgetLibGenerator WidgetJSLibrary
+                   WidgetMerger WidgetFormatter Format WidgetParser Widget Merger
  
 executable mergo
     build-depends: containers >=0.5.0.0 && <0.6,
@@ -28,6 +28,18 @@ executable mergo
     main-is: Merger.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: WidgetMerger WidgetFormatter Format WidgetParser
-                   Widget Merger
+    other-modules: MergerMain WidgetLibGenerator WidgetJSLibrary
+                   WidgetMerger WidgetFormatter Format WidgetParser Widget Merger
+ 
+executable generateWidgetLibs
+    build-depends: containers >=0.5.0.0 && <0.6,
+                   text >=0.11.2.3 && <0.12, xml-conduit >=1.1.0.9 && <1.2,
+                   json >=0.7 && <0.8, filepath >=1.3.0.1 && <1.4,
+                   directory >=1.2.0.1 && <1.3, process >=1.2.0.0 && <1.3,
+                   QuickCheck -any, base -any
+    main-is: WidgetLibGenerator.hs
+    buildable: True
+    hs-source-dirs: src
+    other-modules: MergerMain WidgetLibGenerator WidgetJSLibrary
+                   WidgetMerger WidgetFormatter Format WidgetParser Widget Merger
  

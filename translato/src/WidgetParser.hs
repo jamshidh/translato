@@ -21,10 +21,13 @@ xml2Widget el =
             unpack <$>
             lookupOrError "name" "<event> tags need @name attributes" <$>
             [elementAttributes child|NodeElement child<-elementNodes el, elementName child == "event"],
-        properties =
+        eventHandlers = M.fromList $
+            xml2EventHandler <$>
+            [child|NodeElement child<-elementNodes el, elementName child == "eventHandler"],
+        properties = M.fromList $
             xml2Property <$>
             [child|NodeElement child<-elementNodes el, elementName child == "property"],
-        attributes =
+        attributes = M.fromList $
             xml2Attribute <$>
             [child|NodeElement child<-elementNodes el, elementName child == "attribute"]
     }
@@ -43,27 +46,36 @@ getUniqueTagText el tagName =
         [Element{}] -> error ("Format of " ++ tagName ++ " element not correct- should be just text")
         _ -> error ("Error: Multiple " ++ tagName ++ " tags")
 
-xml2Property::Element->Property
-xml2Property el =
-    Property {
-        propName=
-            unpack $
+xml2EventHandler::Element->(String, String)
+xml2EventHandler el@Element{elementNodes=[NodeContent text]} =
+    (
+        unpack $
             lookupOrError "name" "<property> tags need @name attributes" (elementAttributes el),
-        propGetter=getUniqueTagText el "getter",
-        propSetter = getUniqueTagText el "setter"
-    }
+            unpack text
+    )
 
-xml2Attribute::Element->Attribute
+xml2Property::Element->(String, Property)
+xml2Property el =
+    (
+        unpack $
+            lookupOrError "name" "<property> tags need @name attributes" (elementAttributes el),
+        Property {
+            propGetter=getUniqueTagText el "getter",
+            propSetter = getUniqueTagText el "setter"
+        }
+    )
+
+xml2Attribute::Element->(String, Attribute)
 xml2Attribute el =
-    Attribute {
-        attName=
-            unpack $
+    (
+        unpack $
             lookupOrError "name" "<attribute> tags need @name attributes" (elementAttributes el),
-        attGetter=getUniqueTagText el "getter",
-        attSetter=getUniqueTagText el "setter",
-        attRemover=getUniqueTagText el "remover"
-    }
-
+        Attribute {
+            attGetter=getUniqueTagText el "getter",
+            attSetter=getUniqueTagText el "setter",
+            attRemover=getUniqueTagText el "remover"
+        }
+    )
 
 
 

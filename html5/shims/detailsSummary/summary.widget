@@ -1,0 +1,10 @@
+
+<widget>
+  <eventHandler name="click">
+      //summaryEl.focus();
+      element.parentNode.open = !element.parentNode.open;
+  </eventHandler>
+</widget>
+
+
+

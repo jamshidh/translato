@@ -1,0 +1,13 @@
+
+
+<widget>
+  <eventHandler name="click">
+    var detailsEl = element.parentNode;
+
+    if (detailsEl.open) detailsEl.dispatchEvent(closeEvt);
+    else detailsEl.dispatchEvent(openEvt);
+  </eventHandler>
+</widget>
+
+
+

@@ -3,31 +3,36 @@
 
   <code>
     function closeIt(detailsEl) {
-      $detailsNotSummary = getDetailsNotSummary($details);
-      $detailsSummary = $('summary', $details).first();
-      $details.removeClass('open');
-      $detailsSummary.attr('aria-expanded', false);
-      $detailsNotSummary.hide();
-      el.dispatchEvent(closeEvt);
+      var notSummaryEls = getDetailsNotSummary(detailsEl);
+      var summaryEl = detailsEl.getElementsByTagName("SUMMARY")[0];
+      //$details.removeClass('open');
+      summaryEl.setAttribute('aria-expanded', false);
+      for(var i = 0; i &lt; notSummaryEls.length; i++) {
+        notSummaryEls[i].style.display="none";
+      }
     }
 
     function openIt(detailsEl) {
-      $detailsNotSummary = getDetailsNotSummary($details);
-      $detailsSummary = $('summary', $details).first();
-      $details.addClass('open');
-      $detailsSummary.attr('aria-expanded', true);
-      $detailsNotSummary.show();
-      el.dispatchEvent(openEvt);
+      var notSummaryEls = getDetailsNotSummary(detailsEl);
+      var summaryEl = detailsEl.getElementsByTagName("SUMMARY")[0];
+      //detailsEl.addClass('open');
+      summaryEl.setAttribute('aria-expanded', true);
+      for(var i = 0; i &lt; notSummaryEls.length; i++) {
+        notSummaryEls[i].style.display="inline";
+      }
     };
 
     function getDetailsNotSummary(detailsEl) {
-      return detailsE.children(':not(summary)');
+      return [].slice.call(detailsEl.children).filter(function(el) { 
+        return(el.tagName != "SUMMARY")
+      });
+
     }
 
   </code>
 
   <constructor>
-    var summaryEls = detailsEl.getElementsByTagName("summary");
+    var summaryEls = element.getElementsByTagName("summary");
 	
     if (summaryEls.length != 1) {
       console.log("qqqq");
@@ -35,21 +40,17 @@
 
     var summaryEl = summaryEls[0];
 
-    summaryEl.addEventListener('click', function() {
-      //summaryEl.focus();
-      detailsEl.open = !detailsEl.open;
-    })
   </constructor>
 
   <attribute name="open">
     <setter>
       var needToOpen = value != null;
-      if (needToOpen) openIt($details, detailsEl);
-      else closeIt($details);
+      if (needToOpen) openIt(element);
+      else closeIt(element);
     </setter>
 
     <remover>
-      closeIt($details, detailsEl);
+      closeIt(element);
     </remover>
   </attribute>
 

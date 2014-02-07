@@ -6,15 +6,8 @@
   <event name="close" />
 
   <constructor>
-    el.addEventListener("click", function () { 
-      if (this.open) el.dispatchEvent(closeEvt);
-      else el.dispatchEvent(openEvt);
-    });
-
-    el = detailsElements[i];
-	
-    el.addEventListener("open", function () { eval(el.getAttribute("onopen")) });
-    el.addEventListener("close", function () { eval(el.getAttribute("onclose")) });
+    element.addEventListener("open", function () { eval(element.getAttribute("onopen")) });
+    element.addEventListener("close", function () { eval(element.getAttribute("onclose")) });
   </constructor>
 
 
@@ -32,11 +25,11 @@
 
   <attribute name="open">
     <setter>
-      el.dispatchEvent(openEvt);
+      element.dispatchEvent(openEvt);
     </setter>
 
     <remover>
-      el.dispatchEvent(closeEvt);
+      element.dispatchEvent(closeEvt);
     </remover>
   </attribute>
 

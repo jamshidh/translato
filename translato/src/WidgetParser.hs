@@ -16,6 +16,7 @@ xml2Widget el | nameLocalName (elementName el) /= pack "widget" = error "Error: 
 xml2Widget el =
     Widget{
         code = getUniqueTagText el "code",
+        style = getUniqueTagText el "style",
         constructor= getUniqueTagText el "constructor",
         events=
             unpack <$>

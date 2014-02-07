@@ -10,6 +10,7 @@ import qualified Data.Map as M
 data Widget =
     Widget {
         code::Maybe String,
+        style::Maybe String,
         events::[String],
         constructor::Maybe String,
         properties::M.Map String Property,

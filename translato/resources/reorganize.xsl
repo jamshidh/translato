@@ -13,10 +13,16 @@
       <xsl:for-each select="//library">
 	<script src="{concat('/lib/', @src)}" />
       </xsl:for-each>
+      <xsl:for-each select="//styleLib">
+	<link rel="stylesheet" type="text/css" href="{concat('/lib/', @src)}" />
+      </xsl:for-each>
     </xsl:copy>
   </xsl:template>
 
   <xsl:template match="library">
+  </xsl:template>
+
+  <xsl:template match="styleLib">
   </xsl:template>
 
 </xsl:stylesheet>

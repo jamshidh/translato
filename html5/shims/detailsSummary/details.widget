@@ -1,6 +1,14 @@
 
 <widget>
 
+  <style>
+    details {
+      display: block; 
+      border: 1px solid #666; 
+      padding: 1em;
+    }
+  </style>
+
   <code>
     function closeIt(detailsEl) {
       var notSummaryEls = getDetailsNotSummary(detailsEl);

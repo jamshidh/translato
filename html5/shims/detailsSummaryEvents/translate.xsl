@@ -16,6 +16,7 @@
 
   <xsl:template match="summary">
     <library src="summary.js" />
+    <styleLib src="summary.css" />
     <xsl:copy>
       <xsl:apply-templates select="*|@*|text()" />
     </xsl:copy>

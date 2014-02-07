@@ -11,6 +11,7 @@ import System.FilePath
 import qualified Text.XML as XML
 
 import Format
+import Widget
 import WidgetFormatter
 import WidgetJSLibrary
 import WidgetMerger
@@ -47,13 +48,21 @@ main = do
                 [x, y] -> [x, y]
                 _ -> error ("Error: need two input parameters")
     widgetFiles <- M.fromListWith (++) <$> map (takeBaseName &&& (:[])) <$> getWidgetFilePaths inDir
-    nameAndContent <- sequence $ map (createLib outDir) $ M.toList widgetFiles
-    sequence $ uncurry writeFile <$> nameAndContent
 
-createLib::FilePath->(String, [FilePath])->IO (String, String)
+    contents <- sequence $ map (createLib outDir) $ M.toList widgetFiles
+    sequence
+        $ (\(widgetName, content) -> writeFile (outDir </> widgetName ++ ".js") content)
+        <$> fmap fst
+        <$> contents
+
+    sequence
+        $ (\(widgetName, content) -> writeFile (outDir </> widgetName ++ ".css") content)
+        <$> [(widgetName, cssContent)|(widgetName, (_, Just cssContent))<-contents]
+
+createLib::FilePath->(String, [FilePath])->IO (String, (String, Maybe String))
 createLib outDir (widgetName, widgetFiles) = do
     contents <- sequence $ XML.readFile XML.def <$> fromString <$> widgetFiles
     let widgets = xml2Widget <$> XML.documentRoot <$> contents
     content <- widget2js widgetName $ format $ fold widgets
-    return (outDir </> widgetName ++ ".js", content)
-
+    let cssContent = style $ fold widgets
+    return (widgetName, (content, cssContent))

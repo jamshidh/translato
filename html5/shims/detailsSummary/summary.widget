@@ -1,5 +1,22 @@
 
 <widget>
+
+  <style>
+
+    summary {
+      display: block; 
+      border: 1px solid #666; 
+      padding: 1em;
+      cursor: pointer;
+    }
+
+    summary:hover, summary:focus { background: #ddd; }
+
+    summary:before { float: left; width: 20px; content: '► '; }
+    details.open > summary:before { content: '▼ '; }
+    details[open]> summary:before { content: '▼ '; }
+
+  </style>
   <eventHandler name="click">
       //summaryEl.focus();
       element.parentNode.open = !element.parentNode.open;

@@ -11,6 +11,7 @@ instance Monoid Widget where
     mempty =
         Widget{
             code=Nothing,
+            style=Nothing,
             events=[],
             constructor=Nothing,
             eventHandlers=M.empty,
@@ -20,6 +21,7 @@ instance Monoid Widget where
     mappend x y =
         Widget{
             code=code x `mappend` code y,
+            style=style x `mappend` style y,
             events=events x ++ events y,
             constructor=constructor x `mappend` constructor y,
             eventHandlers=M.unionWith (++) (eventHandlers x) (eventHandlers y),

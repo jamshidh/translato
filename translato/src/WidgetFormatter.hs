@@ -12,6 +12,7 @@ import Widget
 instance Format Widget where
     format widget =
         "<widget>\n"
+            ++ formatStyle (style widget)
             ++ formatCode (code widget)
             ++ concat (formatEvent <$> events widget)
             ++ formatConstructor (constructor widget)
@@ -20,19 +21,16 @@ instance Format Widget where
             ++ intercalate "\n  " (formatEventHandler <$> M.toList (eventHandlers widget))
         ++ "</widget>"
 
-formatCode::Maybe String->String
-formatCode Nothing = ""
-formatCode (Just codeString) = "  <code>" ++ (codeString >>= encode) ++ "</code>\n"
+formatElementWithTextNode::String->Maybe String->String
+formatElementWithTextNode _ Nothing = ""
+formatElementWithTextNode tagName (Just codeString) = "  <" ++ tagName ++ ">" ++ (codeString >>= encode) ++ "</" ++ tagName ++ ">\n"
+
+formatStyle = formatElementWithTextNode "style"
+formatCode = formatElementWithTextNode "code"
+formatConstructor = formatElementWithTextNode "constructor"
 
 formatEvent::String->String
 formatEvent name = "  <event name='" ++ name ++ "' />\n"
-
-formatConstructor::Maybe String->String
-formatConstructor Nothing = ""
-formatConstructor (Just content) =
-    "  <constructor>"
-        ++ (content >>= encode)
-    ++ "</constructor>\n"
 
 formatEventHandler::(String, String)->String
 formatEventHandler (name, content) =

@@ -32,7 +32,7 @@ title=>
 
 meta=><meta http-equiv="@httpequiv([^"]*)" content="@content([^"]*)"_/?>;
 
-link=><link rel="@rel([^"]*)" type="@type@content([^"]*)" href="@href([^"]*)"_/?>;
+link=><link rel="@rel([^"]*)" type="@type([^"]*)" href="@href([^"]*)"_/?>;
 
 #area, base, br, col, embed, hr, img, input, keygen, param, source, track, wbr
 

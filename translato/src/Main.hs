@@ -27,7 +27,7 @@ main = do
                 <$> map (shimDir </>)
                 <$> getDirectoryContents shimDir)
 
-    putStrLn ("There are " ++ show (length translators) ++ " translators")
+    --putStrLn ("There are " ++ show (length translators) ++ " translators")
 
     --This chains together functions in a list [a, b, c, d]
     --using (>>=), like this ">>= a >>= b >>= c >>= d"

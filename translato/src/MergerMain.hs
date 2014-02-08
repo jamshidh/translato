@@ -1,5 +1,4 @@
 
 module MergerMain (
-    mergeWidgets
 ) where
 

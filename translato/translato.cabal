@@ -7,39 +7,56 @@ license-file: ""
 data-files: reorganize.xsl widget2js.xsl
 data-dir: resources
  
-executable translato
-    build-depends: containers >=0.5.0.0 && <0.6,
-                   text >=0.11.2.3 && <0.12, xml-conduit >=1.1.0.9 && <1.2,
-                   json >=0.7 && <0.8, filepath >=1.3.0.1 && <1.4,
-                   directory >=1.2.0.1 && <1.3, process >=1.2.0.0 && <1.3,
-                   QuickCheck -any, base -any
-    main-is: Main.hs
+library
+    build-depends: MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
+                   base -any, containers >=0.5.0.0 && <0.6,
+                   directory >=1.2.0.1 && <1.3, filemanip >=0.3.6.2 && <0.4,
+                   filepath >=1.3.0.1 && <1.4, json >=0.7 && <0.8,
+                   process >=1.2.0.0 && <1.3, text >=0.11.2.3 && <0.12,
+                   transformers >=0.3.0.0 && <0.4, xml-conduit >=1.1.0.9 && <1.2
+    exposed-modules: WidgetLibGenerator
+    exposed: True
     buildable: True
     hs-source-dirs: src
-    other-modules: MergerMain WidgetLibGenerator WidgetJSLibrary
-                   WidgetMerger WidgetFormatter Format WidgetParser Widget Merger
+    other-modules: WidgetParser WidgetFormatter MergerMain Widget
+                   WidgetJSLibrary Format WidgetMerger Paths_translato
+ 
+executable generateWidgetLibs
+    build-depends: MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
+                   base -any, containers >=0.5.0.0 && <0.6,
+                   directory >=1.2.0.1 && <1.3, filemanip >=0.3.6.2 && <0.4,
+                   filepath >=1.3.0.1 && <1.4, json >=0.7 && <0.8,
+                   process >=1.2.0.0 && <1.3, text >=0.11.2.3 && <0.12,
+                   transformers >=0.3.0.0 && <0.4, xml-conduit >=1.1.0.9 && <1.2
+    main-is: WidgetLibGeneratorMain.hs
+    buildable: True
+    hs-source-dirs: src
+    other-modules: WidgetParser WidgetFormatter MergerMain Widget
+                   WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable mergo
-    build-depends: containers >=0.5.0.0 && <0.6,
-                   text >=0.11.2.3 && <0.12, xml-conduit >=1.1.0.9 && <1.2,
-                   json >=0.7 && <0.8, filepath >=1.3.0.1 && <1.4,
-                   directory >=1.2.0.1 && <1.3, process >=1.2.0.0 && <1.3,
-                   QuickCheck -any, base -any
+    build-depends: MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
+                   base -any, containers >=0.5.0.0 && <0.6,
+                   directory >=1.2.0.1 && <1.3, filemanip >=0.3.6.2 && <0.4,
+                   filepath >=1.3.0.1 && <1.4, json >=0.7 && <0.8,
+                   process >=1.2.0.0 && <1.3, text >=0.11.2.3 && <0.12,
+                   transformers >=0.3.0.0 && <0.4, xml-conduit >=1.1.0.9 && <1.2
     main-is: Merger.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: MergerMain WidgetLibGenerator WidgetJSLibrary
-                   WidgetMerger WidgetFormatter Format WidgetParser Widget Merger
+    other-modules: WidgetParser WidgetFormatter MergerMain Widget
+                   WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
-executable generateWidgetLibs
-    build-depends: containers >=0.5.0.0 && <0.6,
-                   text >=0.11.2.3 && <0.12, xml-conduit >=1.1.0.9 && <1.2,
-                   json >=0.7 && <0.8, filepath >=1.3.0.1 && <1.4,
-                   directory >=1.2.0.1 && <1.3, process >=1.2.0.0 && <1.3,
-                   QuickCheck -any, base -any
-    main-is: WidgetLibGenerator.hs
+executable translato
+    build-depends: MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
+                   base -any, containers >=0.5.0.0 && <0.6,
+                   directory >=1.2.0.1 && <1.3, filemanip >=0.3.6.2 && <0.4,
+                   filepath >=1.3.0.1 && <1.4, json >=0.7 && <0.8,
+                   process >=1.2.0.0 && <1.3, text >=0.11.2.3 && <0.12,
+                   transformers >=0.3.0.0 && <0.4, xml-conduit >=1.1.0.9 && <1.2
+    main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: MergerMain WidgetLibGenerator WidgetJSLibrary
-                   WidgetMerger WidgetFormatter Format WidgetParser Widget Merger
+    other-modules: WidgetParser WidgetFormatter MergerMain Widget
+                   WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  

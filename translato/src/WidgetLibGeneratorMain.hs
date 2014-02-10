@@ -20,7 +20,7 @@ main = do
     contents <-
         sequence
             $ tupleSequence
-            $ map (id &&& getWidgetLibContent shimDir) widgetNames
+            $ map (id &&& getWidgetLibContent shimDir "") widgetNames
 
     forM contents $ \(widgetName, (maybeContent, maybeCSSContent)) -> do
         case maybeContent of

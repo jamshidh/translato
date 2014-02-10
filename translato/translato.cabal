@@ -4,12 +4,13 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 license-file: ""
-description:  
 data-files: config.spec reorganize.xsl widget2js.xsl
 data-dir: resources
  
 library
-    build-depends: MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
+    build-depends: resourcet >=0.4.9 && <0.5,
+                   conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
+                   MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
                    aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
                    containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
@@ -24,7 +25,9 @@ library
                    Widget WidgetJSLibrary Format WidgetMerger Paths_translato
  
 executable testTranslato
-    build-depends: MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
+    build-depends: resourcet >=0.4.9 && <0.5,
+                   conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
+                   MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
                    aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
                    containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
@@ -38,7 +41,9 @@ executable testTranslato
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable translato
-    build-depends: MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
+    build-depends: resourcet >=0.4.9 && <0.5,
+                   conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
+                   MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
                    aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
                    containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
@@ -52,7 +57,9 @@ executable translato
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable mergo
-    build-depends: MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
+    build-depends: resourcet >=0.4.9 && <0.5,
+                   conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
+                   MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
                    aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
                    containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
@@ -66,7 +73,9 @@ executable mergo
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable generateWidgetLibs
-    build-depends: MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
+    build-depends: resourcet >=0.4.9 && <0.5,
+                   conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
+                   MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
                    aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
                    containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,

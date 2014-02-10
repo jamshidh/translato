@@ -278,8 +278,10 @@ replaceSepBy (Option sq) = [Option $ sq >>= replaceSepBy]
 replaceSepBy x = [x]
 
 repeatWithSeparator::Int->Sequence->Sequence->Sequence
-repeatWithSeparator 0 sq sep = [Or [sq ++ [List 0 (sep ++ sq)], [FallBack]]]
-repeatWithSeparator minCount sq sep = sq ++ [List (minCount -1) (replaceSepBy =<< sep++sq)]
+repeatWithSeparator 0 sq sep = [Or [fixedSq ++ [List 0 (sep ++ fixedSq)], [FallBack]]]
+  where
+    fixedSq = replaceSepBy =<< sq
+repeatWithSeparator minCount sq sep = (replaceSepBy =<< sq) ++ [List (minCount -1) (replaceSepBy =<< sep++sq)]
 
 seq2Left::Grammar->Sequence->Sequence
 seq2Left g [Link linkName] = case M.lookup linkName (g^.classes) of

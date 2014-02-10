@@ -7,4 +7,5 @@ import Data.String
 import WidgetConfig
 
 main = do
-    putStrLn $ B.toString $ encode $ toJSON (WidgetConfig{filters=[UserAgent "qqqq"]})
+    undefined
+--    putStrLn $ B.toString $ encode $ toJSON (WidgetConfig{filters=[UserAgent "qqqq"]})

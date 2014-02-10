@@ -63,6 +63,7 @@ data Expression =
     TextMatch String (Maybe String) --The 'Maybe String' is only used for error reporting
     | WhiteSpace DefaultWS
     | Character CharSet (Maybe String) --The 'Maybe String' is only used for error reporting
+    | EOE
     | EOF
     | Or [Sequence]
     | List Int Sequence

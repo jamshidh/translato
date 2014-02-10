@@ -45,7 +45,8 @@ leftFactor' shouldExpandLinks sm (Or [sq]:rest) = leftFactor' shouldExpandLinks 
 leftFactor' shouldExpandLinks sm (Or items:rest) =
     orify (recombine shouldExpandLinks sm <$> sortAndGroupUsing factorClass (splitFirstTok <$> items)) ++ leftFactor' shouldExpandLinks sm rest
     where
-        factorClass fp = (firstTok fp, null $ outValue fp)  -- Used to fingerprint the token
+        factorClass fp = firstTok fp  -- Used to fingerprint the token
+--        factorClass fp = (firstTok fp, null $ outValue fp)  -- Used to fingerprint the token
 
 leftFactor' shouldExpandLinks sm (x:rest) = x:leftFactor' shouldExpandLinks sm rest
 leftFactor' _ _ [] = []
@@ -149,9 +150,16 @@ prepareForLeftFactor _ sq = sq
 
 
 
-
+--Note- The "Maybe" was for the case that an expression ended without expecting any characters.
+--This doesn't seem to be needed anymore....  Instead I return an [EOE] (which stands for "End Of Element").
+--This is a valid possibility, and just indicates that one of the options in the current item is that the
+--element has finished, and the only way to disambiguate is to compare the options with remaining characters
+--to characters needed after the element (if this is ambiguous, then you have a problem).
+--Since this still feels to be on shaky grounds (like everthing in this file module), I will leave
+--the Maybe in for now, as well as the check for a Maybe in getChainOfFirsts, but in the future, if this
+--seems to be working, feel free to turn the signature of getFirst to "Sequence->[Expression]"
 getFirst::Sequence->Maybe [Expression]
-getFirst [] = Nothing
+getFirst [] = Just [EOE]
 getFirst (Or seqs:rest) = concat <$> sequence (getFirst <$> (++ rest) <$> seqs)
 getFirst (expr@(Link _):_) = Just [expr]
 getFirst (expr@(TextMatch _ _):_) = Just [expr]

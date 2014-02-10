@@ -31,7 +31,13 @@ import ParseError
 
 import JDebug
 
-data TreeInfo = TreeInfo { tree::Tree Expression, firstMatchers::[Expression], allowsWhiteSpace::Bool, isFallBack::Bool } deriving (Eq, Show)
+data TreeInfo = 
+  TreeInfo { 
+    tree::Tree Expression, 
+    firstMatchers::[Expression], 
+    allowsWhiteSpace::Bool, 
+    isFallBack::Bool
+  } deriving (Eq, Show)
 
 getTreeInfos::Tree Expression->[TreeInfo]
 getTreeInfos t@
@@ -91,8 +97,7 @@ eCheck _ e =
 check::LString->TreeInfo->Bool
 check s treeInfo@TreeInfo{allowsWhiteSpace=True} | LS.null s =
     check s treeInfo{allowsWhiteSpace=False}
-check s treeInfo@TreeInfo{allowsWhiteSpace=True} | isSpace (LS.head s) =
-    check (LS.tail s) treeInfo
+check s treeInfo@TreeInfo{allowsWhiteSpace=True} | isSpace (LS.head s) = check (LS.tail s) treeInfo
 check s treeInfo@TreeInfo{allowsWhiteSpace=True} =
     check s treeInfo{allowsWhiteSpace=False}
 check s TreeInfo{firstMatchers=exps} = or (eCheck s <$> exps)
@@ -154,5 +159,6 @@ removeTextMatchSize = snd
 
 textMatchMatchSize::LS.LString->Expression->Int
 textMatchMatchSize s (TextMatch text _) | text `isPrefixTextMatch` LS.string s = length text
+textMatchMatchSize s EOF | null $ LS.string s = 1
 textMatchMatchSize _ _ = 0
 

@@ -11,7 +11,7 @@
     <xsl:copy-of select="code/text()" />
 
     <xsl:apply-templates select="event" />
-    
+
     window.addEventListener("load", function() {
  
       var elements = document.getElementsByTagName("<xsl:value-of select="$widgetName" />")

@@ -1,4 +1,5 @@
 
+import Control.Monad
 import Data.Functor
 import System.Directory
 import System.Environment
@@ -8,25 +9,25 @@ import Text.JSON
 
 import Paths_translato
 
+import WidgetLibGenerator
+
 main = do
     args <- getArgs
 
-    let [filename, version] =
+    let [filename, userAgent] =
             case args of
                 [f, v] -> [f, v]
                 x -> error ("Incorrect parameters passed to translato: " ++ show x)
 
-    shimDir <- ((</> "shims") . (</> "html5") . (</> "GlowApps")) <$> getHomeDirectory
+    shimDir <- (</> "GlowApps" </> "html5" </> "shims") <$> getHomeDirectory
 
     resourceDir <- getDataFileName ""
 
+    neededShimDirs <- getNeededShims userAgent shimDir
+
     translators <-
         map doXsltXform <$>
-            (filterExists
-                =<< map (</> "translate.xsl")
-                <$> map (shimDir </>)
-                <$> getDirectoryContents shimDir)
-
+            (filterM doesFileExist $ (</> "translate.xsl") <$> neededShimDirs)
     --putStrLn ("There are " ++ show (length translators) ++ " translators")
 
     --This chains together functions in a list [a, b, c, d]
@@ -40,14 +41,6 @@ main = do
         >>= (doXsltXform (resourceDir </> "reorganize.xsl"))
         >>= readProcess "parser" ["generate", "html5"]
         >>= putStrLn
-
-filterExists::[FilePath]->IO [FilePath]
-filterExists [] = return []
-filterExists (first:rest) = do
-    exists <- doesFileExist first
-    filteredRest <- filterExists rest
-    return $
-        if exists then first:filteredRest else filteredRest
 
 doXsltXform::FilePath->String->IO String
 doXsltXform xsltFilePath input = do

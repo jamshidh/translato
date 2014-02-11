@@ -13,6 +13,8 @@ ie=>ie {versionRange}?;
 mozilla=>mozilla {versionRange}?;
 webkit=>webkit {versionRange}?;
 
+allBrowsers=>\*;
+
 separator: '_, '
 
 ====[/browser]==============

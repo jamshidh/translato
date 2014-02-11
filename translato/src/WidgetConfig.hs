@@ -33,7 +33,11 @@ data WidgetConfig =
         browsers::[Browser]
     } deriving (Show)
 
-data Browser = IE VersionRange | Mozilla VersionRange | Webkit VersionRange deriving (Show)
+data Browser =
+    AllBrowsers
+        |IE VersionRange
+        | Mozilla VersionRange
+        | Webkit VersionRange deriving (Show)
 
 data VersionRange = AllVersions | Exact Version | LowerBound Version | UpperBound Version | Range Version Version deriving (Show)
 
@@ -50,7 +54,11 @@ parseBrowsers::Sink Event (Either SomeException) (Maybe [Browser])
 parseBrowsers = tagNoAttr "browsers" $ many parseBrowser
 
 parseBrowser::ConduitM Event o (Either SomeException) (Maybe Browser)
-parseBrowser = choose [parseIE, parseMozilla, parseWebkit]
+parseBrowser = choose [parseAllBrowsers, parseIE, parseMozilla, parseWebkit]
+
+parseAllBrowsers::ConduitM Event o (Either SomeException) (Maybe Browser)
+parseAllBrowsers = tagNoAttr "allBrowsers" $ do
+    return AllBrowsers
 
 parseIE::ConduitM Event o (Either SomeException) (Maybe Browser)
 parseIE = tagNoAttr "ie" $ do

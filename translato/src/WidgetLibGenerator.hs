@@ -3,6 +3,7 @@
 
 module WidgetLibGenerator (
     getWidgetNames,
+    getNeededShims,
     getWidgetLibContent
 ) where
 
@@ -41,7 +42,7 @@ versionInRange v1 (Exact v2) = v1 == v2
 versionInRange v1 (LowerBound v2) = v1 >= v2
 versionInRange v1 (UpperBound v2) = v1 <= v2
 versionInRange v1 (Range v2 v3) = v1 >= v2 && v1 <= v3
-
+versionInRange _ AllVersions = True
 
 uaResultToVersion::UAResult->Version
 uaResultToVersion UAResult{uarV1=Just v1, uarV2=Just v2, uarV3=Just v3} =
@@ -54,16 +55,19 @@ uaResultToVersion uaResult =
     error ("Error: An odd parameter was passed to uaResultToVersion: " ++ show uaResult)
 
 uaInBrowserRange::UAResult->Browser->Bool
+uaInBrowserRange _ AllBrowsers = True
 uaInBrowserRange uaResult@UAResult{uarFamily="Firefox"} (Mozilla versionRange) =
     versionInRange (uaResultToVersion uaResult) versionRange
 uaInBrowserRange uaResult@UAResult{uarFamily="Chrome"} (Webkit versionRange) =
+    versionInRange (uaResultToVersion uaResult) versionRange
+uaInBrowserRange uaResult@UAResult{uarFamily="IE"} (IE versionRange) =
     versionInRange (uaResultToVersion uaResult) versionRange
 uaInBrowserRange _ _ = False
 
 isShimEligible::UAResult->FilePath->IO Bool
 isShimEligible userAgent shimFilePath = do
     config <- getConfigFile shimFilePath
-    putStrLn $ show config
+    --putStrLn $ show config
     return $ or $ uaInBrowserRange userAgent <$> browsers config
 
 getWidgetNames::FilePath->IO [String]
@@ -74,22 +78,29 @@ getWidgetNames shimDir = do
 getDirectoryFilePathContents::FilePath->IO [FilePath]
 getDirectoryFilePathContents x = map (x </>) <$> getDirectoryContents x
 
-getWidgetLibContent::FilePath->String->String->IO (Maybe String, Maybe String)
-getWidgetLibContent shimDir userAgentString widgetName = do
+getNeededShims::String->FilePath->IO [FilePath]
+getNeededShims userAgentString shimDir = do
     uaParser <- loadUAParser
     let Just userAgent = parseUA uaParser $ B.fromString userAgentString
-    neededShims <- filterM (isShimEligible userAgent) =<< getShimNames shimDir
+    filterM (isShimEligible userAgent) =<< getShimNames shimDir
+
+getWidgetLibContent::FilePath->String->String->IO (Maybe String, Maybe String)
+getWidgetLibContent shimDir userAgentString widgetName = do
+    neededShims <- getNeededShims userAgentString shimDir
     putStrLn ("Needed shims: " ++ show (takeBaseName <$> neededShims))
     widgetFiles <-
-        filter ((".widget" ==) . takeExtension)
+        filter ((widgetName ++ ".widget" ==) . takeFileName)
             <$> concat
             <$> (sequence $ getDirectoryFilePathContents <$> neededShims)
     trace ("widgetFiles: " ++ show widgetFiles) $ return ()
-    contents <- sequence $ XML.readFile XML.def <$> fromString <$> widgetFiles
-    let widget = fold $ reverse $ xml2Widget <$> XML.documentRoot <$> contents
-    content <- widget2js widgetName $ format $ widget
-    let cssContent = style widget
-    return (if length widgetFiles == 0 then Nothing else Just content, cssContent)
+    case widgetFiles of
+        [] -> return (Nothing, Nothing)
+        _ -> do
+            contents <- sequence $ XML.readFile XML.def <$> fromString <$> widgetFiles
+            let widget = fold $ reverse $ xml2Widget <$> XML.documentRoot <$> contents
+            content <- widget2js widgetName $ format $ widget
+            let cssContent = style widget
+            return (if length widgetFiles == 0 then Nothing else Just content, cssContent)
 
 
 

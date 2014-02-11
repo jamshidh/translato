@@ -8,7 +8,8 @@ data-files: config.spec reorganize.xsl widget2js.xsl
 data-dir: resources
  
 library
-    build-depends: resourcet >=0.4.9 && <0.5,
+    build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
+                   ua-parser >=0.3 && <0.4, resourcet >=0.4.9 && <0.5,
                    conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
                    MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
                    aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
@@ -25,7 +26,8 @@ library
                    Widget WidgetJSLibrary Format WidgetMerger Paths_translato
  
 executable testTranslato
-    build-depends: resourcet >=0.4.9 && <0.5,
+    build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
+                   ua-parser >=0.3 && <0.4, resourcet >=0.4.9 && <0.5,
                    conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
                    MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
                    aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
@@ -41,7 +43,8 @@ executable testTranslato
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable translato
-    build-depends: resourcet >=0.4.9 && <0.5,
+    build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
+                   ua-parser >=0.3 && <0.4, resourcet >=0.4.9 && <0.5,
                    conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
                    MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
                    aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
@@ -57,7 +60,8 @@ executable translato
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable mergo
-    build-depends: resourcet >=0.4.9 && <0.5,
+    build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
+                   ua-parser >=0.3 && <0.4, resourcet >=0.4.9 && <0.5,
                    conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
                    MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
                    aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
@@ -73,7 +77,8 @@ executable mergo
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable generateWidgetLibs
-    build-depends: resourcet >=0.4.9 && <0.5,
+    build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
+                   ua-parser >=0.3 && <0.4, resourcet >=0.4.9 && <0.5,
                    conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
                    MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
                    aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,

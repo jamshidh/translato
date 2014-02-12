@@ -130,25 +130,30 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
                     [item] -> Right item
                     _ -> error "Multiple fallback cases encountered"
                 [item] -> Right (tree item)
-                items ->  jtrace ("=============\n\nmultiple things matched in chooseOne:\n\n      "
+                items ->  jtrace ("===================\n\nmultiple things matched in chooseOne:\n\n      "
                                   -- ++ (safeDrawEForest $ tree <$> items) ++ "\n"
                                   ++ intercalate "\n        or\n      " (treeItem2HumanReadableSummary <$> items) ++ "\n\n"
-                                  ++ "input = \"" ++ take 20 (LS.string s) ++ "....\"\n\n"
+                                  ++ "-------------\n\n"
+                                  ++ "input = " ++ shortShowString (LS.string s) ++ "\n\n"
                                   ++ "===================\n")
                                 $ Left AmbiguityError{ ranges=[singleCharacterRangeAt s] }
         [(_, item)] -> Right (tree item)
         items -> case (check s) `filter` ((not . isFallBack) `filter` (snd <$> items)) of
                     [item] -> Right (tree item)
-                    _ -> jtrace ("multiple TextMatches matched in chooseOne:"
+                    _ -> jtrace ("==================\n\nmultiple TextMatches matched in chooseOne:\n\n      "
                             -- ++ safeDrawEForest ((tree . removeTextMatchSize) <$> items) ++ "\n"
-                            ++ "options are " ++ show items ++ "\n"
-                            ++ "s = " ++ LS.string s)
+                            ++ intercalate "\n        or\n      " (treeItem2HumanReadableSummary <$> snd <$> items) ++ "\n\n"
+                            ++ "-------------\n\n"
+                            ++ "input = " ++ shortShowString (LS.string s) ++ "\n\n"
+                            ++ "==================\n")
                             $ Left AmbiguityError{ ranges=[singleCharacterRangeAt s] }
-
         where
---                theMaxTextMatchSize = trees
                 treeInfos::[TreeInfo]
                 treeInfos = trees >>= getTreeInfos
+
+shortShowString::String->String
+shortShowString s | length s <= 20 = show s
+shortShowString s = "\"" ++ take 20 s ++ "....\""
 
 treeItem2HumanReadableSummary::TreeInfo->String
 treeItem2HumanReadableSummary TreeInfo{tagList=tags, firstMatchers=matchers} = 

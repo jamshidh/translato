@@ -21,9 +21,11 @@ import Prelude hiding (lookup)
 
 import Data.Char
 import Data.Functor
+import Data.List
 import Data.Tree
 
 import CharSet
+import EnhancedString
 import Grammar
 import qualified LString as LS
 import LString (LString)
@@ -34,6 +36,7 @@ import JDebug
 data TreeInfo = 
   TreeInfo { 
     tree::Tree Expression, 
+    tagList::[String],
     firstMatchers::[Expression], 
     allowsWhiteSpace::Bool, 
     isFallBack::Bool
@@ -46,31 +49,35 @@ getTreeInfos t@
             subForest=[Node{rootLabel=TextMatch text2 _}]}]} =
     [TreeInfo {
         tree=t,
+        tagList=[],
         firstMatchers=[TextMatch (text1++" "++text2) n],
         allowsWhiteSpace=False, isFallBack=False
     }]
 getTreeInfos t@Node{rootLabel=TextMatch text n} =
     [TreeInfo {
         tree=t,
+        tagList=[],
         firstMatchers=[TextMatch text n],
         allowsWhiteSpace=False, isFallBack=False
     }]
 getTreeInfos t@Node{rootLabel=Character charset n} =
     [TreeInfo {
         tree=t,
+        tagList=[],
         firstMatchers=[Character charset n],
         allowsWhiteSpace=False, isFallBack=False
     }]
 getTreeInfos t@Node{rootLabel=EOF} =
     [TreeInfo {
         tree=t,
+        tagList=[],
         firstMatchers=[EOF],
         allowsWhiteSpace=False, isFallBack=False
     }]
 getTreeInfos t@Node{rootLabel=FallBack, subForest=rest} =
     (\treeInfo->treeInfo{ tree=t, isFallBack=True }) <$> (rest >>= getTreeInfos)
-getTreeInfos t@Node{rootLabel=Out _, subForest=rest} =
-    (\treeInfo->treeInfo{ tree=t }) <$> (rest >>= getTreeInfos)
+getTreeInfos t@Node{rootLabel=Out value, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t, tagList=[tagName|EStart tagName _<-value] ++ tagList treeInfo }) <$> (rest >>= getTreeInfos)
 getTreeInfos t@Node{rootLabel=WhiteSpace _, subForest=rest} =
     (\treeInfo->treeInfo{ tree=t, allowsWhiteSpace=True }) <$> (rest >>= getTreeInfos)
 getTreeInfos theTree =
@@ -91,8 +98,8 @@ eCheck s (TextMatch text _) = text `isPrefixTextMatch` LS.string s
 eCheck s (Character _ _) | LS.null s = False
 eCheck s (Character charset _) = LS.head s `isIn` charset
 eCheck s EOF = LS.null s
-eCheck _ e =
-    error ("Missing case in function 'eCheck': " ++ formatExpression e ++ ", ")
+eCheck _ expr =
+    error ("Missing case in function 'eCheck': " ++ formatExpression expr ++ ", ")
 
 check::LString->TreeInfo->Bool
 check s treeInfo@TreeInfo{allowsWhiteSpace=True} | LS.null s =
@@ -119,26 +126,33 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
                             ranges=[singleCharacterRangeAt s]}
                             where
                                 formatItem::Bool->Expression->String
-                                formatItem w e = (if w then "_ " else "") ++ formatExpression e
+                                formatItem w expr = (if w then "_ " else "") ++ formatExpression expr
                     [item] -> Right item
                     _ -> error "Multiple fallback cases encountered"
                 [item] -> Right (tree item)
-                items ->  jtrace ("multiple things matched in chooseOne:"
-                                ++ (safeDrawEForest $ tree <$> items)
-                                ++ "\ns = " ++ LS.string s)
+                items ->  jtrace ("=============\n\nmultiple things matched in chooseOne:\n\n      "
+                                  -- ++ (safeDrawEForest $ tree <$> items) ++ "\n"
+                                  ++ intercalate "\n        or\n      " (treeItem2HumanReadableSummary <$> items) ++ "\n\n"
+                                  ++ "input = \"" ++ take 20 (LS.string s) ++ "....\"\n\n"
+                                  ++ "===================\n")
                                 $ Left AmbiguityError{ ranges=[singleCharacterRangeAt s] }
         [(_, item)] -> Right (tree item)
         items -> case (check s) `filter` ((not . isFallBack) `filter` (snd <$> items)) of
                     [item] -> Right (tree item)
                     _ -> jtrace ("multiple TextMatches matched in chooseOne:"
-                            ++ safeDrawEForest ((tree . removeTextMatchSize) <$> items)
-                            ++ "\ns = " ++ LS.string s)
+                            -- ++ safeDrawEForest ((tree . removeTextMatchSize) <$> items) ++ "\n"
+                            ++ "options are " ++ show items ++ "\n"
+                            ++ "s = " ++ LS.string s)
                             $ Left AmbiguityError{ ranges=[singleCharacterRangeAt s] }
 
         where
 --                theMaxTextMatchSize = trees
                 treeInfos::[TreeInfo]
                 treeInfos = trees >>= getTreeInfos
+
+treeItem2HumanReadableSummary::TreeInfo->String
+treeItem2HumanReadableSummary TreeInfo{tagList=tags, firstMatchers=matchers} = 
+  (concat ((++ ">") <$> ("<" ++) <$> tags)) ++ (format matchers)
 
 maximumsBy::(Eq a)=>(Ord b)=>(a->b)->[a]->[a]
 maximumsBy _ [] = []

@@ -1,17 +1,4 @@
 {-# OPTIONS_GHC -Wall #-}
------------------------------------------------------------------------------
---
--- Module      :  GrammarTools
--- Copyright   :
--- License     :  AllRightsReserved
---
--- Maintainer  :
--- Stability   :
--- Portability :
---
--- |
---
------------------------------------------------------------------------------
 
 module GrammarTools (
     isA,
@@ -30,10 +17,6 @@ import Control.Arrow hiding (left, right, (+++))
 import Control.Lens
 import Data.Functor
 import qualified Data.Map as M hiding (filter, null, map, (\\))
-import qualified Data.Text.Lazy as TL
-import qualified Data.Text.Lazy.IO as TL
-import System.IO
-import Text.ParserCombinators.Parsec as P hiding (try)
 import Text.Regex.Posix
 
 import EnhancedString
@@ -331,14 +314,8 @@ addTabs g = modifySeqsInGrammar addTabsToSeq g
 
 -----------------------
 
-loadUnsimplifiedGrammar::String->IO Grammar
-loadUnsimplifiedGrammar fileName =
-    do
-        specHandle<-openFile fileName ReadMode
-        grammarFile<-TL.hGetContents specHandle
-        case P.parse parseGrammar "grammar" (TL.unpack grammarFile) of
-            Left err -> error ("Error parsing grammar: " ++ show err)
-            Right grammar -> return grammar
+loadUnsimplifiedGrammar::FilePath->IO Grammar
+loadUnsimplifiedGrammar filepath = parseFullGrammar filepath
 
 loadGrammarAndSimplifyForParse::String->IO Grammar
 loadGrammarAndSimplifyForParse fileName = do

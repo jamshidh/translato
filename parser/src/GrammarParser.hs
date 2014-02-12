@@ -1,19 +1,7 @@
------------------------------------------------------------------------------
---
--- traceModule      :  GrammarParser
--- Copyright   :
--- License     :  AllRightsReserved
---
--- Maintainer  :
--- Stability   :
--- Portability :
---
--- |
---
------------------------------------------------------------------------------
+-- {-# OPTIONS_GHC -Wall #-}
 
 module GrammarParser (
-    parseGrammar,
+    parseFullGrammar,
     Grammar(Grammar),
     RuleName,
     Sequence
@@ -26,9 +14,13 @@ import Data.Functor
 import Data.List
 import Data.Map as M hiding (filter, map, foldl)
 import Data.Maybe
+import qualified Data.Set as S
+import System.FilePath
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr hiding (Operator)
 import qualified Data.Set as Set
+
+import Paths_parser
 
 import Colors hiding (reverse)
 import CharSet
@@ -40,27 +32,71 @@ import JDebug
 --import Debug.Trace
 
 
+--parses grammar, then parses and merges in all the recursive subgrammars
+parseFullGrammar::String->IO Grammar
+parseFullGrammar specFile = do
+  specDir <-
+    case takeDirectory specFile of
+      "" -> getDataFileName "specs"
+      x -> return x
+  
+  builtinsFilePath <- getDataFileName "builtins.spec"
+  
+  foldl1 mergeGrammar 
+    <$> parseFullGrammar' specDir S.empty [takeFileName specFile, builtinsFilePath]
+  
+  where
+    parseFullGrammar'::FilePath->S.Set String->[String]->IO [Grammar]
+    parseFullGrammar' _ _ [] = return []
+    parseFullGrammar' specDir obtained (needed:remainingNeeded) | needed `S.member` obtained = 
+      parseFullGrammar' specDir obtained remainingNeeded
+    parseFullGrammar' specDir obtained (needed:remainingNeeded) = do
+      (grammar, subGrammars) <- loadGrammarAndSubGrammarNames $ specDir </> needed
+      remaining <- 
+        parseFullGrammar' specDir (S.insert needed obtained) (remainingNeeded ++ ((++ ".spec") <$> subGrammars))
+      return (grammar:remaining)
 
+loadGrammarAndSubGrammarNames::FilePath->IO (Grammar, [String])
+loadGrammarAndSubGrammarNames specFile = do
+  maybeResult <-
+    parse parseGrammarAndSubGrammarNames specFile <$> readFile specFile
+  case maybeResult of
+    Left err -> error ("Error parsing grammar: " ++ show err)
+    Right x -> return x
+    
 ---------- Convert Lists to Maps (ie- create the Grammar from the parsed data)
 
-parseGrammar =
+data ClassOrSubGrammar = AClass Class | SomeSubGrammars [String]
+
+parseGrammarAndSubGrammarNames::Parser (Grammar, [String])
+parseGrammarAndSubGrammarNames =
     do
         spaces
-        classList<-endBy parseClass spaces
+        classesAndSubGrammars<-endBy parseClassOrSubGrammar spaces
         spaces
         eof
 
+        let classList = [c|AClass c <- classesAndSubGrammars]
         let mainClassName =
                 case classList of
                     (cl:_) -> cl^.className
                     _ -> error "Grammar contains no classes"
 
-        return (Grammar
-                    mainClassName
-                    (M.fromListWithKey (\k _ _ -> error ("The grammar has a repeat element: " ++ k)) (((^.className)&&&id) <$> classList)))
+        return 
+          (
+            Grammar
+              mainClassName
+              (M.fromListWithKey 
+                  (const . const . error . ("The grammar has a repeat element: " ++)) 
+                  (((^.className)&&&id) <$> classList)),
+            concat [subGrammars|SomeSubGrammars subGrammars<-classesAndSubGrammars]
+          )
 
 
-parseClass = parseFullClass <|> parseSimpleClass
+parseClassOrSubGrammar = 
+  try (AClass <$> parseFullClass) 
+  <|> try (AClass <$> parseSimpleClass)
+  <|> (SomeSubGrammars <$> parseSubGrammars)
 
 parseSimpleClass =
     do
@@ -76,6 +112,23 @@ data ClassItem =
     | LeftItem Sequence
     | RightItem Sequence
 
+parseSubGrammars::Parser [String]
+parseSubGrammars =
+    do
+        string "====<subgrammars>" >> many (char '=')
+        spaces
+        grammarNames <- endBy parseSubGrammarFilePath spaces
+        string "====</subgrammars>" >> many (char '=')
+        return grammarNames
+
+parseSubGrammarFilePath::Parser String
+parseSubGrammarFilePath = do
+  string "<{"
+  grammarName <- ident
+  string "}>"
+  return grammarName
+  
+parseFullClass::Parser Class
 parseFullClass =
     do
         string "====["
@@ -331,6 +384,7 @@ matchSimpleCharsetChar =
             )
         return (Character (CharSet False [chartype]) Nothing)
 
+matchLink::Parser Expression
 matchLink =
     do
         char '{'
@@ -338,6 +392,7 @@ matchLink =
         char '}'
         return (Link val)
 
+matchText::Parser String
 matchText =
     do
         text<-many1 (noneOf ";*()[]+{}@?\\"
@@ -360,7 +415,7 @@ string2CharTypes ('\\':'d':rest) = Digit:string2CharTypes rest
 string2CharTypes ('\\':'n':rest) = SingleChar '\n':string2CharTypes rest
 string2CharTypes ('\\':'r':rest) = SingleChar '\r':string2CharTypes rest
 string2CharTypes ('\\':'t':rest) = SingleChar '\t':string2CharTypes rest
-string2CharTypes ('\\':c:rest) = error ("Missing escape char in string2CharTypes " ++ [c])
+string2CharTypes ('\\':c:_) = error ("Missing escape char in string2CharTypes " ++ [c])
 string2CharTypes (c:rest) = SingleChar c:string2CharTypes rest
 string2CharTypes [] = []
 
@@ -372,90 +427,3 @@ unescape 'r' = SingleChar '\r'
 unescape 't' = SingleChar '\t'
 unescape '-' = SingleChar '-'
 unescape c = error ("Missing escape char in string2CharTypes " ++ [c])
-
-
-{--matchWhiteSpaceAndBracket::Parser Sequence
-matchWhiteSpaceAndBracket =
-    do
-        whitespace <- try (many1 space) <|> (string "_")
-        val<-matchBracket
-        return (
-            let (leftWhitespace, rightWhitespace) = breakRight '\n' whitespace in
-                if (elem '\n' whitespace) &&
-                    (rightWhitespace /= "") &&
-                    isOnlyMadeOfSpaces rightWhitespace then [WhiteSpace leftWhitespace, Tab rightWhitespace val]
-                        else (WhiteSpace whitespace):val)--}
-
-isOnlyMadeOfSpaces::String->Bool
-isOnlyMadeOfSpaces [] = True
-isOnlyMadeOfSpaces (' ':rest) = isOnlyMadeOfSpaces rest
-isOnlyMadeOfSpaces (c:rest) = False
-
-breakRight::(Eq a)=>a->[a]->([a], [a])
-breakRight char string = (\(x, y) -> (reverse y, reverse x)) (break (char ==) (reverse string))
-
-{--matchBracketedSequence::Parser Sequence
-matchBracketedSequence =
-            try matchPreDefinedRule <|>
-            try matchList1 <|>
-            try matchList <|>
-            try matchAnyCharBut <|>
-            try matchReparse <|>
-            try matchLink <|>
-            try parseQuote--}
-
-{--matchList::Parser Sequence
-matchList =
-    do
-        string "("
-        spaces
-        e<-matchBracketedSequence
-        spaces
-        string ")*"
-        return ([List 0 e])
-
-matchList1::Parser Sequence
-matchList1 =
-    do
-        string "("
-        spaces
-        e<-matchBracketedSequence
-        spaces
-        string ")+"
-        return ([List 1 e])--}
-
-{--matchAnyCharBut =
-    do
-        string "[^"
-        e<-many1 (noneOf "]")
-        string "]"
-        return (AnyCharBut e)--}
-
-{--matchReparse::Parser Sequence
-matchReparse =
-    do
-        string "reparse("
-        spaces
-        secondExpression<-matchBracketedSequence
-        spaces
-        char ','
-        spaces
-        firstExpression<-matchBracketedSequence
-        spaces
-        string ")"
-        return ([Reparse secondExpression firstExpression])--}
-
-matchConversionText =
-    do
-        text<-many1 (noneOf "-{}@\\ \t\n\r_" <|>
-            try (string "\\\\" >> return '\\') <|>
-            try (string "\\{" >> return '{') <|>
-            try (string "\\}" >> return '}') <|>
-            try (string "\\@" >> return '@'))
-        return (TextMatch text)
-
-{--matchWhiteSpace =
-    do
-        formatDefault<-(many1 space) <|> (string "_")
-        return (WhiteSpace formatDefault)--}
-

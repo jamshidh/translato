@@ -27,6 +27,7 @@ module Grammar (
     Rule(Rule),
     HasRule(..),
     Grammar(Grammar),
+    mergeGrammar,
     main,
     classes,
     formatExpression,
@@ -89,6 +90,7 @@ formatExpression = formatExpression' 0
 formatExpression'::Int->Expression->String
 formatExpression' _ (Character charset _) = formatCharSet charset
 formatExpression' _ EOF = "EOF"
+formatExpression' _ EOE = "EOE"
 formatExpression' _ FallBack = "FallBack"
 formatExpression' level (List minCount expr) = "list" ++ (if (minCount > 0) then show minCount else "") ++ "(" ++ formatSequence' level expr ++ ")"
 formatExpression' _ (Link linkName) = underline $ magenta linkName
@@ -176,6 +178,13 @@ data Grammar = Grammar { _main::String
                        } deriving (Show)
 
 $(makeLenses ''Grammar)
+
+mergeGrammar::Grammar->Grammar->Grammar
+mergeGrammar g1 g2 = 
+  classes %~ (unionWithKey (\k _ _ -> error ("repeated classname in grammar: " ++ k)) (g2^.classes)) $ g1
+
+
+
 
 parents::Grammar->Class->[Class]
 parents g cl = fromJust <$> (`lookup` (g^.classes)) <$> cl^.parentNames

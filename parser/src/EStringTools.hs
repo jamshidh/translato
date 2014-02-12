@@ -95,7 +95,7 @@ cleanUpAfterError s = cleanUpAfterError' s ([], False)
             [c] ++ if inValue then [VEnd] else [] ++ (EEnd <$> tagStack)
         cleanUpAfterError' (c:rest) (tagStack, inValue) =
             c:cleanUpAfterError' rest (tagStack, inValue)
-        cleanUpAfterError' x _ = error ("Missing case in cleanUpAfterError: " ++ show x)
+        --cleanUpAfterError' x _ = error ("Missing case in cleanUpAfterError: " ++ show x)
 
 
 checkForVarConsistency::[M.Map String (Maybe String, LS.LString)]->EString->EString

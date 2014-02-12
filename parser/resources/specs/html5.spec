@@ -26,7 +26,7 @@ head=>
 
 body=>
 <body>
-  {widget}*
+  {bodyNode}*
 </body>
 ;
 
@@ -51,23 +51,29 @@ style=>
 separator: '\n'
 ====[/headElements]==============
 
-
-====[widget:script]========
+====[bodyNode:widget]========
 
 text => {word}+;
 
+separator: '\n'
+
+====[/bodyNode]==============
+
+
+====[widget:script]========
+
 button=>
-<button_{attribute}*_>{widget}*</button>
+<button_{attribute}*_>{bodyNode}*</button>
 ;
 
 code=>
-<code>{widget}*</code>
+<code>{bodyNode}*</code>
 ;
 
 details=>
 <details_{attribute}*_>
   {summary}
-  {widget}*
+  {bodyNode}*
 </details>
 ;
 
@@ -80,16 +86,16 @@ dl=>
 ;
 
 h1=>
-<h1_{attribute}*_>{widget}*</h1>
+<h1_{attribute}*_>{bodyNode}*</h1>
 ;
 
 progress=>
-<progress_{attribute}*_>{widget}*</progress>
+<progress_{attribute}*_>{bodyNode}*</progress>
 ;
 
 section=>
 <section_{attribute}*_>
-  {widget}*
+  {bodyNode}*
 </section>
 ;
 
@@ -97,17 +103,17 @@ separator: '\n'
 ====[/widget]==============
 
 dt=>
-<dt>{widget}*</dt>
+<dt>{bodyNode}*</dt>
 ;
 
 dd=>
-<dd>{widget}*</dd>
+<dd>{bodyNode}*</dd>
 ;
 
 
 summary=>
 <summary_{attribute}*_>
-  {widget}*
+  {bodyNode}*
 </summary>
 ;
 

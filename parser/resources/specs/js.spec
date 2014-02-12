@@ -5,6 +5,10 @@ jsFile =>
 
 ;
 
+====<subgrammars>===============
+<{html5}>
+====</subgrammars>==============
+
 ====[parameter]===============
 
 parameter =>@value;
@@ -75,7 +79,7 @@ array => \[_{expression}*_\];
 
 object => \{_{field}*_\};
 
-#embeddedElement => {element};
+embeddedElement => {widget};
 
 operators: ' == ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '*' ' / ' ' + ' '-'
 

@@ -110,6 +110,9 @@ check s treeInfo@TreeInfo{allowsWhiteSpace=True} =
 check s TreeInfo{firstMatchers=exps} = or (eCheck s <$> exps)
 --check s (FallBack, _, _) = False
 
+checkTree::LString->Tree Expression->Bool
+checkTree s tree = or $ check s <$> getTreeInfos tree
+
 chooseOne::Forest Expression->LString->Either ParseError (Tree Expression)
 chooseOne [theTree] _ = Right theTree
 chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length trees)) $
@@ -120,7 +123,7 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
     --jtrace (show $ fst <$> addTextMatchSize s <$> treeInfos) $
     case (maximumsBy fst ((filter ((/= 0) . fst)) (addTextMatchSize s <$> treeInfos))) of
         [] -> case (check s) `filter` ((not . isFallBack) `filter` treeInfos) of
-                [] -> case filter ((== FallBack) . rootLabel) trees of
+                [] -> case checkTree s `filter` (((== FallBack) . rootLabel) `filter` trees) of
                     [] -> Left ExpectationError{
                             expected=treeInfos >>= (\TreeInfo { allowsWhiteSpace=w, firstMatchers=exps } -> formatItem w <$> exps),
                             ranges=[singleCharacterRangeAt s]}

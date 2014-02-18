@@ -81,7 +81,10 @@ getDirectoryFilePathContents x = map (x </>) <$> getDirectoryContents x
 getNeededShims::String->FilePath->IO [FilePath]
 getNeededShims userAgentString shimDir = do
     uaParser <- loadUAParser
-    let Just userAgent = parseUA uaParser $ B.fromString userAgentString
+    let userAgent = 
+          case parseUA uaParser $ B.fromString userAgentString of
+            Just x -> x
+            Nothing -> error $ "Malformed userAgent: " ++ userAgentString
     filterM (isShimEligible userAgent) =<< getShimNames shimDir
 
 getWidgetLibContent::FilePath->String->String->IO (Maybe String, Maybe String)

@@ -1,0 +1,6 @@
+
+while true
+do
+	inotifywait -e modify parser.cabal src/*.hs
+	cabal install
+done

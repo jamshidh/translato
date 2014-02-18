@@ -21,7 +21,8 @@ library
                    transformers -any, utf8-string -any, xml-conduit -any
     exposed-modules: ArgOpts CharSet Colors EStringTools EnhancedString
                      Grammar GrammarParser GrammarTools LString LeftFactoring Lookahead
-                     OperatorNames ParseError Parser SequenceMap TreeTools Paths_parser
+                     OperatorNames ParseError Parser SequenceMap SequenceTools TreeTools 
+                     Paths_parser
     exposed: True
     buildable: True
     cpp-options: -DMAIN_FUNCTION=testMain
@@ -43,17 +44,4 @@ executable parser
                    Editor2 FileEditView Lookahead Format LString Main GrammarParser
                    ParseError EnhancedString EStringTools Shower CharSet GValue
                    Generator ParseElements LeftFactoring GrammarTools TreeTools
- 
-test-suite test-parser
-    build-depends: DOM -any, base -any, bindings-gobject -any,
-                   bytestring -any, case-insensitive -any, containers -any,
-                   directory -any, fgl -any, field-marshal -any, filepath -any,
-                   glib -any, gtk -any, lens -any, missing-foreign -any, mtl -any,
-                   parsec -any, regex-compat -any, regex-posix -any,
-                   system-filepath -any, template-haskell -any, text -any,
-                   transformers -any, utf8-string -any, xml-conduit -any
-    type: exitcode-stdio-1.0
-    main-is: Main.hs
-    buildable: True
-    cpp-options: -DMAIN_FUNCTION=testMain
-    hs-source-dirs: src
+                   SequenceTools

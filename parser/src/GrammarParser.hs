@@ -32,28 +32,38 @@ import JDebug
 --import Debug.Trace
 
 
+specNameToSpecFile::FilePath->SpecName->IO FilePath
+specNameToSpecFile baseDir specName = do
+  if elem '.' specName || elem '/' specName
+    then
+    return $ baseDir </> specName
+    else do
+    specDir <- getDataFileName "specs"
+    return $ specDir </> specName ++ ".spec"
+
 --parses grammar, then parses and merges in all the recursive subgrammars
-parseFullGrammar::String->IO Grammar
-parseFullGrammar specFile = do
-  specDir <-
-    case takeDirectory specFile of
-      "" -> getDataFileName "specs"
-      x -> return x
-  
+parseFullGrammar::SpecName->IO Grammar
+parseFullGrammar specName = do
+  let baseDir = takeDirectory specName
+  specFile <- specNameToSpecFile baseDir specName
   builtinsFilePath <- getDataFileName "builtins.spec"
   
   foldl1 mergeGrammar 
-    <$> parseFullGrammar' specDir S.empty [takeFileName specFile, builtinsFilePath]
+    <$> parseFullGrammar' baseDir S.empty [specFile, builtinsFilePath]
   
   where
     parseFullGrammar'::FilePath->S.Set String->[String]->IO [Grammar]
     parseFullGrammar' _ _ [] = return []
-    parseFullGrammar' specDir obtained (needed:remainingNeeded) | needed `S.member` obtained = 
-      parseFullGrammar' specDir obtained remainingNeeded
-    parseFullGrammar' specDir obtained (needed:remainingNeeded) = do
-      (grammar, subGrammars) <- loadGrammarAndSubGrammarNames $ specDir </> needed
+    parseFullGrammar' baseDir obtained (needed:remainingNeeded) | needed `S.member` obtained = 
+      parseFullGrammar' baseDir obtained remainingNeeded
+    parseFullGrammar' baseDir obtained (needed:remainingNeeded) = do
+      (grammar, subGrammars) <- loadGrammarAndSubGrammarNames $ baseDir </> needed
+      subGrammarFiles <- sequence $ specNameToSpecFile baseDir <$> subGrammars
       remaining <- 
-        parseFullGrammar' specDir (S.insert needed obtained) (remainingNeeded ++ ((++ ".spec") <$> subGrammars))
+        parseFullGrammar' 
+            baseDir 
+            (S.insert needed obtained) 
+            (remainingNeeded ++ subGrammarFiles)
       return (grammar:remaining)
 
 loadGrammarAndSubGrammarNames::FilePath->IO (Grammar, [String])

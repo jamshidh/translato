@@ -17,8 +17,9 @@ library
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
                    json >=0.7 && <0.8, parser -any, process >=1.2.0.0 && <1.3,
                    text >=0.11.2.3 && <0.12, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit >=1.1.0.9 && <1.2
-    exposed-modules: WidgetLibGenerator
+                   utf8-string >=0.3.7 && <0.4, xml-conduit >=1.1.0.9 && <1.2,
+                   parser -any
+    exposed-modules: WidgetLibGenerator Translator
     exposed: True
     buildable: True
     hs-source-dirs: src
@@ -40,6 +41,7 @@ executable testTranslato
     buildable: True
     hs-source-dirs: src
     other-modules: WidgetParser WidgetFormatter WidgetConfig MergerMain
+                   Translator
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable translato
@@ -57,6 +59,7 @@ executable translato
     buildable: True
     hs-source-dirs: src
     other-modules: WidgetParser WidgetFormatter WidgetConfig MergerMain
+                   Translator
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable mergo
@@ -74,6 +77,7 @@ executable mergo
     buildable: True
     hs-source-dirs: src
     other-modules: WidgetParser WidgetFormatter WidgetConfig MergerMain
+                   Translator
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable generateWidgetLibs
@@ -91,5 +95,6 @@ executable generateWidgetLibs
     buildable: True
     hs-source-dirs: src
     other-modules: WidgetParser WidgetFormatter WidgetConfig MergerMain
+                   Translator
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  

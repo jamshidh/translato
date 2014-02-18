@@ -78,6 +78,7 @@ splitFirstTok::Sequence->FirstParsedSeq
 splitFirstTok (expr@(Link _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (expr@(TextMatch _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (expr@(Character _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
+--splitFirstTok (expr@(List 0 _):rest) = error "Don't support splitFirstTok for List0"
 splitFirstTok (expr@(List _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (expr@(SepBy _ _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (expr@(Or _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
@@ -131,8 +132,8 @@ prepareForLeftFactor::SequenceMap->Sequence->Sequence
 prepareForLeftFactor sMap [Or sequences] = orify $ expandEStart <$> expandToToken <$> sequences
     where
         expandToToken::Sequence->Sequence
-        expandToToken (c:rest) | c `elem` stopList = c:rest
-        expandToToken (Link linkName:rest) =
+        expandToToken (Link linkName:rest) 
+          | containsMinimalExpansionPoint sMap linkName minimalExpansionPoints =
                 case lookup linkName sMap of
                     Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ linkName)
                     Just sq -> expandToToken (sq ++ rest)
@@ -145,10 +146,16 @@ prepareForLeftFactor sMap [Or sequences] = orify $ expandEStart <$> expandToToke
         expandEStart (Or seqs:rest) = orify (expandEStart <$> seqs) ++ rest
         expandEStart x = x
 
-        stopList = getStopList (getChainOfFirsts sMap =<< sequences)
+        minimalExpansionPoints = getMinimalExpansionPoints (getChainOfFirsts sMap =<< sequences)
 prepareForLeftFactor _ sq = sq
 
 
+
+containsMinimalExpansionPoint::SequenceMap->String->[Expression]->Bool
+containsMinimalExpansionPoint sMap linkName minimalExpansionPoints =
+  case lookup linkName sMap of
+    Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ linkName)
+    Just sq -> or ((`elem` concat (getChainOfFirsts sMap sq)) <$> minimalExpansionPoints)
 
 --Note- The "Maybe" was for the case that an expression ended without expecting any characters.
 --This doesn't seem to be needed anymore....  Instead I return an [EOE] (which stands for "End Of Element").
@@ -185,22 +192,32 @@ linkName2Seq sm linkName = case lookup linkName sm of
             Just sq->sq
             Nothing->error ("Unknown link name in getChainOfFirsts: " ++ linkName)
 
-removeDuplicateTails::[Sequence]->[Sequence]
+--I should remove this dead code, but don't want to do so until some time has passed, and I am sure that
+--the new algorithm works well.
+{-removeDuplicateTails::[Sequence]->[Sequence]
 removeDuplicateTails seqs =
     removeDuplicateTailsOnGroup =<< (groupBy ((==) `on` last) $ sortBy (compare `on` last) seqs)
     where
         removeDuplicateTailsOnGroup::[Sequence]->[Sequence]
         removeDuplicateTailsOnGroup [x] = [x]
-        removeDuplicateTailsOnGroup seqs' = init <$> seqs'
+        removeDuplicateTailsOnGroup seqs' = init <$> seqs'-}
 
 
-getStopList::[Sequence]->[Expression]
+--A minimal expansion point is an expression that might lie in the chain of firsts....  Wherever it does,
+--we must expand the first link in the sequence until the "minimal expansion point" bubbles to the top.
+--Something is named a "minimal expansion point" because it exists in two different (Or) cases at the begining
+--of a sequence, and needs to be left factored out.
+getMinimalExpansionPoints::[Sequence]->[Expression]
 --getStopList::Ord a=>[[a]]->[a]
-getStopList lists = last <$> removeDuplicateTails $ getPrefixes lists
+getMinimalExpansionPoints lists = last <$> getPrefixes lists
 
 getPrefixes::[Sequence]->[Sequence]
 --getPrefixes::(Eq a, Ord a)=>[[a]]->[[a]]
-getPrefixes seqs = getLongestPrefix <$> (groupBy ((==) `on` head) $ sortBy (compare `on` head) seqs)
+getPrefixes seqs = 
+  getLongestPrefix <$> (groupBy ((==) `on` head) $ sortBy (compare `on` head) seqs)
+
+removeExtraPrefixes::[Sequence]->[Sequence]
+removeExtraPrefixes seqs = drop (length (getLongestPrefix seqs) - 1) <$> seqs
 
 getLongestPrefix::[Sequence]->Sequence
 --getLongestPrefix::Eq a=>[[a]]->[a]

@@ -75,13 +75,13 @@ incrementor => {expression}\+\+;
 
 booleanNot => !{expression};
 
-array => \[_{expression}*_\];
-
 object => \{_{field}*_\};
 
 embeddedElement => {widget};
 
-operators: ' == ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '*' ' / ' ' + ' '-'
+paren => \(_{expression}_\);
+
+operators: ' == ' ' != ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '*' ' / ' ' + ' '-'
 
 separator: '_, '
 
@@ -93,13 +93,15 @@ separator: '_, '
 
 variable => @name;
 
+array => \[_{expression}*_\];
+
 operators: '.'
 
 function => {lvalue}\(_{expression}*_\);
 
 arrayIndex => {lvalue}\[{expression}\];
 
-lambda => function \(\) {commandBody};
+lambda => function \(_{parameter}*_\) {commandBody};
 
 ====[/lvalue]=================
 

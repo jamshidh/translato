@@ -1,17 +1,4 @@
 {-# OPTIONS_GHC -Wall #-}
------------------------------------------------------------------------------
---
--- Module      :  SequenceMap
--- Copyright   :
--- License     :  AllRightsReserved
---
--- Maintainer  :
--- Stability   :
--- Portability :
---
--- |
---
------------------------------------------------------------------------------
 
 module SequenceMap (
     SequenceMap,
@@ -60,5 +47,14 @@ classSequence g cl =
         selfRule = (^.rawSequence) <$> filter ((== cl^.className ) . (^.name)) (cl^.rules)
         nonSelfRule::[Sequence]
         nonSelfRule = (:[]) <$> Link <$>
-                            ((filter (/= cl^.className) (nub $ (^.name) <$> cl^.rules)) ++ cl^.parentNames)
+                      filter (/= cl^.className) (nub $ ((^.name) <$> cl^.rules) ++ (cl^.parentNames))
         suffix = orify (cl^.suffixSeqs)
+
+
+
+
+
+elders::Grammar->Class->[Class]
+elders g cl = p ++ (elders g =<< p)
+  where 
+    p = parents g cl

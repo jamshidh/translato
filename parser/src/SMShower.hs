@@ -1,17 +1,4 @@
 {-# Language TemplateHaskell #-}
------------------------------------------------------------------------------
---
--- Module      :  SMShower
--- Copyright   :
--- License     :  AllRightsReserved
---
--- Maintainer  :
--- Stability   :
--- Portability :
---
--- |
---
------------------------------------------------------------------------------
 
 module SMShower (
     showSequenceMapMain,
@@ -30,6 +17,7 @@ import GrammarTools
 import LeftFactoring
 import Parser
 import SequenceMap
+import SequenceTools
 
 
 
@@ -56,11 +44,12 @@ showSequenceMap simplify args = do
     grammar<-loadGrammarAndSimplifyForParse (specFileName options)
     let rawSequenceMap = sequenceMap grammar
     let sequenceMap = if simplify
-                        then leftFactorSequenceMap True rawSequenceMap
+                        then leftFactorSequenceMap True $ fmap removeDefaultWS $ rawSequenceMap
                         else rawSequenceMap
     case ruleName options of
         Nothing->putStrLn $ formatSequenceMap sequenceMap
         Just ruleName'->case M.lookup ruleName' sequenceMap of
+                            --Just sequence -> putStrLn $ format $ removeWSAndOut sequence
                             Just sequence -> putStrLn $ format sequence
                             Nothing -> error ("Error: '" ++ ruleName' ++ "' isn't in the sequenceMap")
 

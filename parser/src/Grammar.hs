@@ -34,7 +34,8 @@ module Grammar (
     formatGrammar,
     Separator,
     safeDrawEForest,
-    safeDrawETree
+    safeDrawETree,
+    SpecName
 ) where
 
 import Prelude hiding (lookup)
@@ -56,7 +57,7 @@ import TreeTools
 
 
 
-
+type SpecName = String
 
 type Sequence = [Expression]
 
@@ -67,6 +68,17 @@ data Expression =
     | EOE
     | EOF
     | Or [Sequence]
+      --What is the difference between List, SepBy, and EQuote?
+      --List = repeating sequence (ie- List x = xxxxxx....)
+      --SepBy = repeating sequence with separator (ie- SepBy x y = xyxyx...yx)
+      --EQuote = SepBy, where separator will be filled in later using the grammar-class separator (ie- SepBy x = xyxyx..yx, where y=the class separator)
+      --When parsing the grammar, only EQuote is outputted.
+      --Later, EQuote will be replaced by SepBy.
+      --For the parser, these SepBys will be replaced by List.
+      --For the generator, we keep the SepBys.
+      --By the way, while the words "List" and "SepBy" make total sense to me,
+      --I can't really remember why I chose the word "EQuote", and honestly
+      --it seems like a dumb name now....
     | List Int Sequence
     | SepBy Int Sequence Sequence
     | EQuote Int Sequence
@@ -162,7 +174,9 @@ formatClass c = "====[" ++ c^.className
         ++ (if null (c^.parentNames) then "" else ":" ++ intercalate "," (c^.parentNames))
         ++ "]====\n  "
         ++ intercalate "  " (formatRule <$> c^.rules)
-        ++ concat (("\n  suffix: " ++) <$>  (format <$> c^.suffixSeqs))
+        ++ (if null (c^.suffixSeqs)
+            then []
+            else (("\n\n  suffix: " ++) =<< (format <$> c^.suffixSeqs)) ++ "\n\n")
         ++ "  separator: " ++ format (c^.separator) ++ "\n"
         ++ "  left: " ++ format (c^.left) ++ "\n"
         ++ "  right: " ++ format (c^.right) ++ "\n"

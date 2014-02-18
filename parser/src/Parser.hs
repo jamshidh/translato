@@ -9,6 +9,7 @@ module Parser (
     createParserWithErrors,
     parseTree,
     seq2ParseTree,
+    parseUsingSpecName,
     parseMain
 ) where
 
@@ -42,6 +43,7 @@ import LString (LString, line, col, string, createLString)
 import qualified LString as LS
 import ParseError
 import SequenceMap
+import SequenceTools
 import TreeTools
 
 --import JDebug
@@ -106,7 +108,7 @@ rawParse [Node{rootLabel=FallBack, subForest=rest}] s = rawParse rest s
 rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | LS.null s = rawParse rest s
 rawParse forest@[Node{rootLabel=WhiteSpace _, subForest=rest}] s | isSpace (LS.head s) =
     rawParse forest (LS.tail s)
-rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s =  rawParse rest s
+rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
 
 rawParse [Node{rootLabel=Character charset name, subForest=rest}] s | LS.null s =
     expectErr s (case name of Nothing->formatCharSet charset; Just name->name)
@@ -125,17 +127,9 @@ rawParse items s = case chooseOne items s of
 
 parseTree::Grammar->String->Forest Expression
 parseTree g startRule=seq2ParseTree (cleanSMap g) [Link startRule]
-    where
+  where
+        --cleanSMap = leftFactorSequenceMap True . fmap removeWSAndOut . fmap removeDefaultWS . sequenceMap
         cleanSMap = leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
-        removeDefaultWS::Sequence->Sequence
-        removeDefaultWS [] = []
-        removeDefaultWS (WhiteSpace _:rest) = WhiteSpace NoDefaultWS:removeDefaultWS rest
-        removeDefaultWS (Or seqs:rest) = Or (removeDefaultWS <$> seqs):removeDefaultWS rest
-        removeDefaultWS (List minCount sq:rest) = List minCount (removeDefaultWS sq):removeDefaultWS rest
-        removeDefaultWS (SepBy minCount sq sep:rest) = SepBy minCount (removeDefaultWS sq) (removeDefaultWS sep):removeDefaultWS rest
-        removeDefaultWS (EQuote minCount sq:rest) = EQuote minCount (removeDefaultWS sq):removeDefaultWS rest
-        removeDefaultWS (Option sq:rest) = Option (removeDefaultWS sq):removeDefaultWS rest
-        removeDefaultWS (expr:rest) = expr:removeDefaultWS rest
 
 createEParserForClass::String->Grammar->EParser
 createEParserForClass startRule g =
@@ -191,37 +185,38 @@ createEParserWithErrors g s = (result, getErrors result)
 createParserWithErrors::Grammar->String->(String, [ParseError])
 createParserWithErrors g s = mapFst enhancedString2String (createEParserWithErrors g s)
 
+parseUsingSpecName::SpecName->String->IO String
+parseUsingSpecName specName input = do
+    grammar<-loadGrammarAndSimplifyForParse specName
+    return $ createParser grammar input
+
+
 ---------
 
-data Options = Options { specName::Maybe String, inputFileName::Maybe String }
-deflt = Options { specName = Nothing, inputFileName=Nothing }
+data Options = Options { specName::Maybe String, inputFileName::String }
+deflt = Options { specName = Nothing, inputFileName="-" }
 
 parseMain::[String]->IO ()
 parseMain args = do
     let options = $(arg2Opts ''Options ["inputFileName"]) args deflt
 
-    specFileName <- case msum [specName options, inputFileName options >>= getFileExtension] of
-                    Just x -> getDataFileName ("specs/" ++ x ++ ".spec")
-                    _ -> error "You need to supply the spec filename when the inputFileName doesn't have an extension"
+    let theSpecName =
+          case msum [specName options, getFileExtension $ inputFileName options] of
+            Just x -> x
+            _ -> error "You need to supply 'specName' when the inputFileName doesn't have an extension"
+            
+    input <- 
+      case inputFileName options of
+        "-" -> getContents
+        theFileName -> hGetContents =<< openFile theFileName ReadMode
+        
+    putStrLn =<< parseUsingSpecName theSpecName input
 
-    specFileExists <- doesFileExist specFileName
-
-    case specFileExists of
-        False -> error ("Spec file does not exist: " ++ specFileName)
-        _ -> return ()
-
-    grammar<-loadGrammarAndSimplifyForParse specFileName
-    case inputFileName options of
-        Just fileName -> do
-                fileHandle <- openFile fileName ReadMode
-                input <- hGetContents fileHandle
-                putStr $ createParser grammar input
-        Nothing -> interact $ createParser grammar
-
-getFileExtension x =
-    case takeExtension x of
-        ('.':ext) -> Just ext
-        _ -> Nothing
+getFileExtension::FilePath->Maybe String
+getFileExtension x = 
+  case takeExtension x of
+    ('.':ext) -> Just ext
+    _ -> Nothing
 
 
 

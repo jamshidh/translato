@@ -277,22 +277,18 @@ fingerprintMatches g (cursorAttNames, cursorTagNames) (seqAttNames, seqLinkNames
 ----------------
 
 data Options = Options { specName::String }
-defaultOptions::Options
-defaultOptions = Options { specName = "file.spec" }
 
 deflt::Options
 deflt = Options{specName="qqqq.spec"}
 
 generatorMain::[String]->IO ()
 generatorMain args = do
-    let options = $(arg2Opts ''Options ["specName"]) args deflt
+    
+  let options = $(arg2Opts ''Options ["specName"]) args deflt
 
-    specFileName <- getDataFileName ("specs/" ++ specName options ++ ".spec")
-
-    grammar <- loadGrammarAndSimplifyForGenerate specFileName
-    contents<-TL.getContents
-    let s = generateFromText grammar contents
-    putStrLn s
+  grammar <- loadGrammarAndSimplifyForGenerate $ specName options
+  
+  putStrLn =<< generateFromText grammar <$> TL.getContents
 
 maximumsUsing::Ord b=>(a->b)->[a]->[a]
 maximumsUsing f list = filter (\x -> f x == max) list

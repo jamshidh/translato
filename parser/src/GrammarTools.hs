@@ -69,36 +69,40 @@ removeLastWhitespace [] = []
 
 ---------------------
 
-rewriteLeftRecursionInGrammar::Grammar->Grammar
-rewriteLeftRecursionInGrammar g =
-        (classes.mapped %~ rewriteLeftRecursionInClass g) $ g
+elders::Grammar->Class->[Class]
+elders g cl = p ++ (elders g =<< p)
+  where 
+    p = parents g cl
 
-rewriteLeftRecursionInClass::Grammar->Class->Class
-rewriteLeftRecursionInClass g cl =
+{-addInheritedRulesInGrammar::Grammar->Grammar
+addInheritedRulesInGrammar g = (classes.mapped %~ addInheritedRules g) g
+
+addInheritedRules::Grammar->Class->Class
+addInheritedRules g cl = 
+  (rules %~ (++ (eld >>= (^.rules)))) $
+  (operators %~ (++ (eld >>= (^.operators)))) $
+  (parentNames .~ []) cl
+  where
+    eld = elders g cl-}
+
+{-
+addInheritedOperators::Grammar->Class->Class
+addInheritedOperators g cl = operators %~ (++ (elders g cl >>= (^.operators))) $ cl
+
+addInheritedSuffixes::Grammar->Class->Class
+addInheritedSuffixes g cl = suffixSeqs %~ (++ (elders g cl >>= (^.suffixSeqs))) $ cl
+-}
+
+---------------------
+
+rewriteLeftRecursion::Grammar->Class->Class
+rewriteLeftRecursion g cl =
     (rules %~ (filter (not . (isLRecursive $ cl^.className))))
         $ (suffixSeqs .~ class2SuffixSeq cl) cl
     where
         class2SuffixSeq::Class->[Sequence]
         class2SuffixSeq cls =
-            (
-                (recursiveRule2SuffixSeq <$> (filter (isLRecursive $ cls^.className) (cls^.rules)))
-                    ++
-                (operator2SuffixSeq g cls <$> cl^.operators)
-            )
-
-op2Infix::Operator->EChar
-op2Infix oprtr = InfixTag
-    InfixOp{
-        opPriority=oprtr^.priority,
-        opName=symbol2Name (oprtr^.symbol),
-        opAssociativity=oprtr^.associativity
-    }
-
-operator2SuffixSeq::Grammar->Class->Operator->Sequence
-operator2SuffixSeq g theClass oprtr =
-    oprtr^.symbol ++ [Out [op2Infix oprtr], Or ((:[]) . Link <$> nonRecursiveRuleNames theClass)]
-    where nonRecursiveRuleNames cl' = ((^.name) <$> filter (not . isLRecursive (cl'^.className)) (cl'^.rules))
-                                        ++ ((^.className) <$> parents g cl')
+                recursiveRule2SuffixSeq <$> (filter (isLRecursive $ cls^.className) (cls^.rules))
 
 recursiveRule2SuffixSeq::Rule->Sequence --TODO Unitary operators
 recursiveRule2SuffixSeq r = (Out [InfixTag infixOp]:) $ tail $ (r^.rawSequence) ++ [Out [EndCap (r^.name)]]
@@ -114,6 +118,7 @@ isBlockClass::Grammar->Class->Bool
 isBlockClass g cl =
     or (isLRecursive (cl^.className) <$> cl^.rules)
         || (not $ null $ cl^.operators)
+        || (not $ null $ cl^.suffixSeqs)
         || or (isBlockClass g <$> parents g cl)
 
 isLRecursive::String->Rule->Bool
@@ -121,6 +126,35 @@ isLRecursive clName r =
     case r^.rawSequence of
         (Link linkName:_) -> linkName == r^.name || linkName == clName
         _ -> False
+
+---------------------
+
+rewriteOperators::Grammar->Class->Class
+rewriteOperators g cl = 
+  (operators .~ [])
+  $ (suffixSeqs %~ (++ (operator2SuffixSeq g cl <$> cl^.operators))) cl
+
+op2Infix::Operator->EChar
+op2Infix oprtr = InfixTag
+    InfixOp{
+        opPriority=oprtr^.priority,
+        opName=symbol2Name (oprtr^.symbol),
+        opAssociativity=oprtr^.associativity
+    }
+
+
+--It is very important that you filter any recursive rule before adding the operator suffix....
+--In other words, for operator "+", the suffix should be 
+--        ("+" {non recursive part of expression})*
+--not
+--        ("+" {expression})*
+--else you will get an insidious "multiple matching" bug in the lookahead module....
+--Tracking this down can be very difficult (....as I have learned).
+operator2SuffixSeq::Grammar->Class->Operator->Sequence
+operator2SuffixSeq g theClass oprtr =
+    oprtr^.symbol ++ [Out [op2Infix oprtr], Or ((:[]) . Link <$> nonRecursiveRuleNames theClass)]
+    where nonRecursiveRuleNames cl' = ((^.name) <$> filter (not . isLRecursive (cl'^.className)) (cl'^.rules))
+                                        ++ ((^.className) <$> parents g cl')
 
 ---------------------
 
@@ -202,10 +236,6 @@ addTagToRule r = (rawSequence %~ addTagToSequence (r^.name)) r
         addTagToSequence::String->Sequence->Sequence
         addTagToSequence tagName sq =
             Out [EStart tagName (seq2AttInfoMap sq)] `prepend` sq ++ [Out [EEnd tagName]]
-
-addTagsToGrammar::Grammar->Grammar
-addTagsToGrammar = classes.mapped.rules.mapped %~ addTagToRule
-
 
 ----------------------------
 
@@ -314,31 +344,41 @@ addTabs g = modifySeqsInGrammar addTabsToSeq g
 
 -----------------------
 
-loadUnsimplifiedGrammar::FilePath->IO Grammar
-loadUnsimplifiedGrammar filepath = parseFullGrammar filepath
+loadUnsimplifiedGrammar::SpecName->IO Grammar
+loadUnsimplifiedGrammar = parseFullGrammar
 
-loadGrammarAndSimplifyForParse::String->IO Grammar
-loadGrammarAndSimplifyForParse fileName = do
-    g <- loadUnsimplifiedGrammar fileName
+--Don't add inherited operators!
+--I should just remove (not just comment out) the code that does this.
+--Operators already effectively inherit anyway (ie- look at js.spec, lvalue operators work in expressons)
+--Adding the code here causes insidious "multiple matching" errors in the lookahead module.
+loadGrammarAndSimplifyForParse::SpecName->IO Grammar
+loadGrammarAndSimplifyForParse specName = do
+    g <- loadUnsimplifiedGrammar specName
     return (
         adjustPrioritiesByClassHiarchy
         $ addEOFToGrammar
-        $ addTagsToGrammar
-        $ rewriteLeftRecursionInGrammar
+        $ classes.mapped.rules.mapped %~ addTagToRule
+        $ modifyGrammar rewriteOperators
+        -- $ modifyGrammar addInheritedSuffixes 
+        $ modifyGrammar rewriteLeftRecursion 
+        -- $ modifyGrammar addInheritedOperators 
         $ stripWhitespaceFromGrammar
         $ removeOption
         $ removeSepBy
         $ removeEQuote g)
+    where
+      modifyGrammar::(Grammar->Class->Class)->Grammar->Grammar
+      modifyGrammar f g = (classes.mapped %~ f g) g
 
-loadGrammarAndSimplifyForGenerate::String->IO Grammar
-loadGrammarAndSimplifyForGenerate fileName = do
-    g <- loadUnsimplifiedGrammar fileName
+loadGrammarAndSimplifyForGenerate::SpecName->IO Grammar
+loadGrammarAndSimplifyForGenerate specName = do
+    g <- loadUnsimplifiedGrammar specName
     return (
         adjustPrioritiesByClassHiarchy
         $ addEOFToGrammar
         $ rewriteOperatorsAsLeftRecursion
+        -- $ classes.mapped %~ addInheritedOperators g
         $ stripWhitespaceFromGrammar
         $ removeOption
         $ addTabs
         $ removeEQuote g)
-

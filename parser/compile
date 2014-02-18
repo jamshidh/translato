@@ -2,5 +2,5 @@
 while true
 do
 	inotifywait -e modify parser.cabal src/*.hs
-	cabal install
+	cabal install --force-reinstalls
 done

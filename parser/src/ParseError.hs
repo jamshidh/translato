@@ -34,7 +34,7 @@ import qualified LString as LS
 data Position = Position { line::Int, column::Int, filename::String }
 
 formatPosition::Position->String
-formatPosition p = "(Line: " ++ show (line p) ++ ", Col: " ++ show (column p) ++ ")"
+formatPosition p = "(Line: " ++ show (line p + 1) ++ ", Col: " ++ show (column p + 1) ++ ")"
 
 instance Eq Position where
     p1 == p2 = (line p1 == line p2) && (column p1 == column p2)

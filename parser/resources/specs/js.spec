@@ -23,7 +23,6 @@ commandBody => \{
   {command}*
 \};
 
-
 ====[command]========
 
 varDeclaration => var @name_(=_{expression}_)?\;;
@@ -50,6 +49,8 @@ for => for \({varDeclaration}_ {expression}_\; {expression}\) {commandBody};
 iteratorFor => for \({variable} in {expression}_\) {commandBody};
 
 funcDeclaration => function @name\({parameter}*\) {commandBody};
+
+blankCommand => \;;
 
 separator: '\n'
 

@@ -66,7 +66,7 @@ singleCharacterRangeAt s = rangeAt s 1
 data ParseError =
     Error { ranges::[Range], description::String } |
     ExpectationError { ranges::[Range], expected::[String] } |
-    MatchError { name::String, ranges::[Range], first::String, second::String } |
+    MatchError { name::String, ranges::[Range], firstVal::String, secondVal::String } |
     AmbiguityError { ranges::[Range] }
     deriving (Eq, Ord, Show)
 
@@ -77,8 +77,8 @@ message ExpectationError{expected=expected} =
     ++ if length expected == 0
         then "[Empty list]"
         else intercalate ", or " (show <$> expected)
-message MatchError{name=name, first=first, second=second} =
-    show name ++ "s don't match: " ++ show first ++ " != " ++ show second
+message MatchError{name=name, firstVal=firstVal, secondVal=secondVal} =
+    show name ++ "s don't match: " ++ show firstVal ++ " != " ++ show secondVal
 message AmbiguityError{} = "Ambiguity Error"
 
 instance Format ParseError where
@@ -88,7 +88,7 @@ instance Format ParseError where
         ++ if length expected == 0
             then "[Empty list]"
             else intercalate ", " expected
-    format (MatchError name ranges first second) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"
-        ++ name ++ " didn't match: first=" ++ first ++ ", second=" ++ second
+    format (MatchError name ranges firstVal secondVal) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"
+        ++ name ++ " didn't match: first=" ++ firstVal ++ ", second=" ++ secondVal
     format (AmbiguityError ranges) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"
         ++ "AmbiguityError"

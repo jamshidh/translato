@@ -1,20 +1,8 @@
 {-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances #-}
 {-# OPTIONS_GHC -Wall #-}
------------------------------------------------------------------------------
---
--- Module      :  Grammar
--- Copyright   :
--- License     :  AllRightsReserved
---
--- Maintainer  :
--- Stability   :
--- Portability :
---
--- |
---
------------------------------------------------------------------------------
 
 module Grammar (
+    Importance(..),
     Sequence,
     Expression(..),
     Operator(Operator),
@@ -61,6 +49,8 @@ type SpecName = String
 
 type Sequence = [Expression]
 
+data Importance = Low | Medium | High deriving (Show, Eq, Ord)
+
 data Expression =
     TextMatch String (Maybe String) --The 'Maybe String' is only used for error reporting
     | WhiteSpace DefaultWS
@@ -84,7 +74,7 @@ data Expression =
     | EQuote Int Sequence
     | Option Sequence
     | Link String
-    | FallBack
+    | Priority Importance
     | Out EString
 --    | Reparse Sequence Sequence
 
@@ -103,7 +93,7 @@ formatExpression'::Int->Expression->String
 formatExpression' _ (Character charset _) = formatCharSet charset
 formatExpression' _ EOF = "EOF"
 formatExpression' _ EOE = "EOE"
-formatExpression' _ FallBack = "FallBack"
+formatExpression' _ (Priority x) = "(Priority:" ++ show x ++ ")"
 formatExpression' level (List minCount expr) = "list" ++ (if (minCount > 0) then show minCount else "") ++ "(" ++ formatSequence' level expr ++ ")"
 formatExpression' _ (Link linkName) = underline $ magenta linkName
 formatExpression' level (Or sequences) =

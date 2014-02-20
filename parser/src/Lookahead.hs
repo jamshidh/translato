@@ -39,7 +39,7 @@ data TreeInfo =
     tagList::[String],
     firstMatchers::[Expression], 
     allowsWhiteSpace::Bool, 
-    isFallBack::Bool
+    branchPriority::Importance
   } deriving (Eq, Show)
 
 getTreeInfos::Tree Expression->[TreeInfo]
@@ -51,31 +51,31 @@ getTreeInfos t@
         tree=t,
         tagList=[],
         firstMatchers=[TextMatch (text1++" "++text2) n],
-        allowsWhiteSpace=False, isFallBack=False
+        allowsWhiteSpace=False, branchPriority=Medium
     }]
 getTreeInfos t@Node{rootLabel=TextMatch text n} =
     [TreeInfo {
         tree=t,
         tagList=[],
         firstMatchers=[TextMatch text n],
-        allowsWhiteSpace=False, isFallBack=False
+        allowsWhiteSpace=False, branchPriority=Medium
     }]
 getTreeInfos t@Node{rootLabel=Character charset n} =
     [TreeInfo {
         tree=t,
         tagList=[],
         firstMatchers=[Character charset n],
-        allowsWhiteSpace=False, isFallBack=False
+        allowsWhiteSpace=False, branchPriority=Medium
     }]
 getTreeInfos t@Node{rootLabel=EOF} =
     [TreeInfo {
         tree=t,
         tagList=[],
         firstMatchers=[EOF],
-        allowsWhiteSpace=False, isFallBack=False
+        allowsWhiteSpace=False, branchPriority=Medium
     }]
-getTreeInfos t@Node{rootLabel=FallBack, subForest=rest} =
-    (\treeInfo->treeInfo{ tree=t, isFallBack=True }) <$> (rest >>= getTreeInfos)
+getTreeInfos t@Node{rootLabel=Priority x, subForest=rest} =
+    (\treeInfo->treeInfo{ tree=t, branchPriority=x }) <$> (rest >>= getTreeInfos)
 getTreeInfos t@Node{rootLabel=Out value, subForest=rest} =
     (\treeInfo->treeInfo{ tree=t, tagList=[tagName|EStart tagName _<-value] ++ tagList treeInfo }) <$> (rest >>= getTreeInfos)
 getTreeInfos t@Node{rootLabel=WhiteSpace _, subForest=rest} =
@@ -111,7 +111,7 @@ check s TreeInfo{firstMatchers=exps} = or (eCheck s <$> exps)
 --check s (FallBack, _, _) = False
 
 checkTree::LString->Tree Expression->Bool
-checkTree s tree = or $ check s <$> getTreeInfos tree
+checkTree s theTree = or $ check s <$> getTreeInfos theTree
 
 chooseOne::Forest Expression->LString->Either ParseError (Tree Expression)
 chooseOne [theTree] _ = Right theTree
@@ -122,8 +122,8 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
     --jtrace (show $ isFallBack <$> snd <$> addTextMatchSize s <$> treeInfos) $
     --jtrace (show $ fst <$> addTextMatchSize s <$> treeInfos) $
     case (maximumsBy fst ((filter ((/= 0) . fst)) (addTextMatchSize s <$> treeInfos))) of
-        [] -> case (check s) `filter` ((not . isFallBack) `filter` treeInfos) of
-                [] -> case checkTree s `filter` (((== FallBack) . rootLabel) `filter` trees) of
+        [] -> case (check s) `filter` (((== Medium) . branchPriority) `filter` treeInfos) of
+                [] -> case checkTree s `filter` (((== Priority Low) . rootLabel) `filter` trees) of
                     [] -> Left ExpectationError{
                             expected=treeInfos >>= (\TreeInfo { allowsWhiteSpace=w, firstMatchers=exps } -> formatItem w <$> exps),
                             ranges=[singleCharacterRangeAt s]}
@@ -131,7 +131,7 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
                                 formatItem::Bool->Expression->String
                                 formatItem w expr = (if w then "_ " else "") ++ formatExpression expr
                     [item] -> Right item
-                    _ -> error "Multiple fallback cases encountered"
+                    _ -> error "Multiple priority = Low cases encountered"
                 [item] -> Right (tree item)
                 items ->  jtrace ("===================\n\nmultiple things matched in chooseOne:\n\n      "
                                   -- ++ (safeDrawEForest $ tree <$> items) ++ "\n"
@@ -141,7 +141,7 @@ chooseOne trees s = --jtrace ("---------------------\nChoice: " ++ show (length 
                                   ++ "===================\n")
                                 $ Left AmbiguityError{ ranges=[singleCharacterRangeAt s] }
         [(_, item)] -> Right (tree item)
-        items -> case (check s) `filter` ((not . isFallBack) `filter` (snd <$> items)) of
+        items -> case (check s) `filter` (((== Medium) . branchPriority) `filter` (snd <$> items)) of
                     [item] -> Right (tree item)
                     _ -> jtrace ("==================\n\nmultiple TextMatches matched in chooseOne:\n\n      "
                             -- ++ safeDrawEForest ((tree . removeTextMatchSize) <$> items) ++ "\n"
@@ -174,10 +174,6 @@ addTextMatchSize s treeInfo@TreeInfo{allowsWhiteSpace=True} | isSpace (LS.head s
     addTextMatchSize (LS.tail s) treeInfo
 addTextMatchSize s treeInfo =
     (maximum (textMatchMatchSize s <$> (firstMatchers treeInfo)), treeInfo)
-
-removeTextMatchSize::(Int, a)->a
-removeTextMatchSize = snd
-
 
 textMatchMatchSize::LS.LString->Expression->Int
 textMatchMatchSize s (TextMatch text _) | text `isPrefixTextMatch` LS.string s = length text

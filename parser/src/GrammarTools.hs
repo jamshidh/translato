@@ -69,11 +69,6 @@ removeLastWhitespace [] = []
 
 ---------------------
 
-elders::Grammar->Class->[Class]
-elders g cl = p ++ (elders g =<< p)
-  where 
-    p = parents g cl
-
 {-addInheritedRulesInGrammar::Grammar->Grammar
 addInheritedRulesInGrammar g = (classes.mapped %~ addInheritedRules g) g
 
@@ -95,8 +90,8 @@ addInheritedSuffixes g cl = suffixSeqs %~ (++ (elders g cl >>= (^.suffixSeqs))) 
 
 ---------------------
 
-rewriteLeftRecursion::Grammar->Class->Class
-rewriteLeftRecursion g cl =
+rewriteLeftRecursion::Class->Class
+rewriteLeftRecursion cl =
     (rules %~ (filter (not . (isLRecursive $ cl^.className))))
         $ (suffixSeqs .~ class2SuffixSeq cl) cl
     where
@@ -291,7 +286,7 @@ replaceSepBy (Option sq) = [Option $ sq >>= replaceSepBy]
 replaceSepBy x = [x]
 
 repeatWithSeparator::Int->Sequence->Sequence->Sequence
-repeatWithSeparator 0 sq sep = [Or [fixedSq ++ [List 0 (sep ++ fixedSq)], [FallBack]]]
+repeatWithSeparator 0 sq sep = [Or [fixedSq ++ [List 0 (sep ++ fixedSq)], [Priority Low]]]
   where
     fixedSq = replaceSepBy =<< sq
 repeatWithSeparator minCount sq sep = (replaceSepBy =<< sq) ++ [List (minCount -1) (replaceSepBy =<< sep++sq)]
@@ -360,7 +355,7 @@ loadGrammarAndSimplifyForParse specName = do
         $ classes.mapped.rules.mapped %~ addTagToRule
         $ modifyGrammar rewriteOperators
         -- $ modifyGrammar addInheritedSuffixes 
-        $ modifyGrammar rewriteLeftRecursion 
+        $ classes.mapped %~ rewriteLeftRecursion 
         -- $ modifyGrammar addInheritedOperators 
         $ stripWhitespaceFromGrammar
         $ removeOption

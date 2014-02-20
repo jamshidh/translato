@@ -47,22 +47,22 @@ parseFullGrammar specName = do
   let baseDir = takeDirectory specName
   specFile <- specNameToSpecFile baseDir specName
   builtinsFilePath <- getDataFileName "builtins.spec"
-  
-  foldl1 mergeGrammar 
+
+  foldl1 mergeGrammar
     <$> parseFullGrammar' baseDir S.empty [specFile, builtinsFilePath]
-  
+
   where
     parseFullGrammar'::FilePath->S.Set String->[String]->IO [Grammar]
     parseFullGrammar' _ _ [] = return []
-    parseFullGrammar' baseDir obtained (needed:remainingNeeded) | needed `S.member` obtained = 
+    parseFullGrammar' baseDir obtained (needed:remainingNeeded) | needed `S.member` obtained =
       parseFullGrammar' baseDir obtained remainingNeeded
     parseFullGrammar' baseDir obtained (needed:remainingNeeded) = do
       (grammar, subGrammars) <- loadGrammarAndSubGrammarNames $ baseDir </> needed
       subGrammarFiles <- sequence $ specNameToSpecFile baseDir <$> subGrammars
-      remaining <- 
-        parseFullGrammar' 
-            baseDir 
-            (S.insert needed obtained) 
+      remaining <-
+        parseFullGrammar'
+            baseDir
+            (S.insert needed obtained)
             (remainingNeeded ++ subGrammarFiles)
       return (grammar:remaining)
 
@@ -73,7 +73,7 @@ loadGrammarAndSubGrammarNames specFile = do
   case maybeResult of
     Left err -> error ("Error parsing grammar: " ++ show err)
     Right x -> return x
-    
+
 ---------- Convert Lists to Maps (ie- create the Grammar from the parsed data)
 
 data ClassOrSubGrammar = AClass Class | SomeSubGrammars [String]
@@ -92,19 +92,19 @@ parseGrammarAndSubGrammarNames =
                     (cl:_) -> cl^.className
                     _ -> error "Grammar contains no classes"
 
-        return 
+        return
           (
             Grammar
               mainClassName
-              (M.fromListWithKey 
-                  (const . const . error . ("The grammar has a repeat element: " ++)) 
+              (M.fromListWithKey
+                  (const . const . error . ("The grammar has a repeat element: " ++))
                   (((^.className)&&&id) <$> classList)),
             concat [subGrammars|SomeSubGrammars subGrammars<-classesAndSubGrammars]
           )
 
 
-parseClassOrSubGrammar = 
-  try (AClass <$> parseFullClass) 
+parseClassOrSubGrammar =
+  try (AClass <$> parseFullClass)
   <|> try (AClass <$> parseSimpleClass)
   <|> (SomeSubGrammars <$> parseSubGrammars)
 
@@ -137,7 +137,7 @@ parseSubGrammarFilePath = do
   grammarName <- ident
   string "}>"
   return grammarName
-  
+
 parseFullClass::Parser Class
 parseFullClass =
     do

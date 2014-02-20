@@ -82,7 +82,7 @@ splitFirstTok (expr@(Character _ _):rest) = FirstParsedSeq (Just expr) (e "") No
 splitFirstTok (expr@(List _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (expr@(SepBy _ _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (expr@(Or _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
-splitFirstTok (expr@FallBack:rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
+splitFirstTok (expr@(Priority _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (Out eString:rest) = fp{outValue=eString ++ outValue fp}
     where fp = splitFirstTok rest
 splitFirstTok (WhiteSpace defltWS:rest) = FirstParsedSeq (Just $ WhiteSpace FutureWS) (e "") (Just defltWS) rest
@@ -215,9 +215,6 @@ getPrefixes::[Sequence]->[Sequence]
 --getPrefixes::(Eq a, Ord a)=>[[a]]->[[a]]
 getPrefixes seqs = 
   getLongestPrefix <$> (groupBy ((==) `on` head) $ sortBy (compare `on` head) seqs)
-
-removeExtraPrefixes::[Sequence]->[Sequence]
-removeExtraPrefixes seqs = drop (length (getLongestPrefix seqs) - 1) <$> seqs
 
 getLongestPrefix::[Sequence]->Sequence
 --getLongestPrefix::Eq a=>[[a]]->[a]

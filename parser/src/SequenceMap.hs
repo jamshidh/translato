@@ -54,7 +54,3 @@ classSequence g cl =
 
 
 
-elders::Grammar->Class->[Class]
-elders g cl = p ++ (elders g =<< p)
-  where 
-    p = parents g cl

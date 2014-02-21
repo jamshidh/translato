@@ -2,154 +2,11 @@
 file =>
 {doctype}?
 
-{html}
+{element}
 ;
-
-html=>
-<html>
-  {head}
-  {body}
-</html>
-;
-
-head=>
-<head>
-  {headElements}*
-</head>
-;
-
-body=>
-<body>
-  {widget}*
-</body>
-;
-
-====[headElements:script]========
-
-title=>
-<title>{word}*</title>
-;
-
-meta=><meta http-equiv="@httpequiv([^"]*)" content="@content([^"]*)"_/?>;
-
-link=><link rel="@rel([^"]*)" type="@type@content([^"]*)" href="@href([^"]*)"_/?>;
-
-#area, base, br, col, embed, hr, img, input, keygen, param, source, track, wbr
-
-style=>
-<style>
-  {declarationBlock}*
-</style>
-;
-
-separator: '\n'
-====[/headElements]==============
-
-====[declarationBlock]===============
-
-declarationBlock=>
-{selector} 
-\{ 
-  {declaration}* 
-\}
-;
-
-separator: '\n'
-
-====[/declarationBlock]==============
-
-====[declaration]===============
-
-transition=>transition: @value([^;]*)\;;
-color=>color: @value([^;]*)\;;
-
-separator: '\n'
-
-====[/declaration]==============
-
-====[selector]===============
-
-tagname=>@value;
-
-filter=>{selector}\[{qualifier}\];
-
-operators: ' > '
-
-====[/selector]==============
-
-====[qualifier]===============
-
-hasAtt=>@value;
-
-====[/qualifier]==============
-
-
-====[widget:script]========
-
-text => {word}+;
-
-button=>
-<button_{attribute}*_>{widget}*</button>
-;
-
-code=>
-<code>{widget}*</code>
-;
-
-details=>
-<details_{attribute}*_>
-  {summary}
-  {widget}*
-</details>
-;
-
-dl=>
-<dl>
-  ({dt} 
-  {dd}
-  )+
-</dl>
-;
-
-h1=>
-<h1_{attribute}*_>{widget}*</h1>
-;
-
-progress=>
-<progress_{attribute}*_>{widget}*</progress>
-;
-
-section=>
-<section_{attribute}*_>
-  {widget}*
-</section>
-;
-
-separator: '\n'
-====[/widget]==============
-
-dt=>
-<dt>{widget}*</dt>
-;
-
-dd=>
-<dd>{widget}*</dd>
-;
-
-
-summary=>
-<summary_{attribute}*_>
-  {widget}*
-</summary>
-;
-
-
-
 
 doctype => <!DOCTYPE @value>;
 
-
-ident => [$a-zA-Z]\w*;
 
 ====[attribute]===============
 attribute =>@name([a-zA-Z\-]+)(="@value([^"]*)")?;
@@ -169,15 +26,21 @@ separator: '_, '
 
 
 
-word =>[^< \n\r\t]+;
-
 commandBody => \{
   {command}*
 \};
 
 
 
-====[script]======================
+====[node]======================
+
+element =><@tagName_{attribute}*_/>;
+
+element =>
+<@tagName_{attribute}*_>
+  {node}*
+</@tagName>;
+
 
 script =><script_>
   {command}*
@@ -185,13 +48,7 @@ script =><script_>
 
 script =><script src="@src([^"]*)">_</script>;
 
-====[/script]=====================
-
-====[node]======================
-
-element =><@tagName_{attribute}*_/>;
-
-element =><@tagName_{attribute}*_>{node}*</@tagName>;
+text=>{word}+;
 
 #left: <@tagName_{attribute}*_>
 #  ;

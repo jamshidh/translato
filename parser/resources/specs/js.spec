@@ -57,9 +57,19 @@ separator: '\n'
 
 ====[/command]==================
 
+
+
+====[fieldName]=====================
+
+fieldName => "@value([^"]*)";
+fieldName => '@value([^']*)';
+fieldName => @value;
+
+====[/fieldName]====================
+
 ====[field]=====================
 
-field => {string}:_{expression};
+field => {fieldName}:_{expression};
 
 separator: '_, '
 

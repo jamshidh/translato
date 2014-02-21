@@ -39,7 +39,7 @@ executable parser
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: ArgOpts OperatorNames WidgetRegister SequenceMap
+    other-modules: ArgOpts OperatorNames WidgetRegister SequenceMap OutputParser
                    JDebug Grammar Colors FakeColors Parser Editor RecordTypes SMShower
                    Editor2 FileEditView Lookahead Format LString Main GrammarParser
                    ParseError EnhancedString EStringTools Shower CharSet GValue

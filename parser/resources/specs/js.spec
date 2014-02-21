@@ -25,13 +25,14 @@ commandBody => \{
 
 ====[command]========
 
-varDeclaration => var @name_(=_{expression}_)?\;;
+varDeclaration => var @name_(=_{expression}_)?\;?;
 
-expressionCommand => {expression}_\;;
+expressionCommand => {expression}_\;?;
 
-assignment => {lvalue} = {expression}_\;;
+assignment => {lvalue} = {expression}_\;?;
 
-return => return( {expression})?_\;;
+return => return( {expression})?_\;?;
+#return => return([ \t]+{expression})?_\;?;
 
 comment => //[^\n]*[\n];
 

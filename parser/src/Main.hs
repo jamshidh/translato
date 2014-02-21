@@ -23,6 +23,7 @@ import System.Environment
 
 import Generator
 import qualified Editor
+import OutputParser
 import Parser
 import ParseElements
 import Shower
@@ -44,6 +45,7 @@ commands = M.fromList
         ("generate", generatorMain   ),
         ("parseElements", parseElementsMain),
         ("parse", parseMain),
+        ("pparse", pparseMain),
         ("edit", Editor.editMain)
     ]
 

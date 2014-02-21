@@ -316,7 +316,7 @@ removeOption::Grammar->Grammar
 removeOption g = modifySeqsInGrammar (replaceOption <$>) g
     where
         replaceOption::Expression->Expression
-        replaceOption (Option sq) = Or [sq, []]
+        replaceOption (Option sq) = Or [sq, [Priority Low]]
         replaceOption (List minCount sq) = List minCount (replaceOption <$> sq)
         replaceOption (Or seqs) = Or ((replaceOption <$>) <$> seqs)
         replaceOption x = x

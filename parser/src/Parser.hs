@@ -55,7 +55,7 @@ type Parser = String->String
 
 expectErr::LString->String->[EChar]
 expectErr s expectation =
-    [Fail $ ExpectationError [singleCharacterRangeAt s] [expectation]]
+    [Fail $ ExpectationError [singleCharacterRangeAt s] [expectation] s]
 
 -------------------------------
 
@@ -115,9 +115,9 @@ rawParse [Node{rootLabel=Character charset theName}] s =
 
 rawParse [x] _ = error ("Missing case in rawParse: " ++ safeDrawTree (fmap show x))
 
-rawParse items s = case chooseOne items s of
+rawParse items s = case chooseOne s items of
     Left err -> [Fail err]
-    Right tree -> rawParse [tree] s
+    Right (tree, _) -> rawParse [tree] s
 
 ------------------------
 

@@ -187,6 +187,7 @@ seq2EString g sMap (Out [DelayedWS defltWS]:rest) c children = DelayedWS defltWS
 seq2EString _ _ (EOF:_) c [] | null $ following c = []
 seq2EString _ _ (EOF:_) c _ | null $ following c = error "Expected EOF, but there are still children"
 seq2EString _ _ (EOF:_) _ _ = error "Expected EOF, but there is stuff after"
+seq2EString g sMap (Priority _:rest) c children = seq2EString g sMap rest c children
 
 
 seq2EString _ _ [] c children =

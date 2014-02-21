@@ -25,7 +25,7 @@ eModify f expr = f expr
 removeDefaultWS::Sequence->Sequence
 removeDefaultWS sq = sq >>= eModify f
   where
-    f (WhiteSpace _) = [WhiteSpace NoDefaultWS]
+    f (WhiteSpace _) = [WhiteSpace WSWithoutDefault]
     f x = [x]
 
 --Used for debugging, to make it easier to view what is being matched

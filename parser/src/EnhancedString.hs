@@ -44,7 +44,7 @@ data Associativity = LeftAssoc | RightAssoc | UseEndCap deriving (Eq, Ord, Show)
 
 data InfixOp = InfixOp{opName::String, opPriority::Int, opAssociativity::Associativity} deriving (Eq, Ord)
 
-data DefaultWS = WSString String | FutureWS | EmptyWS | NoDefaultWS deriving (Eq, Ord, Show)
+data DefaultWS = WSString String | FutureWS | EmptyWS | WSWithoutDefault deriving (Eq, Ord, Show)
 
 data EChar =
     Ch Char

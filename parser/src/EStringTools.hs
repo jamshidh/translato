@@ -223,6 +223,10 @@ expandOperatorsInBlock (NestedItem left:InfixTag InfixOp{opName=name}:NestedItem
 expandOperatorsInBlock (NestedItem left:e@(FilledInEStart _ _):rest) =
     left ++ expandOperatorsInBlock (e:rest)
 expandOperatorsInBlock [NestedItem item] =  item
+expandOperatorsInBlock items | null $ filter (not . isCharacter) items = items
+  where
+    isCharacter (Ch _) = True
+    isCharacter _ = False
 expandOperatorsInBlock [] =  []
 expandOperatorsInBlock s =
     error ("Missing case in expandOperatorsInBlock: (" ++ show s)

@@ -35,11 +35,14 @@ import SequenceMap
 --import JDebug
 
 leftFactor::Bool->SequenceMap->Sequence->Sequence
-leftFactor shouldExpandLinks sm = leftFactor' shouldExpandLinks sm . (prepareForLeftFactor sm ? shouldExpandLinks)
+leftFactor shouldExpandLinks sm sq = --jtrace ("\n================\n" ++ (show $ prepareForLeftFactor sm sq) ++ "\n---------------------\n") $
+  leftFactor' shouldExpandLinks sm $ (prepareForLeftFactor sm ? shouldExpandLinks) sq
+--leftFactor shouldExpandLinks sm = leftFactor' shouldExpandLinks sm . (prepareForLeftFactor sm ? shouldExpandLinks)
     where
         f ? condition = if condition then f else id
 
 leftFactor'::Bool->SequenceMap->Sequence->Sequence
+--leftFactor' shouldExpandLinks sm [Or [[], []]] = []
 leftFactor' shouldExpandLinks sm (Or []:rest) = leftFactor' shouldExpandLinks sm rest
 leftFactor' shouldExpandLinks sm (Or [sq]:rest) = leftFactor' shouldExpandLinks sm (sq ++ rest)
 leftFactor' shouldExpandLinks sm (Or items:rest) =
@@ -71,7 +74,7 @@ data FirstParsedSeq =
         outValue::EString,
         defltWSValue::Maybe DefaultWS,
         theRemainder::Sequence
-    } deriving (Show)
+    } deriving (Eq, Show)
 
 --This is like 'head' for FirstParsedSeq.
 splitFirstTok::Sequence->FirstParsedSeq
@@ -99,20 +102,28 @@ splitFirstTok sq = error ("Missing case in splitFirstTok: " ++ format sq)
 recombine::Bool->SequenceMap->[FirstParsedSeq]->Sequence
 recombine _ _ [] = error "Huh, shouldn't be here"
 recombine shouldExpandLinks sm fps =
-    case (defltWSs, outs) of
-        ([Just defltWS], [outVal]) -> outify outVal ++ [WhiteSpace defltWS]
+    case (uniqueFirstTok, defltWSs, outs) of
+        (Nothing, _, _) -> --If there is no firstTok, the remainder of the sequence is just ws and outs....  This is only allowed if all seqs are identical, else the choice is ambiguous.  This is needed if an option appears at the end of two similar production rules (ie- x=>A B?; x=> A C?;, which expands to x=>A Or[B,[]]; x=>A Or[C,[]];, or x=>A Or[B,C,[],[]] after left factoring.... notice the repeat idenitcal []'s).
+          case nub fps of
+            [uniqueFirstParsedSeq] -> (outify =<< outs) ++ (wsify =<< defltWSs) ++ theRemainder uniqueFirstParsedSeq
+            _ -> error "ambiguity in recombine"
+        (_, [Just defltWS], [outVal]) -> outify outVal ++ [WhiteSpace defltWS]
             ++ leftFactor shouldExpandLinks sm (orify (theRemainder <$> fps))
-        ([Just defltWS], _) -> [Out [FutureItem Nothing], WhiteSpace defltWS]
+        (_, [Just defltWS], _) -> [Out [FutureItem Nothing], WhiteSpace defltWS]
             ++ leftFactor shouldExpandLinks sm (orify ((\fp -> Out [ItemInfo (outValue fp)]:theRemainder fp) <$> fps))
-        (_, [outVal]) -> outify outVal ++ maybeToList uniqueFirstTok
+        (_, _, [outVal]) -> outify outVal ++ maybeToList uniqueFirstTok
             ++ leftFactor shouldExpandLinks sm (orify ((\fp -> outify (DelayedWS <$> (maybeToList $ defltWSValue fp)) ++ theRemainder fp) <$> fps))
-        (_, _) -> [Out [FutureItem Nothing]] ++ maybeToList uniqueFirstTok
+        (_, _, _) -> [Out [FutureItem Nothing]] ++ maybeToList uniqueFirstTok
             ++ leftFactor shouldExpandLinks sm (orify ((\fp -> Out ([ItemInfo (outValue fp)] ++ (DelayedWS <$> (maybeToList $ defltWSValue fp))):theRemainder fp) <$> fps))
     where
         defltWSs = nub (defltWSValue <$> fps)
         outs = nub (outValue <$> fps)
         [uniqueFirstTok] = nub (firstTok <$> fps) -- This must be a single item, or there was a bug
         outify x = if null x then [] else [Out x]
+        wsify::Maybe DefaultWS->Sequence
+        wsify x = case x of 
+          Nothing -> [] 
+          Just x' -> [WhiteSpace x']
 
 
 leftFactorSequenceMap::Bool->SequenceMap->SequenceMap

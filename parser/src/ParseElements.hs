@@ -34,7 +34,7 @@ import GrammarTools
 import ParseError
 import SequenceMap
 
-import JDebug
+--import JDebug
 
 name2String::Name->String
 name2String name = unpack $ nameLocalName name

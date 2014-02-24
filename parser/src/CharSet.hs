@@ -21,7 +21,7 @@ module CharSet (
 
 import Data.Char hiding (Space)
 
-import JDebug
+--import JDebug
 
 data CharType =
     Alpha

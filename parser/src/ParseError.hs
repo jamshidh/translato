@@ -63,7 +63,8 @@ data ParseError =
 instance Monoid ParseError where
   mempty = NullError
   mappend (ExpectationError r1 expected1 actual1) (ExpectationError r2 expected2 actual2) | r1 == r2 && actual1 == actual2 = ExpectationError r1 (expected1++expected2) actual1
-  mappend (ExpectationError _ _ actual1) (ExpectationError _ _ actual2) | actual1 /= actual2 = error "error in ParseError mappend: trying to merge two expectation errors with different actuals"
+  mappend err1@(ExpectationError _ _ actual1) err2@(ExpectationError _ _ actual2) | actual1 /= actual2 = 
+                          error ("error in ParseError mappend: trying to merge two expectation errors with different actuals:\n----" ++ format err1 ++ "\n----" ++ format err2)
   mappend (ExpectationError r1 expected1 actual1) (ExpectationError r2 expected2 actual2) = ExpectationError (r1++r2) (expected1++expected2) actual1
   mappend NullError e = e
   mappend e NullError = e

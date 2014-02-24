@@ -7,7 +7,7 @@ module Lookahead (
 import Prelude
 
 import Data.Char
-import Data.Foldable hiding (maximum)
+import Data.Foldable hiding (concat, maximum)
 import Data.Functor
 import Data.Tree
 
@@ -91,16 +91,35 @@ matchOne _ theTree =
     error ("Missing case in matchOne: " ++ safeDrawETree theTree)
 
 chooseOne::LString->Forest Expression->Either ParseError (Tree Expression, (MatchType, Importance))
---Perhaps this should be put in as a performance boost, but it isn't *needed*.
---chooseOne s [t] = matchOne s t
+chooseOne s [t] = --This first case is put in as a performance boost, but it isn't *needed*.
+  --It is also really nice to isolate this case from nontrivial choices (ie- where you have more than one thing to choose from vs. Soviet style election) when printing debug information in the next case.
+  case matchOne s t of
+    Right x -> Right (t, x)
+    Left err -> Left err
 chooseOne s forest = 
+  --jtrace ("chooseOne: " ++ show (LS.string s)) $
+  --jtrace (concat $ (++ "\n") <$> ("------" ++) <$> safeDrawETree <$> forest) $ 
   case maximumsBy snd [(t, x)|(t, Right x) <- matchResults] of
-    [] -> Left $ fold [err|(_, Left err) <- matchResults]
+    [] -> --Nothing matched, so why not just return an error?  Because the error might not have occurred at this branch point.
+      --Remember, we need to go into the sequences until we hit a first match.  This might not happen until we have crossed other options.
+      --So what?  As far as the binary question "does it parse?" is concerned, there is no difference, and we should just report an error right here.
+      --However, error reporting will be messed up....  Consider the sequence "[\w]+ abcd" with the input "qqqq bbcd".
+      --This will fail, but the error message will be and expectation error for either another [\w] or an "a".  Obviously, since we encountered a space,
+      --we know that an extra [\w] doesn't help.  Even worse, these two errors happen at different places, so when we try to fold the errors, it doesn't work.
+      --It is best to just return the sequence that works the best now, and let the future checks fail.
+      --FYI, the use case that triggered this problem was the javascript snippet:
+      --        f(x /* comment */);
+      --This was before I put in "/* */" style comments, so the "/*" was unexpected, but the error message was that either [\w], ",", or ")" were expected.
+      --And because the ParseError fold failed, I didn't even get to see this message.
+      case maximumsBy (maximum . fmap fst . ranges . snd) [(t, err)|(t, Left err) <- matchResults] of
+        [(t, _)] -> Right (t, (RegularMatch, Medium))
+        x -> Left $ fold (snd <$> x)
     [x] -> Right x
     _ -> Left $ AmbiguityError [singleCharacterRangeAt s]
   where
     matchResults::[(Tree Expression, Either ParseError (MatchType, Importance))]
     matchResults = (\t -> (t, matchOne s t)) <$> forest
+
 
 
 {-    items ->  jtrace ("===================\n\nmultiple things matched in chooseOne:\n\n      "

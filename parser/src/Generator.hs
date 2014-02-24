@@ -45,7 +45,7 @@ import LeftFactoring
 import ParseError
 import SequenceMap
 
-import JDebug
+--import JDebug
 
 ------------------------------
 
@@ -105,94 +105,103 @@ generateFromText g inputText =
 
 generate::Grammar->Cursor->String
 --generate g c = show (cursor2String g sMap c)
-generate g c = enhancedString2String (cursor2String g sMap c)
+generate g c = enhancedString2String (cursor2String g sMap c [])
     where sMap = leftFactorSequenceMap False $ sequenceMap g
 
-cursor2String::Grammar->SequenceMap->Cursor->EString
-cursor2String g sMap c =
+cursor2String::Grammar->SequenceMap->Cursor->[S.Set String]->EString
+cursor2String g sMap c usedAtts =
     case M.lookup (tagName c) sMap of
-        Just sq -> seq2EString g sMap sq c (child c)
+        Just sq -> seq2EString g sMap sq (S.empty:usedAtts) c (child c)
         Nothing -> error ("Link '" ++ tagName c ++ "' doesn't exist in the grammar")
 
 dummyRanges::[Range]
 dummyRanges = [(Position 0 0 "", Position 0 0 "")]
 
-seq2EString::Grammar->SequenceMap->Sequence->Cursor->[Cursor]->EString
---seq2EString _ _ sq c children | jtrace ((showCursor =<< children) ++ ", [[[[" ++ formatSequence sq ++ "]]]]") $ False = undefined
+seq2EString::Grammar->SequenceMap->Sequence->[S.Set String]->Cursor->[Cursor]->EString
+--seq2EString _ _ sq usedAtts c children | jtrace ((showCursor =<< children) ++ ", [[[[" ++ formatSequence sq ++ "]]]]") $ False = undefined
 
-seq2EString _ _ [] c (firstTag:_) | tagName firstTag == "error" =
+seq2EString _ _ [] usedAtts   c (firstTag:_) | tagName firstTag == "error" =
         error $ red ("Error in file: " ++ concat (T.unpack <$> (child firstTag >>= content)))
 
-seq2EString g sMap (TextMatch text _:rest) c children = e text ++ seq2EString g sMap rest c children
+seq2EString g sMap (TextMatch text _:rest) usedAtts c children = e text ++ seq2EString g sMap rest usedAtts c children
 
-seq2EString g sMap sq c (firstChild:otherChildren) | isWhitespaceTextNode firstChild =
-    seq2EString g sMap sq c otherChildren
+seq2EString g sMap sq usedAtts c (firstChild:otherChildren) | isWhitespaceTextNode firstChild =
+    seq2EString g sMap sq usedAtts c otherChildren
         where
             isWhitespaceTextNode x = isTextNode x && and(isSpace <$> getTextContent x)
-seq2EString g sMap sq c (firstChild:otherChildren) | isTextNode firstChild =
-    e s ++ seq2EString g sMap remainingSeq c (newInput ++ otherChildren)
+seq2EString g sMap sq usedAtts c (firstChild:otherChildren) | isTextNode firstChild =
+    e s ++ seq2EString g sMap remainingSeq usedAtts c (newInput ++ otherChildren)
     where
         s = getTextContent firstChild
         (remainingChars, remainingSeq) = --jtrace ("remaining: " ++ remainingChars) $
             consumeTextNode s sq
         newInput = if remainingChars == "" then [] else [fromNode $ NodeContent $ T.pack remainingChars]
 
-seq2EString _ _ (c@(Character _ _):_) _ _ = error ("expected Character (" ++ show c ++ "), found a node")
+seq2EString _ _ (c@(Character _ _):_) usedAtts _ _ = error ("expected Character (" ++ show c ++ "), found a node")
 
 
 
-seq2EString _ _ [] _ [] = []
-seq2EString g sMap (Out [VStart attrName _]:rest) c remainingChildren =
-        (e $ cursor2AttValue c attrName) ++ seq2EString g sMap rest2 c remainingChildren
+seq2EString _ _ [] _ _ [] = []
+seq2EString g sMap (Out [VStart attrName _]:rest) (usedAttsTop:usedAttsRest) c remainingChildren =
+        (e $ cursor2AttValue c attrName) ++ seq2EString g sMap (dropUntilVEnd rest) (S.insert attrName usedAttsTop:usedAttsRest) c remainingChildren
         where
-            rest2 = tail (dropWhile (/=Out [VEnd]) rest)
-
-seq2EString g sMap (SepBy 0 [Link linkName] sep:rest) c children =
-    result ++ seq2EString g sMap rest c otherChildren
+            dropUntilVEnd::Sequence->Sequence
+            dropUntilVEnd [] = error "Error in seq2EString: missing VEnd"
+            dropUntilVEnd (Or seqs:rest) = (Or $ dropUntilVEnd <$> seqs):rest
+            dropUntilVEnd (Out [VEnd]:rest) = rest
+            dropUntilVEnd (x:rest) = dropUntilVEnd rest
+            
+seq2EString g sMap (SepBy 0 [Link linkName] sep:rest) usedAtts c children =
+    result ++ seq2EString g sMap rest usedAtts c otherChildren
     where
-        (result, otherChildren) = applyTemplates g sMap children linkName sep True
+        (result, otherChildren) = applyTemplates g sMap children linkName sep usedAtts True
 
-seq2EString g sMap (SepBy 0 sq sep:rest) c children =
-    seq2EString g sMap [Or [sq++(SepBy 0 sq sep:rest), rest]] c children
+seq2EString g sMap (SepBy 0 sq sep:rest) usedAtts c children =
+    seq2EString g sMap [Or [sq++(SepBy 0 sq sep:rest), rest]] usedAtts c children
 
-seq2EString g sMap (SepBy minCount sq sep:rest) c remainingChildren =
-    seq2EString g sMap (sq ++ sep ++ (SepBy (minCount - 1) sq sep:rest)) c remainingChildren
+seq2EString g sMap (SepBy minCount sq sep:rest) usedAtts c remainingChildren =
+    seq2EString g sMap (sq ++ sep ++ (SepBy (minCount - 1) sq sep:rest)) usedAtts c remainingChildren
 
-seq2EString _ _ (Or []:_) _ _ = error "No matching alternative in seq2EString Or case"
-seq2EString g sMap (Or seqs:rest) c children =
-    seq2EString g sMap chosenSq c children
+seq2EString _ _ (Or []:_) _ _ _ = error "No matching alternative in seq2EString Or case"
+seq2EString g sMap (Or seqs:rest) usedAtts c children =
+  --jtrace ("cursorFP: " ++ show cursorFP) $
+  --jtrace ("seqFPs: \n" ++ ((++ "\n") <$> ("--------" ++) =<< (\x -> show (fst x) ++ "\n" ++ format (snd x)) <$> sqFPs)) $
+  --jtrace ("matchingSqFPs: " ++ show matchingSqFPs) $
+  --jtrace ("allBestSeqs: " ++ show allBestSeqs) $
+  seq2EString g sMap chosenSq usedAtts c children
     where
         cursorFP = cursorFingerprint c children
         sqFPs::[((S.Set String, [Maybe String]), Sequence)]
-        sqFPs = (sequenceFingerprint &&& id) <$> (++rest) <$> seqs
+        sqFPs = (sequenceFingerprint usedAtts &&& id) <$> (++rest) <$> seqs
         matchingSqFPs = filter (fingerprintMatches g cursorFP . fst) sqFPs
-        allBestSeqs::[Sequence]
-        allBestSeqs = snd <$> maximumsUsing (S.size . fst . fst) matchingSqFPs
+        allBestSeqs::[Sequence] --Why, why did I add this?  I don't remember why, and I don't seem to have a comment telling me why....  And it breaks stuff (even the original reason for FPs= <q/> is expanded to <q> </q>
+        allBestSeqs = snd <$> maximumsUsing (S.size . fst . fst) matchingSqFPs --I will leave this here for now, but comment out its usage below.
         --Even after a fingerprint comparison, seqs can tie for suitability.
         --In this case, just choose the simplest (ie- smallest) seq.
-        chosenSq = minimumBy (compare `on` length) allBestSeqs
+        --chosenSq = minimumBy (compare `on` length) allBestSeqs
+        chosenSq = minimumBy (compare `on` length) (snd <$> matchingSqFPs) --commented out using allBestSeqs....  If this works well, I should just remove it.
 
-seq2EString _ _ (Link linkName:_) _ [] =
+seq2EString _ _ (Link linkName:_) _ _ [] =
     [Fail $ Error dummyRanges ("Looking for element with tagname '" ++ linkName ++ "', but there are no more elements")]
-seq2EString g sMap (Link linkName:rest) c (firstChild:otherChildren) | isA g (tagName firstChild) linkName =
-        cursor2String g sMap firstChild ++ seq2EString g sMap rest c otherChildren
-seq2EString _ _ (Link linkName:_) _ (firstChild:_) =
+seq2EString g sMap (Link linkName:rest) usedAtts c (firstChild:otherChildren) | isA g (tagName firstChild) linkName =
+        cursor2String g sMap firstChild usedAtts ++ seq2EString g sMap rest usedAtts c otherChildren
+seq2EString _ _ (Link linkName:_) usedAtts _ (firstChild:_) =
         [Fail $ Error dummyRanges ("Expecting element with tagname '" ++ linkName ++ "', found " ++ showCursor firstChild)]
 
-seq2EString g sMap (WhiteSpace defltWS:rest) c children = WSItem defltWS:seq2EString g sMap rest c children
+seq2EString g sMap (WhiteSpace defltWS:rest) usedAtts c children = WSItem defltWS:seq2EString g sMap rest usedAtts c children
 --seq2EString g sMap (WhiteSpace (WSString defltWS):rest) c children = e defltWS  ++ seq2EString g sMap rest c children
-seq2EString g sMap (Out [TabRight tabString]:rest) c children = TabRight tabString:seq2EString g sMap rest c children
-seq2EString g sMap (Out [TabLeft]:rest) c children = TabLeft:seq2EString g sMap rest c children
-seq2EString g sMap (Out [DelayedWS defltWS]:rest) c children = DelayedWS defltWS:seq2EString g sMap rest c children
-seq2EString _ _ (EOF:_) c [] | null $ following c = []
-seq2EString _ _ (EOF:_) c _ | null $ following c = error "Expected EOF, but there are still children"
-seq2EString _ _ (EOF:_) _ _ = error "Expected EOF, but there is stuff after"
-seq2EString g sMap (Priority _:rest) c children = seq2EString g sMap rest c children
+seq2EString g sMap (Out [TabRight tabString]:rest) usedAtts c children = TabRight tabString:seq2EString g sMap rest usedAtts c children
+seq2EString g sMap (Out [TabLeft]:rest) usedAtts c children = TabLeft:seq2EString g sMap rest usedAtts c children
+seq2EString g sMap (Out [DelayedWS defltWS]:rest) usedAtts c children = DelayedWS defltWS:seq2EString g sMap rest usedAtts c children
+seq2EString _ _ (EOF:_) usedAtts c [] | null $ following c = []
+seq2EString _ _ (EOF:_) usedAtts c _ | null $ following c = error "Expected EOF, but there are still children"
+seq2EString _ _ (EOF:_) usedAtts _ _ = error "Expected EOF, but there is stuff after"
+seq2EString g sMap (Priority _:rest) usedAtts c children = seq2EString g sMap rest usedAtts c children
 
 
-seq2EString _ _ [] c children =
+seq2EString _ _ [] usedAtts c children =
         error ("Error in tag '" ++ tagName c ++ "': Sequence is finished, but children remain.\n    children = " ++ intercalate "\n" (showCursor <$> children))
-seq2EString _ _ sq c children =
+seq2EString _ _ sq usedAtts c children =
         error ("Missing case in seq2EString:\n    tag = " ++ tagName c ++ ",\n    sequence = " ++ format sq  ++ ",\n    children = " ++ intercalate "\n" (showCursor <$> children))
 
 --
@@ -212,18 +221,18 @@ consumeTextNode s sq =
     error ("Missing case in consumeTextNode:\n    string=" ++ show s ++ "\n    sequence=" ++ format sq)
 
 --TODO add the separator between elements
-applyTemplates::Grammar->SequenceMap->[Cursor]->String->Sequence->Bool->(EString, [Cursor])
+applyTemplates::Grammar->SequenceMap->[Cursor]->String->Sequence->[S.Set String]->Bool->(EString, [Cursor])
 --applyTemplates _ _ (xmlNode:_) _ _ | jtrace (tagName xmlNode) $ False = undefined
-applyTemplates g sMap (firstChild:otherChildren) s sep isFirst | isWhitespaceTextNode firstChild =
-    applyTemplates g sMap otherChildren s sep isFirst
+applyTemplates g sMap (firstChild:otherChildren) s sep usedAtts isFirst | isWhitespaceTextNode firstChild =
+    applyTemplates g sMap otherChildren s sep usedAtts isFirst
         where
             isWhitespaceTextNode x = isTextNode x && and(isSpace <$> getTextContent x)
-applyTemplates g sMap (xmlNode:rest) linkName sep isFirst | isA g (tagName xmlNode) linkName =
-    (sepString ++ cursor2String g sMap xmlNode ++ ret, rest2)
+applyTemplates g sMap (xmlNode:rest) linkName sep usedAtts isFirst | isA g (tagName xmlNode) linkName =
+    (sepString ++ cursor2String g sMap xmlNode usedAtts ++ ret, rest2)
     where
         sepString = if isFirst then e "" else sep2String sep
-        (ret, rest2) = applyTemplates g sMap rest linkName sep False
-applyTemplates _ _ children _ _ _ = ([], children)
+        (ret, rest2) = applyTemplates g sMap rest linkName sep usedAtts False
+applyTemplates _ _ children _ _ _ _ = ([], children)
 {-    case seq2EString sMap exp c remainingChildren of
         Right (s1, nextRemainingChildren) ->
             case seq2EString sMap (List min exp) c nextRemainingChildren of
@@ -247,12 +256,13 @@ cursorFingerprint::Cursor->[Cursor]->(S.Set String, [String])
 cursorFingerprint c (firstChild:_)=(S.fromList $ cursor2AttNames c, [tagName firstChild])
 cursorFingerprint c []=(S.fromList $ cursor2AttNames c, [])
 
-sequenceFingerprint::Sequence->(S.Set String, [Maybe String])
-sequenceFingerprint sq = (S.fromList $ getAttNames sq, getAllowedFirstLinkNames sq)
+sequenceFingerprint::[S.Set String]->Sequence->(S.Set String, [Maybe String])
+sequenceFingerprint (usedAttsTop:_) sq = (S.union usedAttsTop $ S.fromList $ getAttNames sq, getAllowedFirstLinkNames sq)
 
 getAttNames::Sequence->[String]
 getAttNames [] = []
 getAttNames (Out [VStart varName _]:rest) = varName:getAttNames rest
+getAttNames (Or seqs:rest) = (seqs >>= getAttNames) ++ getAttNames rest
 getAttNames (_:rest) = getAttNames rest
 
 getAllowedFirstLinkNames::Sequence->[Maybe String] --Returning a Nothing implies that an empty child list is allowed
@@ -269,7 +279,7 @@ getAllowedFirstLinkNames (x:rest) = getAllowedFirstLinkNames rest
 
 fingerprintMatches::Grammar->(S.Set String, [String])->(S.Set String, [Maybe String])->Bool
 fingerprintMatches g (cursorAttNames, cursorTagNames) (seqAttNames, seqLinkNames) =
-    (seqAttNames `S.isSubsetOf` cursorAttNames) &&
+    (cursorAttNames `S.isSubsetOf` seqAttNames) &&
         case cursorTagNames of
             [] -> Nothing `elem` seqLinkNames
             [ctn] -> or(isA g ctn <$> [linkName|Just linkName<-seqLinkNames])

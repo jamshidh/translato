@@ -27,7 +27,7 @@ module LString (
 
 import qualified Data.List as DL
 
-import JDebug
+--import JDebug
 
 data LString = LString { string::String, line::Int, col::Int } deriving (Eq, Ord, Show)
 

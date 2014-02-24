@@ -40,7 +40,7 @@ getShimNames shimDir =
 versionInRange::Version->VersionRange->Bool
 versionInRange v1 (Exact v2) = v1 == v2
 versionInRange v1 (LowerBound v2) = v1 >= v2
-versionInRange v1 (UpperBound v2) = v1 <= v2
+versionInRange v1 (UpperBound v2) = v1 < v2
 versionInRange v1 (Range v2 v3) = v1 >= v2 && v1 <= v3
 versionInRange _ AllVersions = True
 

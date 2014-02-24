@@ -32,8 +32,8 @@ version=> {versionPart}+;
 ====[versionRange]===============
 
 exact=> {version};
-lowerBound=> >= {version};
-upperBound=> <= {version};
+lowerBound=> {version} <=;
+upperBound=> < {version};
 range=> {lowerBound} {upperBound};
 range=> {upperBound} {lowerBound};
 

@@ -1,16 +1,37 @@
 
-file =>{processinginstruction} {element} ;
+file =>
 
-processinginstruction =>\<?@tagName {list(attribute, ' ')} ?\>;
+{element}
+;
 
-attribute =>@name="@value{eIdent}";
+====[attribute]===============
+attribute =>@name([a-zA-Z\-]+)(="@value([^"]*)")?;
+attribute =>@name([a-zA-Z\-]+)(='@value([^']*)')?;
 
-element =>{emptyElement|fullElement};
+separator: ' '
+====[/attribute]==============
 
-fullElement =>
-	\<@tagName {list(attribute, ' ')} \>
-	{list(element, ' ')}
-	\</@tagName\>;
+====[parameter]===============
 
-emptyElement =>
-	\<@tagName {list(attribute, ' ')} /\>;
+parameter =>@value;
+
+separator: '_, '
+
+====[/parameter]==============
+
+
+====[node]======================
+
+element =><@tagName_{attribute}*_/>;
+
+element =>
+<@tagName_{attribute}*_>
+  {node}*
+</@tagName>;
+
+
+text=>{word}+;
+
+separator: '\n'
+
+====[/node]=====================

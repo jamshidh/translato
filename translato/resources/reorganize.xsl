@@ -9,13 +9,13 @@
 
   <xsl:template match="head">
     <xsl:copy>
-      <xsl:apply-templates select="*|@*|text()" />
       <xsl:for-each select="//library">
 	<script src="{concat('/lib/', @src)}" />
       </xsl:for-each>
       <xsl:for-each select="//styleLib">
 	<link rel="stylesheet" type="text/css" href="{concat('/lib/', @src)}" />
       </xsl:for-each>
+      <xsl:apply-templates select="*|@*|text()" />
     </xsl:copy>
   </xsl:template>
 

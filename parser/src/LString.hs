@@ -20,6 +20,7 @@ module LString (
     isPrefixOf,
     LString.null,
     LString.drop,
+    LString.dropWhile,
     LString.take,
     LString.head,
     LString.tail
@@ -49,6 +50,18 @@ drop i s =
             else col s + length takeRes
         }
     where (takeRes, dropRes) = DL.splitAt i (string s); lineDelta = length (filter ('\n'==) takeRes)
+
+dropWhile::(Char->Bool)->LString->LString
+dropWhile f s =
+    s {
+        string=DL.dropWhile f (string s),
+        line=line s+lineDelta,
+        col= if (lineDelta > 0) then length $ last $ lines takeRes
+            else col s + length takeRes
+        }
+    where 
+      (takeRes, dropRes) = DL.span f (string s)
+      lineDelta = length (filter ('\n'==) takeRes)
 
 null::LString->Bool
 null s = DL.null (string s)

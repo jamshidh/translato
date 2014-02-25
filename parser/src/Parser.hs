@@ -22,8 +22,9 @@ import Control.Monad
 import Data.Char hiding (Space)
 import Data.Functor
 import Data.Graph.Inductive.Query.Monad
+import Data.Maybe
 import Data.Tree
-import Data.Map hiding (map, foldl, filter)
+import qualified Data.Map as M
 import System.FilePath
 import System.IO
 
@@ -53,9 +54,8 @@ type Parser = String->String
 --err s msg =
 --    [Node { rootLabel=Fail $ Error [singleCharacterRangeAt s] msg, subForest=[]}]
 
-expectErr::LString->String->[EChar]
-expectErr s expectation =
-    [Fail $ ExpectationError [singleCharacterRangeAt s] [expectation] s]
+expectErr::LString->String->ParseError
+expectErr s expectation = ExpectationError [singleCharacterRangeAt s] [expectation] s
 
 -------------------------------
 
@@ -67,7 +67,7 @@ addName theName (c:rest) = c:addName theName rest
 
 seq2ParseTree::SequenceMap->Sequence->Forest Expression
 seq2ParseTree sMap (Link theName:rest) =
-    case lookup theName sMap of
+    case M.lookup theName sMap of
         Nothing -> error ("The grammar links to a non-existant rule named '" ++ theName ++ "'")
         Just sq -> seq2ParseTree sMap (addName theName (sq ++ rest))
 seq2ParseTree sMap (List 0 sq:rest) =
@@ -81,39 +81,48 @@ seq2ParseTree _ [] = []
 
 ---------------------------------
 
+
+dropWhiteSpace::LString->LString
+dropWhiteSpace s = LS.dropWhile isSpace s
+
+matchOne::Expression->LString->Either ParseError (EString, LString)
+
+matchOne EOF s | null $ LS.string s = Right ([], s)
+matchOne EOF s = Left $ expectErr s "EOF"
+
+matchOne (TextMatch matchString _) s | LS.isPrefixOf matchString s = Right ([], LS.drop (length matchString) s)
+matchOne (TextMatch matchString maybeName) s = Left $ expectErr s $ fromMaybe matchString maybeName
+
+matchOne (Out outString) s = Right (fillInLString (Just s) <$> outString, s)
+  where
+    fillInLString s (VStart theName _) = VStart theName s
+    fillInLString s (FutureItem _) = FutureItem s
+    fillInLString s x = x
+
+matchOne (Priority Low) s = Right ([], s)
+
+matchOne (WhiteSpace _) s = Right ([], dropWhiteSpace s)
+
+matchOne (Character charset theName) s | LS.null s = Left $
+    expectErr s (case theName of Nothing->formatCharSet charset; Just n->n)
+matchOne (Character charset _) s | LS.head s `isIn` charset = Right ([Ch (LS.head s)], LS.tail s)
+matchOne (Character charset theName) s = Left $
+    expectErr s (case theName of Nothing->formatCharSet charset; Just n->n)
+
+matchOne x _ = error ("Missing case in matchOne: " ++ show x)
+
+
+
+
+
 rawParse::Forest Expression->LString->[EChar]
-rawParse [Node{rootLabel=EOF, subForest=rest}] s | string s == [] = rawParse rest s
-rawParse [Node{rootLabel=EOF}] s = expectErr s "EOF"
+
 rawParse [] _ = []
 
-rawParse [Node{rootLabel=TextMatch matchString _, subForest=rest}] s | LS.isPrefixOf matchString s =
-        rawParse rest (LS.drop (length matchString) s)
-rawParse [Node{rootLabel=TextMatch _ (Just theName), subForest=_}] s = expectErr s theName
-rawParse [Node{rootLabel=TextMatch matchString _, subForest=_}] s = expectErr s matchString
-
-rawParse [Node{rootLabel=Out (VStart theName _:eStringRest), subForest=rest}] s =
-    VStart theName (Just s):rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s
-rawParse [Node{rootLabel=Out (FutureItem _:eStringRest), subForest=rest}] s =
-    FutureItem (Just s):rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s
-rawParse [Node{rootLabel=Out (first:eStringRest), subForest=rest}] s =
-    first:rawParse [Node{rootLabel=Out eStringRest, subForest=rest}] s
-rawParse [Node{rootLabel=Out [], subForest=rest}] s = rawParse rest s
-
-rawParse [Node{rootLabel=Priority Low, subForest=rest}] s = rawParse rest s
-
-rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s | LS.null s = rawParse rest s
-rawParse forest@[Node{rootLabel=WhiteSpace _}] s | isSpace (LS.head s) =
-    rawParse forest (LS.tail s)
-rawParse [Node{rootLabel=WhiteSpace _, subForest=rest}] s = rawParse rest s
-
-rawParse [Node{rootLabel=Character charset theName}] s | LS.null s =
-    expectErr s (case theName of Nothing->formatCharSet charset; Just n->n)
-rawParse [Node{rootLabel=Character charset _, subForest=rest}] s | LS.head s `isIn` charset =
-    Ch (LS.head s):rawParse rest (LS.tail s)
-rawParse [Node{rootLabel=Character charset theName}] s =
-    expectErr s (case theName of Nothing->formatCharSet charset; Just n->n)
-
-rawParse [x] _ = error ("Missing case in rawParse: " ++ safeDrawTree (fmap show x))
+rawParse [x] s = 
+  case matchOne (rootLabel x) s of
+    Left err -> [Fail $ err]
+    Right (output, nextInput) -> output ++ rawParse (subForest x) nextInput
 
 rawParse items s = case chooseOne s items of
     Left err -> [Fail err]

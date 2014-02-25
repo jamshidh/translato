@@ -22,6 +22,7 @@ library
     exposed-modules: ArgOpts CharSet Colors EStringTools EnhancedString
                      Grammar GrammarParser GrammarTools LString LeftFactoring Lookahead
                      OperatorNames ParseError Parser SequenceMap SequenceTools TreeTools 
+                     ExpressionMatcher
                      Paths_parser
     exposed: True
     buildable: True
@@ -44,4 +45,4 @@ executable parser
                    Editor2 FileEditView Lookahead Format LString Main GrammarParser
                    ParseError EnhancedString EStringTools Shower CharSet GValue
                    Generator ParseElements LeftFactoring GrammarTools TreeTools
-                   SequenceTools
+                   SequenceTools ExpressionMatcher

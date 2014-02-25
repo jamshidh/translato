@@ -32,6 +32,7 @@ import ArgOpts
 import CharSet
 import EnhancedString as E
 import EStringTools
+import ExpressionMatcher
 import Grammar as G
 import GrammarTools
 import LeftFactoring
@@ -81,38 +82,9 @@ seq2ParseTree _ [] = []
 
 ---------------------------------
 
-
-dropWhiteSpace::LString->LString
-dropWhiteSpace s = LS.dropWhile isSpace s
-
-matchOne::Expression->LString->Either ParseError (EString, LString)
-
-matchOne EOF s | null $ LS.string s = Right ([], s)
-matchOne EOF s = Left $ expectErr s "EOF"
-
-matchOne (TextMatch matchString _) s | LS.isPrefixOf matchString s = Right ([], LS.drop (length matchString) s)
-matchOne (TextMatch matchString maybeName) s = Left $ expectErr s $ fromMaybe matchString maybeName
-
-matchOne (Out outString) s = Right (fillInLString (Just s) <$> outString, s)
-  where
-    fillInLString s (VStart theName _) = VStart theName s
-    fillInLString s (FutureItem _) = FutureItem s
-    fillInLString s x = x
-
-matchOne (Priority Low) s = Right ([], s)
-
-matchOne (WhiteSpace _) s = Right ([], dropWhiteSpace s)
-
-matchOne (Character charset theName) s | LS.null s = Left $
-    expectErr s (case theName of Nothing->formatCharSet charset; Just n->n)
-matchOne (Character charset _) s | LS.head s `isIn` charset = Right ([Ch (LS.head s)], LS.tail s)
-matchOne (Character charset theName) s = Left $
-    expectErr s (case theName of Nothing->formatCharSet charset; Just n->n)
-
-matchOne x _ = error ("Missing case in matchOne: " ++ show x)
-
-
-
+fillInLString s (VStart theName _) = VStart theName $ Just s
+fillInLString s (FutureItem _) = FutureItem $ Just s
+fillInLString s x = x
 
 
 rawParse::Forest Expression->LString->[EChar]
@@ -122,7 +94,7 @@ rawParse [] _ = []
 rawParse [x] s = 
   case matchOne (rootLabel x) s of
     Left err -> [Fail $ err]
-    Right (output, nextInput) -> output ++ rawParse (subForest x) nextInput
+    Right (output, nextInput) -> (fillInLString s <$> output) ++ rawParse (subForest x) nextInput
 
 rawParse items s = case chooseOne s items of
     Left err -> [Fail err]

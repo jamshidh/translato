@@ -12,6 +12,7 @@ import Data.Functor
 import Data.Tree
 
 import CharSet
+import ExpressionMatcher
 import Grammar
 import qualified LString as LS
 import LString (LString)
@@ -71,29 +72,42 @@ isPrefixTextMatch [] (_:_) = True
 ------------------------------------
 
 
---A lot of the functionality in matchOne is redundant from what is in Parser.hs.
---Someday this should probably be unified.
+shouldParseMore::Expression->Bool
+shouldParseMore (WhiteSpace _) = True
+shouldParseMore (Out _) = True
+shouldParseMore _ = False
 
-matchOne::LString->Tree Expression->Either ParseError (MatchType, Importance)
-matchOne s n@Node{rootLabel=WhiteSpace _, subForest=rest} | LS.null s = snd <$> chooseOne s rest
-matchOne s n@Node{rootLabel=WhiteSpace _, subForest=rest} | isSpace $ LS.head s = matchOne (LS.tail s) n
-matchOne s Node{rootLabel=WhiteSpace _, subForest=rest} = snd <$> chooseOne s rest
-matchOne s node@Node{rootLabel=TextMatch text n} | getFullTextMatch node `isPrefixTextMatch` LS.string s = Right (TextMatched (length $ getFullTextMatch node), Medium)
-matchOne s Node{rootLabel=TextMatch text n} = Left $ ExpectationError [singleCharacterRangeAt s] [show text] s
-matchOne s Node{rootLabel=Character charset n} | LS.null s = Left $ ExpectationError [singleCharacterRangeAt s] [formatCharSet charset] s
-matchOne s Node{rootLabel=Character charset n} | LS.head s `isIn` charset = Right (RegularMatch, Medium)
-matchOne s Node{rootLabel=Character charset n} = Left $ ExpectationError [singleCharacterRangeAt s] [formatCharSet charset] s
-matchOne s Node{rootLabel=EOF} | LS.null s = Right (RegularMatch, Medium)
-matchOne s Node{rootLabel=EOF} = Left $ ExpectationError [singleCharacterRangeAt s] ["EOF"] s
-matchOne s Node{rootLabel=Priority p, subForest=rest} = (const p <$>) <$> snd <$> chooseOne s rest
-matchOne s Node{rootLabel=Out value, subForest=rest} = snd <$> chooseOne s rest
-matchOne _ theTree =
-    error ("Missing case in matchOne: " ++ safeDrawETree theTree)
+exp2Type::Tree Expression->MatchType
+exp2Type node@Node{rootLabel=TextMatch _ _} = TextMatched $ length $ getFullTextMatch node
+exp2Type _ = RegularMatch
+
+
+--Lookahead needs a "matchOne" function, much like the one in ExpressionMatcher.hs, but
+--the functionality and return values are just a bit different.  The code is similar enough
+--that I shouldn't rewrite it, so instead, here is a wrapper function that uses matchOne,
+--and modifies as needed.
+--Changes include
+-- 1. The obvious change in return value.
+-- 2. Some matches don't count as far as "chooseOne" is concerned.  An options can't be resolved based on whitespace matching, or stuff that is just output.  "matchOneWrapper" continues onward to the second match when needed.
+-- 3. Since "chooseOne" considers TextMatch as special, it is tagged.
+-- 4. If a Priority tag is encountered, the priority of the result is set to what is in it.
+matchOneWrapper::LString->Tree Expression->Either ParseError (MatchType, Importance)
+matchOneWrapper s Node{rootLabel=Priority p, subForest=rest} = (const p <$>) <$> snd <$> chooseOne s rest
+matchOneWrapper s node@Node{rootLabel=x, subForest=rest} = 
+  case matchOne x s of
+    Right (_, remainingInput) -> 
+      case shouldParseMore x of
+           True -> snd <$> chooseOne remainingInput rest 
+           False -> Right (exp2Type node, Medium)
+    Left err -> Left err
+
+
+---------------------------------
 
 chooseOne::LString->Forest Expression->Either ParseError (Tree Expression, (MatchType, Importance))
 chooseOne s [t] = --This first case is put in as a performance boost, but it isn't *needed*.
   --It is also really nice to isolate this case from nontrivial choices (ie- where you have more than one thing to choose from vs. Soviet style election) when printing debug information in the next case.
-  case matchOne s t of
+  case matchOneWrapper s t of
     Right x -> Right (t, x)
     Left err -> Left err
 chooseOne s forest = 
@@ -118,7 +132,7 @@ chooseOne s forest =
     _ -> Left $ AmbiguityError [singleCharacterRangeAt s]
   where
     matchResults::[(Tree Expression, Either ParseError (MatchType, Importance))]
-    matchResults = (\t -> (t, matchOne s t)) <$> forest
+    matchResults = (\t -> (t, matchOneWrapper s t)) <$> forest
 
 
 

@@ -1,4 +1,6 @@
 
+whitespace:/\*[^*]*\*/;
+
 jsFile =>
 
 {command}*

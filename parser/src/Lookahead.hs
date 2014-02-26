@@ -51,7 +51,7 @@ instance Ord MatchType where
 getFullTextMatch::Tree Expression->String
 getFullTextMatch 
     Node{rootLabel=TextMatch text1 _,
-        subForest=[Node{rootLabel=WhiteSpace _,
+        subForest=[Node{rootLabel=WhiteSpace _ _,
             subForest=[Node{rootLabel=TextMatch text2 _}]}]} =
         text1++" "++text2
 getFullTextMatch     Node{rootLabel=TextMatch text1 _} = text1
@@ -73,7 +73,7 @@ isPrefixTextMatch [] (_:_) = True
 
 
 shouldParseMore::Expression->Bool
-shouldParseMore (WhiteSpace _) = True
+shouldParseMore (WhiteSpace _ _) = True
 shouldParseMore (Out _) = True
 shouldParseMore _ = False
 

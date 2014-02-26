@@ -25,7 +25,7 @@ import Data.Text hiding (concat, map, filter, length)
 
 import Grammar
 
-import Debug.Trace
+--import Debug.Trace
 
 --import Grammar
 
@@ -63,7 +63,7 @@ op2Name (x:rest) = op2Name rest--}
 
 symbol2Name::Sequence->String
 symbol2Name (TextMatch text _:rest) = op2Name text ++ symbol2Name rest
-symbol2Name (WhiteSpace _:rest) = symbol2Name rest
+symbol2Name (WhiteSpace _ _:rest) = symbol2Name rest
 symbol2Name [] = []
 
 

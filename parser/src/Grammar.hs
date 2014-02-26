@@ -53,7 +53,7 @@ data Importance = Low | Medium | High deriving (Show, Eq, Ord)
 
 data Expression =
     TextMatch String (Maybe String) --The 'Maybe String' is only used for error reporting
-    | WhiteSpace DefaultWS
+    | WhiteSpace [Sequence] DefaultWS
     | Character CharSet (Maybe String) --The 'Maybe String' is only used for error reporting
     | EOE
     | EOF
@@ -105,9 +105,9 @@ formatExpression' level (SepBy minCount expr sep) = "SepBy" ++ (if (minCount > 0
 formatExpression' level (EQuote minCount expr) = "EQuote" ++ (if (minCount > 0) then show minCount else "") ++ "(" ++ formatSequence' level expr ++ ")"
 formatExpression' level (Option expr) = "Option" ++ "(" ++ formatSequence' level expr ++ ")"
 formatExpression' _ (TextMatch text _) = show text
-formatExpression' _ (WhiteSpace FutureWS) = "_??_"
-formatExpression' _ (WhiteSpace (WSString defltWS)) = "__" ++ show defltWS ++ "__" --"_"
-formatExpression' _ (WhiteSpace defltWS) = show defltWS --"_"
+formatExpression' _ (WhiteSpace _ FutureWS) = "_??_"
+formatExpression' _ (WhiteSpace _ (WSString defltWS)) = "__" ++ show defltWS ++ "__" --"_"
+formatExpression' _ (WhiteSpace _ defltWS) = show defltWS --"_"
 
 safeDrawETree::Tree Expression->String
 safeDrawETree = safeDrawTree . (fmap formatExpression)
@@ -155,7 +155,8 @@ data Class = Class {
     _className::ClassName,
     _left::Sequence,
     _right::Sequence,
-    _parentNames::[String]
+    _parentNames::[String],
+    _whiteSpaceSequences::[Sequence]    
     } deriving (Eq, Show)
 $(makeClassy ''Class)
 
@@ -172,6 +173,7 @@ formatClass c = "====[" ++ c^.className
         ++ "  right: " ++ format (c^.right) ++ "\n"
         ++ (if (length (c^.operators) > 0)
             then "  operators: " ++ intercalate ", " (formatOperator <$> c^.operators) ++ "\n" else "")
+        ++ "  whitespace: " ++ intercalate ", " (show <$> (c^.whiteSpaceSequences)) ++ "\n"
         ++ "====[/" ++ c^.className ++ "]===="
 
 

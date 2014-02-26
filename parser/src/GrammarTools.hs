@@ -59,11 +59,11 @@ stripWhitespaceFromGrammar g =
     classes.mapped.rules.mapped.(filtered ((g^.main /=) . (^.name))).rawSequence %~ strip $ g
 
 strip::Sequence->Sequence
-strip (WhiteSpace _:rest) = removeLastWhitespace rest
+strip (WhiteSpace _ _:rest) = removeLastWhitespace rest
 strip x = removeLastWhitespace x
 
 removeLastWhitespace::Sequence->Sequence
-removeLastWhitespace (expr:[WhiteSpace _]) = [expr]
+removeLastWhitespace (expr:[WhiteSpace _ _]) = [expr]
 removeLastWhitespace (expr:rest) = expr:removeLastWhitespace rest
 removeLastWhitespace [] = []
 
@@ -326,16 +326,16 @@ addTabs g = modifySeqsInGrammar addTabsToSeq g
     where
         addTabsToSeq::Sequence->Sequence
         addTabsToSeq [] = []
-        addTabsToSeq (WhiteSpace (WSString defltWS):expr@(Link _):rest) =  rebuildIt defltWS expr rest
-        addTabsToSeq (WhiteSpace (WSString defltWS):expr@(SepBy _ _ _):rest) =  rebuildIt defltWS expr rest
-        addTabsToSeq (WhiteSpace (WSString defltWS):expr@(List _ _):rest) =  rebuildIt defltWS expr rest
+        addTabsToSeq (WhiteSpace wsSeq (WSString defltWS):expr@(Link _):rest) =  rebuildIt wsSeq defltWS expr rest
+        addTabsToSeq (WhiteSpace wsSeq (WSString defltWS):expr@(SepBy _ _ _):rest) =  rebuildIt wsSeq defltWS expr rest
+        addTabsToSeq (WhiteSpace wsSeq (WSString defltWS):expr@(List _ _):rest) =  rebuildIt wsSeq defltWS expr rest
         addTabsToSeq (expr:rest) = expr:addTabsToSeq rest
 
-        rebuildIt defltWS expr rest =
+        rebuildIt wsSeq defltWS expr rest =
             case defltWS =~ "^(.*\n+)([^\\s]+)$" of
                 [[_, prefixWS, tabSpaces]] ->
-                    Out [TabRight tabSpaces]:WhiteSpace (WSString prefixWS):expr:Out [TabLeft]:addTabsToSeq rest
-                _ -> WhiteSpace (WSString defltWS):addTabsToSeq (expr:rest)
+                    Out [TabRight tabSpaces]:WhiteSpace wsSeq (WSString prefixWS):expr:Out [TabLeft]:addTabsToSeq rest
+                _ -> WhiteSpace wsSeq (WSString defltWS):addTabsToSeq (expr:rest)
 
 -----------------------
 

@@ -76,17 +76,18 @@ loadGrammarAndSubGrammarNames specFile = do
 
 ---------- Convert Lists to Maps (ie- create the Grammar from the parsed data)
 
-data ClassOrSubGrammar = AClass Class | SomeSubGrammars [String]
+data ClassOrSubGrammar = AClass Class | AWhiteSpaceDefinition Sequence | SomeSubGrammars [String]
 
 parseGrammarAndSubGrammarNames::Parser (Grammar, [String])
 parseGrammarAndSubGrammarNames =
     do
         spaces
-        classesAndSubGrammars<-endBy parseClassOrSubGrammar spaces
+        classesAndWhiteSpaceDefsAndSubGrammars<-endBy parseClassOrSubGrammar spaces
         spaces
         eof
 
-        let classList = [c|AClass c <- classesAndSubGrammars]
+        let classList = [c|AClass c <- classesAndWhiteSpaceDefsAndSubGrammars]
+        let wsDefList = [wsDef|AWhiteSpaceDefinition wsDef <- classesAndWhiteSpaceDefsAndSubGrammars]
         let mainClassName =
                 case classList of
                     (cl:_) -> cl^.className
@@ -98,21 +99,30 @@ parseGrammarAndSubGrammarNames =
               mainClassName
               (M.fromListWithKey
                   (const . const . error . ("The grammar has a repeat element: " ++))
-                  (((^.className)&&&id) <$> classList)),
-            concat [subGrammars|SomeSubGrammars subGrammars<-classesAndSubGrammars]
+                  (((^.className)&&&id) <$> (whiteSpaceSequences .~ wsDefList) <$> classList)),
+            concat [subGrammars|SomeSubGrammars subGrammars<-classesAndWhiteSpaceDefsAndSubGrammars]
           )
 
 
 parseClassOrSubGrammar =
   try (AClass <$> parseFullClass)
   <|> try (AClass <$> parseSimpleClass)
+  <|> try (AWhiteSpaceDefinition <$> parseWhiteSpaceDefinition)
   <|> (SomeSubGrammars <$> parseSubGrammars)
+
+parseWhiteSpaceDefinition =
+    do
+        string "whitespace:"
+        sequence<-parseSequence
+        spaces
+        string ";"
+        return sequence
 
 parseSimpleClass =
     do
         RuleItem rule<-parseRule
         spaces
-        return (Class [rule] [] [] [WhiteSpace (WSString " ")] (rule^.name) [] [] [])
+        return (Class [rule] [] [] [WhiteSpace [] (WSString " ")] (rule^.name) [] [] [] [])
 
 data ClassItem =
     RuleItem Rule
@@ -168,12 +178,13 @@ parseFullClass =
                         (concat [operators|OperatorsItem operators<-itemsWithPriority])
                         (getUnique
                                 "separator"
-                                [WhiteSpace (WSString " ")]
+                                [WhiteSpace [] (WSString " ")]
                                 [separator|SeparatorItem separator<-itemsWithPriority])
                         name
                         (getUnique "left" [] [left|LeftItem left<-itemsWithPriority])
                         (getUnique "right" [] [right|RightItem right<-itemsWithPriority])
-                        parents)
+                        parents
+                        [])
                 where
                     itemsWithPriority = addPriorityToItems 0 items
                     getUnique::String->Sequence->[Sequence]->Sequence
@@ -279,10 +290,10 @@ parseQuote =
 
 string2Sequence::String->Sequence
 string2Sequence [] = []
-string2Sequence ('_':rest) = WhiteSpace EmptyWS:string2Sequence rest
+string2Sequence ('_':rest) = WhiteSpace [] EmptyWS:string2Sequence rest
 --TODO This allows for default space like " _ " (which doesn't make sense), then
 -- doesn't even treat the _ properly.  This is a minor problem, I won't fix it now.
-string2Sequence s | isSpace (head s) = WhiteSpace (WSString first):string2Sequence rest
+string2Sequence s | isSpace (head s) = WhiteSpace [] (WSString first):string2Sequence rest
     where (first, rest) = break (not . isSpaceOrUnderscore) s
 string2Sequence s = TextMatch first Nothing:string2Sequence rest
     where (first, rest) = break isSpaceOrUnderscore s

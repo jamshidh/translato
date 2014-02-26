@@ -1,6 +1,7 @@
 {-# OPTIONS_GHC -Wall #-}
 
 module SequenceTools (
+  eModify,
   removeDefaultWS,
   removeWSAndOut
   ) where
@@ -25,13 +26,13 @@ eModify f expr = f expr
 removeDefaultWS::Sequence->Sequence
 removeDefaultWS sq = sq >>= eModify f
   where
-    f (WhiteSpace _) = [WhiteSpace WSWithoutDefault]
+    f (WhiteSpace wsSeq _) = [WhiteSpace wsSeq WSWithoutDefault]
     f x = [x]
 
 --Used for debugging, to make it easier to view what is being matched
 removeWSAndOut::Sequence->Sequence
 removeWSAndOut sq = sq >>= eModify f
   where
-    f (WhiteSpace _) = []
+    f (WhiteSpace _ _) = []
     f (Out _) = []
     f x = [x]

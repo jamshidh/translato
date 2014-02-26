@@ -88,7 +88,7 @@ splitFirstTok (expr@(Or _):rest) = FirstParsedSeq (Just expr) (e "") Nothing res
 splitFirstTok (expr@(Priority _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (Out eString:rest) = fp{outValue=eString ++ outValue fp}
     where fp = splitFirstTok rest
-splitFirstTok (WhiteSpace defltWS:rest) = FirstParsedSeq (Just $ WhiteSpace FutureWS) (e "") (Just defltWS) rest
+splitFirstTok (WhiteSpace [] defltWS:rest) = FirstParsedSeq (Just $ WhiteSpace [] FutureWS) (e "") (Just defltWS) rest
 splitFirstTok [] = FirstParsedSeq{
         firstTok = Nothing,
         outValue = e "",
@@ -107,9 +107,9 @@ recombine shouldExpandLinks sm fps =
           case nub fps of
             [uniqueFirstParsedSeq] -> (outify =<< outs) ++ (wsify =<< defltWSs) ++ theRemainder uniqueFirstParsedSeq
             _ -> error "ambiguity in recombine"
-        (_, [Just defltWS], [outVal]) -> outify outVal ++ [WhiteSpace defltWS]
+        (_, [Just defltWS], [outVal]) -> outify outVal ++ [WhiteSpace [] defltWS]
             ++ leftFactor shouldExpandLinks sm (orify (theRemainder <$> fps))
-        (_, [Just defltWS], _) -> [Out [FutureItem Nothing], WhiteSpace defltWS]
+        (_, [Just defltWS], _) -> [Out [FutureItem Nothing], WhiteSpace [] defltWS]
             ++ leftFactor shouldExpandLinks sm (orify ((\fp -> Out [ItemInfo (outValue fp)]:theRemainder fp) <$> fps))
         (_, _, [outVal]) -> outify outVal ++ maybeToList uniqueFirstTok
             ++ leftFactor shouldExpandLinks sm (orify ((\fp -> outify (DelayedWS <$> (maybeToList $ defltWSValue fp)) ++ theRemainder fp) <$> fps))
@@ -123,7 +123,7 @@ recombine shouldExpandLinks sm fps =
         wsify::Maybe DefaultWS->Sequence
         wsify x = case x of 
           Nothing -> [] 
-          Just x' -> [WhiteSpace x']
+          Just x' -> [WhiteSpace [] x']
 
 
 leftFactorSequenceMap::Bool->SequenceMap->SequenceMap

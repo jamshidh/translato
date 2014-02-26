@@ -58,6 +58,9 @@ type Parser = String->String
 expectErr::LString->String->ParseError
 expectErr s expectation = ExpectationError [singleCharacterRangeAt s] [expectation] s
 
+
+
+
 -------------------------------
 
 addName::String->Sequence->Sequence
@@ -86,10 +89,9 @@ fillInLString s (VStart theName _) = VStart theName $ Just s
 fillInLString s (FutureItem _) = FutureItem $ Just s
 fillInLString s x = x
 
+rawParse::Forest Expression->LString->EString
 
-rawParse::Forest Expression->LString->[EChar]
-
-rawParse [] _ = []
+rawParse [] s = []
 
 rawParse [x] s = 
   case matchOne (rootLabel x) s of
@@ -106,7 +108,7 @@ parseTree::Grammar->String->Forest Expression
 parseTree g startRule=seq2ParseTree (cleanSMap g) [Link startRule]
   where
         --cleanSMap = leftFactorSequenceMap True . fmap removeWSAndOut . fmap removeDefaultWS . sequenceMap
-        cleanSMap = leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
+    cleanSMap = fillInWSSeqs g . leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
 
 createEParserForClass::String->Grammar->EParser
 createEParserForClass startRule g =

@@ -93,6 +93,10 @@ object => \{_{field}*_\};
 
 embeddedElement => {widget};
 
+conditional => {expression} \? {expression} : {expression};
+
+void => void {expression};
+
 paren => \(_{expression}_\);
 
 operators: ' == ' ' != ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '*' ' / ' ' + ' '-'

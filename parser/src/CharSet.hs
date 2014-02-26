@@ -26,6 +26,7 @@ import Data.Char hiding (Space)
 data CharType =
     Alpha
     | Alphanum
+    | Any --This has been added here, but nothing in GrammerParser can create it yet (I'm just being lazy now....  I'll add something if I need it).
     | CharRange Char Char
     | Digit
     | LowercaseChar
@@ -42,6 +43,7 @@ formatCharSet (CharSet isNot sets) = "[" ++ (if isNot then "^" else "") ++ forma
 formatSets::[CharType]->String
 formatSets (Alpha:rest) = "[a-zA-Z]" ++ formatSets rest
 formatSets (Alphanum:rest) = "[a-zA-Z0-9]" ++ formatSets rest
+formatSets (Any:rest) = "." ++ formatSets rest
 formatSets (CharRange char1 char2:rest) = char1:'-':char2:formatSets rest
 formatSets (Digit:rest) = "\\d" ++ formatSets rest
 formatSets (LowercaseChar:rest) = "[a-z]" ++ formatSets rest
@@ -64,6 +66,7 @@ isIn c (CharSet True charTypes) = not $ isIn c (CharSet False charTypes)
 isInCharType::Char->CharType->Bool
 isInCharType c Alpha | isAlpha c = True
 isInCharType c Alphanum | isAlphaNum c = True
+isInCharType c Any = True
 isInCharType c (CharRange char1 char2) | (c >= char1) && (c <= char2) = True
 isInCharType c Digit | isDigit c = True
 isInCharType c LowercaseChar | isLower c = True

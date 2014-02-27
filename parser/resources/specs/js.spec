@@ -99,7 +99,7 @@ void => void {expression};
 
 paren => \(_{expression}_\);
 
-operators: ' == ' ' != ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '*' ' / ' ' + ' '-'
+operators: ' in ' ' === ' ' == ' ' != ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '_*_' ' / ' ' + ' '-' ' || ' ' && '
 
 separator: '_, '
 

@@ -10,7 +10,7 @@ import Data.List
 
 import Grammar
 
---import JTrace
+--import JDebug
 
 symbol2Name::Sequence->String
 symbol2Name (TextMatch text _:rest) = op2Name text ++ symbol2Name rest
@@ -26,6 +26,9 @@ op2Name "/" = "divide"
 op2Name "^" = "power"
 op2Name "." = "dot"
 op2Name "==" = "equals"
+op2Name "===" = "tripleEquals"
+op2Name "||" = "or"
+op2Name "&&" = "and"
 op2Name "!=" = "doesNotEqual"
 op2Name "<" = "lessThan"
 op2Name ">" = "greaterThan"

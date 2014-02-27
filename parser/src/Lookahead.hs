@@ -72,6 +72,14 @@ isPrefixTextMatch [] (_:_) = True
 ------------------------------------
 
 
+data SeqFP = 
+  SeqFP 
+  {
+    doesNotAllowWS::Bool,
+    matchType::MatchType,
+    importance::Importance
+  } deriving (Show, Eq, Ord)
+
 shouldParseMore::Expression->Bool
 shouldParseMore (WhiteSpace _ _) = True
 shouldParseMore (Out _) = True
@@ -91,20 +99,27 @@ exp2Type _ = RegularMatch
 -- 2. Some matches don't count as far as "chooseOne" is concerned.  An options can't be resolved based on whitespace matching, or stuff that is just output.  "matchOneWrapper" continues onward to the second match when needed.
 -- 3. Since "chooseOne" considers TextMatch as special, it is tagged.
 -- 4. If a Priority tag is encountered, the priority of the result is set to what is in it.
-matchOneWrapper::LString->Tree Expression->Either ParseError (MatchType, Importance)
-matchOneWrapper s Node{rootLabel=Priority p, subForest=rest} = (const p <$>) <$> snd <$> chooseOne s rest
+matchOneWrapper::LString->Tree Expression->Either ParseError SeqFP
+matchOneWrapper s Node{rootLabel=Priority p, subForest=rest} = 
+  (\fp -> fp{importance=p}) <$> snd <$> chooseOne s rest
+--matchOneWrapper s Node{rootLabel=WhiteSpace _ _, subForest=rest} = 
+--  (\fp -> fp{doesNotAllowWS=True}) <$> snd <$> chooseOne s rest
+--  (\fp -> fp{doesNotAllowWS=False}) <$> snd <$> chooseOne s rest
 matchOneWrapper s node@Node{rootLabel=x, subForest=rest} = 
   case matchOne x s of
     Right (_, remainingInput) -> 
       case shouldParseMore x of
-           True -> snd <$> chooseOne remainingInput rest 
-           False -> Right (exp2Type node, Medium)
+           True -> (\fp -> if isWS x then fp{doesNotAllowWS=False} else fp) <$> snd <$> chooseOne remainingInput rest
+           False -> Right SeqFP{doesNotAllowWS=True, matchType=exp2Type node, importance=Medium}
     Left err -> Left err
-
+  where
+    isWS::Expression->Bool
+    isWS (WhiteSpace _ _) = True
+    isWS _ = False
 
 ---------------------------------
 
-chooseOne::LString->Forest Expression->Either ParseError (Tree Expression, (MatchType, Importance))
+chooseOne::LString->Forest Expression->Either ParseError (Tree Expression, SeqFP)
 chooseOne s [t] = --This first case is put in as a performance boost, but it isn't *needed*.
   --It is also really nice to isolate this case from nontrivial choices (ie- where you have more than one thing to choose from vs. Soviet style election) when printing debug information in the next case.
   case matchOneWrapper s t of
@@ -126,12 +141,12 @@ chooseOne s forest =
       --This was before I put in "/* */" style comments, so the "/*" was unexpected, but the error message was that either [\w], ",", or ")" were expected.
       --And because the ParseError fold failed, I didn't even get to see this message.
       case maximumsBy (maximum . fmap fst . ranges . snd) [(t, err)|(t, Left err) <- matchResults] of
-        [(t, _)] -> Right (t, (RegularMatch, Medium))
+        [(t, _)] -> Right (t, SeqFP{doesNotAllowWS=True, matchType=RegularMatch, importance=Medium}) --TODO- Should the "isWhitespace bool" be set to something more accurate?
         x -> Left $ fold (snd <$> x)
     [x] -> Right x
     _ -> Left $ AmbiguityError [singleCharacterRangeAt s]
   where
-    matchResults::[(Tree Expression, Either ParseError (MatchType, Importance))]
+    matchResults::[(Tree Expression, Either ParseError SeqFP)]
     matchResults = (\t -> (t, matchOneWrapper s t)) <$> forest
 
 

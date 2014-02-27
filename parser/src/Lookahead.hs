@@ -72,6 +72,17 @@ isPrefixTextMatch [] (_:_) = True
 ------------------------------------
 
 
+--This fingerprint determines the ordering of paths in a choice.
+--Parameters fall in decreasing importance.
+--
+--Paths without whitespace win over paths with whitespace (the use case that inspired this rule was the javascript "in" operator....  
+--It helps parse the input "windows" as "<variable name="window"/> vs. "<in><variable name="w"/><variable name="dow"/></in>")
+--
+--The match type prioritizes TextMatch over Character matches, and TextMatch by size.  This helps choose the correct path in a repeating list, like elements in an xml element or chars in a quote (ie- </ is 
+--correctly recognized as the end of the outer element, and the < is not confused for a new element.  Also, ".*" will terminate upon seeing the first '"').
+--
+--Importance is set by the Priority expression in the sequence, and is currently used to make the "*" and "?" operators greedy (these operators work similarly to the same regex operators).
+
 data SeqFP = 
   SeqFP 
   {

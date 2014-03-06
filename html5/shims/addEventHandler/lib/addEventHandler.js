@@ -34,7 +34,7 @@ Element.prototype.addEventListener = function (type, listener, useCapture) {
 	this[type] = 0;
 
 	this.attachEvent("onpropertychange", function(event) {
-            if (event.propertyName == type) {
+            if (event.propertyName == type + "eventhack") {
 		listener(event);
             }
 	});
@@ -52,9 +52,8 @@ window.addEventListener = Element.prototype.addEventListener;
 //}
 
 Element.prototype.dispatchEvent = function (event) {
-    //alert("dispatchEvent: event = " + event);
     if (isCustomEvent(event.type)) {
-	this[event.type]++;
+	this[event.type+"eventhack"]++;
     }
     else {
 	this.fireEvent("on" + event.type, event);
@@ -62,12 +61,9 @@ Element.prototype.dispatchEvent = function (event) {
 }
 
 document.createEvent = function (type) {
-    //alert("createEvent: type = " + type);
-    return {"qqqq": "qqqq", 
-	    initEvent: function(type, bubbles, cancelable) { 
-		//alert("initEvent: type=" + type + ", bubbles=" + bubbles + ", cancelable=" + cancelable); 
-		//alert("creating: " + type);
-		return {qqqq:"qqqq"};
-	    } 
-	   };
+    return {
+	initEvent: function(type, bubbles, cancelable) { 
+	    this.type=type;
+	} 
+    };
 }

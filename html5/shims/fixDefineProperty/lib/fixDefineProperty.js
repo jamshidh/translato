@@ -15,7 +15,7 @@ Object.fixedDefineProperty = function (obj, prop, descriptor) {
     
     obj.getAttribute = function (name) {
 	if (name === prop) return theRealValue;
-	else return originalGetAttribute(name, value);
+	else return originalGetAttribute(name);
     };
     
     obj.removeAttribute = function (name) {

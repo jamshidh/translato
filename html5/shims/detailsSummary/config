@@ -1,2 +1,2 @@
 
-browsers: mozilla >=1.2, ie
+browsers: mozilla 1.2 <=, ie

@@ -35,10 +35,12 @@ window.onload = function() {
 	var detailsEl = detailsElements[i];
 
 	var summaryEls = detailsEl.getElementsByTagName("summary");
-	
+
 	if (summaryEls.length != 1) {
-	    console.log("qqqq");
+           //console.log("You need one summary element");
+           alert("You need one summary element");
 	}
+
 
 	var summaryEl = summaryEls[0];
 

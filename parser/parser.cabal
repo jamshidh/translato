@@ -15,14 +15,14 @@ library
     build-depends: DOM -any, base -any, bindings-gobject -any,
                    bytestring -any, case-insensitive -any, containers -any,
                    directory -any, fgl -any, field-marshal -any, filepath -any,
-                   glib -any, gtk -any, lens -any, missing-foreign -any, mtl -any,
-                   parsec -any, regex-compat -any, regex-posix -any,
+                   glib -any, gtk -any, lens -any, missing-foreign -any, 
+                   mtl -any, parsec -any, regex-compat -any, regex-posix -any,
                    system-filepath -any, template-haskell -any, text -any,
                    transformers -any, utf8-string -any, xml-conduit -any
     exposed-modules: ArgOpts CharSet Colors EStringTools EnhancedString
-                     Grammar GrammarParser GrammarTools LString LeftFactoring Lookahead
-                     OperatorNames ParseError Parser SequenceMap SequenceTools TreeTools 
-                     ExpressionMatcher
+                     Grammar GrammarParser GrammarTools LString LeftFactoring 
+                     Lookahead OperatorNames ParseError Parser SequenceMap 
+                     SequenceTools TreeTools ExpressionMatcher
                      Paths_parser
     exposed: True
     buildable: True
@@ -33,16 +33,17 @@ executable parser
     build-depends: DOM -any, base -any, bindings-gobject -any,
                    bytestring -any, case-insensitive -any, containers -any,
                    directory -any, fgl -any, field-marshal -any, filepath -any,
-                   glib -any, gtk -any, lens -any, missing-foreign -any, mtl -any,
-                   parsec -any, regex-compat -any, regex-posix -any,
+                   glib -any, gtk -any, lens -any, missing-foreign -any, 
+                   mtl -any, parsec -any, regex-compat -any, regex-posix -any,
                    system-filepath -any, template-haskell -any, text -any,
                    transformers -any, utf8-string -any, xml-conduit -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: ArgOpts OperatorNames WidgetRegister SequenceMap OutputParser
-                   JDebug Grammar Colors FakeColors Parser Editor RecordTypes SMShower
-                   Editor2 FileEditView Lookahead Format LString Main GrammarParser
-                   ParseError EnhancedString EStringTools Shower CharSet GValue
-                   Generator ParseElements LeftFactoring GrammarTools TreeTools
-                   SequenceTools ExpressionMatcher
+    other-modules: ArgOpts OperatorNames WidgetRegister SequenceMap 
+                   OutputParser JDebug Grammar Colors FakeColors Parser 
+                   Editor RecordTypes SMShower Editor2 FileEditView Lookahead 
+                   Format LString Main GrammarParser ParseError EnhancedString 
+                   EStringTools Shower CharSet GValue Generator ParseElements 
+                   LeftFactoring GrammarTools TreeTools SequenceTools 
+                   ExpressionMatcher

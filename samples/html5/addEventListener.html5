@@ -1,0 +1,18 @@
+
+<html>
+  <head>
+    <script>
+      //window.attachEvent("onload", function () { alert("window load event"); });
+      window.addEventListener("load", function () { alert("window load event"); });
+    </script>
+  </head>
+  <body>
+    <button id="button">press me</button>
+
+    <script>
+      //document.getElementById("button").attachEvent("onclick", function () { alert("I've been pressed"); });
+      document.getElementById("button").addEventListener("click", function () { alert("I've been pressed"); });
+
+    </script>
+  </body>
+</html>

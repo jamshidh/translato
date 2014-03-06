@@ -76,18 +76,18 @@ loadGrammarAndSubGrammarNames specFile = do
 
 ---------- Convert Lists to Maps (ie- create the Grammar from the parsed data)
 
-data ClassOrSubGrammar = AClass Class | AWhiteSpaceDefinition Sequence | SomeSubGrammars [String]
+data ClassOrSubGrammar = AClass Class | AWhiteSpaceDefinition Sequence | SomeSubGrammars [String] | AComment Comment
 
 parseGrammarAndSubGrammarNames::Parser (Grammar, [String])
 parseGrammarAndSubGrammarNames =
     do
         spaces
-        classesAndWhiteSpaceDefsAndSubGrammars<-endBy parseClassOrSubGrammar spaces
+        rootItems<-endBy parseRootItem spaces
         spaces
         eof
 
-        let classList = [c|AClass c <- classesAndWhiteSpaceDefsAndSubGrammars]
-        let wsDefList = [wsDef|AWhiteSpaceDefinition wsDef <- classesAndWhiteSpaceDefsAndSubGrammars]
+        let classList = [c|AClass c <- rootItems]
+        let wsDefList = [wsDef|AWhiteSpaceDefinition wsDef <- rootItems]
         let mainClassName =
                 case classList of
                     (cl:_) -> cl^.className
@@ -100,15 +100,16 @@ parseGrammarAndSubGrammarNames =
               (M.fromListWithKey
                   (const . const . error . ("The grammar has a repeat element: " ++))
                   (((^.className)&&&id) <$> (whiteSpaceSequences .~ wsDefList) <$> classList)),
-            concat [subGrammars|SomeSubGrammars subGrammars<-classesAndWhiteSpaceDefsAndSubGrammars]
+            concat [subGrammars|SomeSubGrammars subGrammars<-rootItems]
           )
 
 
-parseClassOrSubGrammar =
+parseRootItem =
   try (AClass <$> parseFullClass)
   <|> try (AClass <$> parseSimpleClass)
   <|> try (AWhiteSpaceDefinition <$> parseWhiteSpaceDefinition)
-  <|> (SomeSubGrammars <$> parseSubGrammars)
+  <|> try (SomeSubGrammars <$> parseSubGrammars)
+  <|> (AComment <$> parseComment)
 
 parseWhiteSpaceDefinition =
     do
@@ -124,9 +125,11 @@ parseSimpleClass =
         spaces
         return (Class [rule] [] [] [WhiteSpace [] (WSString " ")] (rule^.name) [] [] [] [])
 
+data Comment = Comment String
+
 data ClassItem =
     RuleItem Rule
-    | Comment
+    | ClassComment Comment
     | OperatorsItem [Operator]
     | SeparatorItem Sequence
     | LeftItem Sequence
@@ -163,7 +166,7 @@ parseFullClass =
             <|> parseRight
             <|> try parseOperators
             <|> parseRule
-            <|> parseComment) spaces
+            <|> (ClassComment <$> parseComment)) spaces
         spaces
         string "====[/"
         name<-ident
@@ -195,7 +198,7 @@ parseFullClass =
 
             addPriorityToItems::Int->[ClassItem]->[ClassItem]
             addPriorityToItems p (RuleItem rule:rest) = RuleItem ((rulePriority `set` p) rule):addPriorityToItems (p+1) rest
-            addPriorityToItems p (Comment:rest) = Comment:addPriorityToItems p rest
+            addPriorityToItems p (ClassComment c:rest) = ClassComment c:addPriorityToItems p rest
             addPriorityToItems p (OperatorsItem ops:rest) =
                         OperatorsItem ((priority %~ (p+)) <$> ops):addPriorityToItems (p+(length ops)) rest
             addPriorityToItems p (SeparatorItem separator:rest) = SeparatorItem separator:addPriorityToItems p rest
@@ -206,9 +209,9 @@ parseFullClass =
 parseComment =
     do
         char '#'
-        many (noneOf "\n")
+        value <- many (noneOf "\n")
         char '\n'
-        return Comment
+        return $ Comment value
 
 parseRule =
     do

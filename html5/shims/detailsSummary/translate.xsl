@@ -10,6 +10,7 @@
   <xsl:template match="details">
     <library src="details.js" />
     <styleLib src="details.css" />
+    <styleLib src="summary.css" />
     <xsl:copy>
       <xsl:apply-templates select="*|@*|text()" />
     </xsl:copy>

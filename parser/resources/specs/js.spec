@@ -97,8 +97,6 @@ conditional => {expression} \? {expression} : {expression};
 
 void => void {expression};
 
-paren => \(_{expression}_\);
-
 operators: ' in ' ' === ' ' == ' ' != ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '_*_' ' / ' ' + ' '-' ' || ' ' && '
 
 separator: '_, '
@@ -112,6 +110,8 @@ separator: '_, '
 variable => @name;
 
 array => \[_{expression}*_\];
+
+paren => \(_{expression}_\);
 
 operators: '.'
 

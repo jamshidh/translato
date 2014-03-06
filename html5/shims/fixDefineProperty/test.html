@@ -1,0 +1,108 @@
+
+<!DOCTYPE html>
+
+<html>
+<head>
+<script>
+
+document.createElement("CHUMBA");
+
+Element.prototype.tagName = function() { return "Qqqq"; };
+
+</script>
+
+</head>
+<body>
+
+<h1 id="chumba" open="llll">abcd</h1>
+
+<chumba id="chumba2">chumba</chumba>
+
+<button onclick="chumba.open = true;">chumba.open=true;</button>
+<button onclick="chumba.open = false;">chumba.open=false;</button>
+<button onclick="chumba.setAttribute('open', 'abcd');">setAttribute 'abcd'</button>
+<button onclick="chumba.removeAttribute('open');">removeAttribute</button>
+<button onclick="alert('getAttribute: ' + chumba.getAttribute('open'));">view getAttribute</button>
+<button onclick="alert('chumba.open=' + chumba.open);">view chumba.open</button>
+
+
+
+
+<script>
+
+
+var chumba = document.getElementById("chumba");
+
+(function () {
+  var theRealValue = chumba.getAttribute("open");
+
+  var originalSetAttribute = chumba.setAttribute;
+  var originalGetAttribute = chumba.getAttribute;
+  var originalRemoveAttribute = chumba.removeAttribute;
+
+  chumba.setAttribute = function (name, value) {
+      if (name === "open") {
+	theRealValue = value;
+      }
+      else {
+	originalSetAttribute(name, value);
+      };
+
+  };
+
+  chumba.getAttribute = function (name) {
+      if (name === "open") {
+	return theRealValue;
+      }
+      else {
+	return originalGetAttribute(name, value);
+      };
+
+  };
+
+  chumba.removeAttribute = function (name) {
+      if (name === "open") {
+	theRealValue = undefined;
+      }
+      else {
+	originalRemoveAttribute(name);
+      };
+
+  };
+  
+})();
+
+
+
+
+Object.defineProperty(chumba, "open", {
+  set:function (value) {
+	alert("defineProperty [" + value + "]");
+      if (value) this.setAttribute("open", value); else this.removeAttribute("open");
+  }, 
+
+  get:function () {
+	alert("get for property");
+      if (this.getAttribute("open") == undefined) return false; else return true;
+  }
+
+});
+
+
+
+
+chumba.setAttribute = function (name, value) {
+	alert("setAttribute: " + value);
+      chumba.constructor.prototype.setAttribute.call(chumba, name, value);
+    };
+
+
+
+//chumba.removeAttribute = function (name) {
+//	alert("removeAttribute " + name);
+//      chumba.constructor.prototype.removeAttribute.call(chumba, name);
+//    };
+
+</script>
+</body>
+</html>

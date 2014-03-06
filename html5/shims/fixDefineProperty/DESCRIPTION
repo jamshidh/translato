@@ -1,0 +1,10 @@
+
+This shim is for IE8
+
+Although Object.defineProperty is implemented in IE8, it is somewhat broken.  This shim fixes one issue.
+
+When defineProperty is set on an element, [gs]etAttribute breaks pretty badly.  In my tests, setAttribute seems to call the property setter, and getAttribute seems to always just return Null.  Not only is this inconsistent with every other browser, but it is pretty useless functionality.
+
+The fix involves just rewriting [gs]etAttribute from scratch.  I use a var in a closure to hold the value, which is set to the original value, obtained from getAttribute before defineProperty is called.
+
+Although, as far as I could tell, removeAttribute may have been working, I had to rewrite it also to use my closure var....

@@ -50,18 +50,30 @@
   </xsl:template>
 
   <xsl:template match="attribute">
+
+    (function () {
+
+    var originalSetAttribute = element.setAttribute;
+    var originalRemoveAttribute = element.removeAttribute;
+
     element.setAttribute = function(name, value) { 
       if (name == "<xsl:value-of select="@name" />") {
         <xsl:value-of select="setter/text()" />
       }
-      Object.getPrototypeOf(element).setAttribute.call(element, name, value); 
+      originalSetAttribute.apply(this, arguments); 
     }
+
+
+
     element.removeAttribute = function(name) { 
       if (name == "<xsl:value-of select="@name" />") {
         <xsl:value-of select="remover/text()" />
       }
-      Object.getPrototypeOf(element).removeAttribute.call(element, name); 
+      originalRemoveAttribute.apply(this, arguments); 
     }
+
+    })();
+
   </xsl:template>
 
   <xsl:template match="eventHandler">

@@ -1,2 +1,2 @@
 
-browsers: ie <= 8
+browsers: ie < 9

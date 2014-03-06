@@ -140,10 +140,11 @@ fillInVariableAssignments (VStart name (Just s):rest) =
         splitVariableValue (Ch c:rest) =
             case splitVariableValue rest of
                 (Just value, rest2) -> (Just (c:value), rest2)
-                (Nothing, _) -> (Nothing, [])
+                (Nothing, rest2) -> (Nothing, rest2)
         splitVariableValue (EStart _ _:rest) = splitVariableValue rest
         splitVariableValue (EEnd _:rest) = splitVariableValue rest
-        splitVariableValue x = error ("Missing case in splitVariableValue: " ++ show x)
+        splitVariableValue (Fail err:rest) = (Nothing, [Fail err])
+        splitVariableValue x = error ("Missing case in splitVariableValue: " ++ (format =<< x))
 fillInVariableAssignments (c:rest) = c:fillInVariableAssignments rest
 fillInVariableAssignments [] = []
 
@@ -185,7 +186,10 @@ expandOperators (StartBlock:rest) = case fullBlock rest of
     Left e -> [e]
     where
         fullBlock::EString->Either EChar (EString, EString)
-        fullBlock [] = error "Fullblock hit the end without an EndBlock"
+        
+        --fullBlock [] = error "Fullblock hit the end without an EndBlock" -- This can happen if an earlier processed error in the block cuts off the endblock
+        fullBlock [] = Right ([], rest) -- Therefore I'm doing this for now, although this doesn't feel quite kosher
+        
         fullBlock (EndBlock:rest) = Right ([], rest)
 --        fullBlock (c@(Fail _):rest) = Left c
         fullBlock (StartBlock:rest) = --Nested Blocks
@@ -231,13 +235,14 @@ expandOperatorsInBlock (NestedItem left:InfixTag InfixOp{opName=name}:NestedItem
 expandOperatorsInBlock (NestedItem left:e@(FilledInEStart _ _):rest) =
     left ++ expandOperatorsInBlock (e:rest)
 expandOperatorsInBlock [NestedItem item] =  item
+expandOperatorsInBlock [NestedItem item, Fail err] = item ++ [Fail err]
 expandOperatorsInBlock items | null $ filter (not . isCharacter) items = items
   where
     isCharacter (Ch _) = True
     isCharacter _ = False
 expandOperatorsInBlock [] =  []
 expandOperatorsInBlock s =
-    error ("Missing case in expandOperatorsInBlock: (" ++ show s)
+    error ("Missing case in expandOperatorsInBlock: (" ++ (format =<< s))
 
 
 simplifyOpPair::EString->InfixOp->EString->InfixOp->EString->EString
@@ -265,6 +270,7 @@ simplifyOpPair left op1@InfixOp{opName=name,opPriority=p1} right op2 rest
         (left ++ [InfixTag op1] ++ expandOperatorsInBlock (NestedItem right:InfixTag op2:rest))
 
 splitByEndCap::EString->(EString, EString)
+splitByEndCap [] = ([], []) --This is a hack to get things working in a case where an error has gutten the output.
 splitByEndCap (EndCap name:rest) = ([], rest)
 splitByEndCap (e@(InfixTag InfixOp{opAssociativity=UseEndCap, opName=name}):rest) = (e:inside1 ++ [EndCap name] ++ inside2, outside2)
     where
@@ -272,6 +278,8 @@ splitByEndCap (e@(InfixTag InfixOp{opAssociativity=UseEndCap, opName=name}):rest
         (inside2, outside2) = splitByEndCap outside1
 splitByEndCap (c:rest) = (c:inside, outside)
     where (inside, outside) = splitByEndCap rest
+splitByEndCap x = error ("Missing case in splitByEndCap: " ++ (format =<< x))
+
 
 
 getNestedItem::EString->(EString, EChar, EString)

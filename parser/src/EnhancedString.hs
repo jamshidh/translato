@@ -42,7 +42,7 @@ import ParseError
 
 data Associativity = LeftAssoc | RightAssoc | UseEndCap deriving (Eq, Ord, Show)
 
-data InfixOp = InfixOp{opName::String, opPriority::Int, opAssociativity::Associativity} deriving (Eq, Ord)
+data InfixOp = InfixOp{opName::String, opPriority::Int, opAssociativity::Associativity} deriving (Eq, Ord, Show)
 
 data DefaultWS = WSString String | FutureWS | EmptyWS | WSWithoutDefault deriving (Eq, Ord, Show)
 
@@ -71,34 +71,34 @@ data EChar =
     | InfixTag InfixOp
     | EndCap String
     | Fail ParseError
-    deriving (Eq, Ord)
+    deriving (Eq, Ord, Show)
 
-instance Show EChar where
-    show (Ch '\n') = "\\n"
-    show (Ch c) = [c]
-    show (EStart tagName attributes) =
+instance Format EChar where
+    format (Ch '\n') = "\\n"
+    format (Ch c) = [c]
+    format (EStart tagName attributes) =
         cyan ("<" ++ tagName ++ (toList attributes >>= formatAttName) ++ ">")
         where
             formatAttName (attName, optional) = " " ++ attName ++ if optional then "?" else ""
-    show (FilledInEStart tagName atts) = cyan ("<" ++ tagName ++ concat ((" " ++) <$> (\(tagName', val) -> tagName' ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">")
-    show (FutureItem _) = cyan ("<??>")
-    show (ItemInfo eString) = cyan ("{itemInfo=" ++ show eString ++ "}")
-    show (DelayedWS defltWS) = cyan ("{delayedWS=" ++ show defltWS ++ "}")
-    show (WSItem defltWS) = blue ("{wsItem=" ++ show defltWS ++ "}")
-    show (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
-    show (NestedItem s) = yellow "<<<" ++ show s ++ yellow ">>>"
-    show (VOut attrName) = green ("[" ++ attrName ++ "]")
-    show (VStart attrName _) = green ("{" ++ attrName ++ "=")
-    show (VEnd) = green "}"
-    show (VAssign attrName maybeVal _) = green ("assign{" ++ attrName ++ "=" ++ formatMaybe maybeVal ++ "}")
-    show (TabLeft) = magenta "<=="
-    show (TabRight tabString) = magenta ("==>(" ++ tabString ++ ")")
-    show Unknown = red "Unknown"
-    show StartBlock = red "["
-    show EndBlock = red "]"
-    show (InfixTag InfixOp{opPriority=p, opName=opName'}) = cyan ("<-" ++ opName' ++ ":" ++ show p ++ "->")
-    show (EndCap endCapName) = yellow ("EndCap(" ++ endCapName ++ ")")
-    show (Fail err) = red ("Fail: " ++ message err)
+    format (FilledInEStart tagName atts) = cyan ("<" ++ tagName ++ concat ((" " ++) <$> (\(tagName', val) -> tagName' ++ "='" ++ formatMaybe val ++ "'") <$> atts) ++ ">")
+    format (FutureItem _) = cyan ("<??>")
+    format (ItemInfo eString) = cyan ("{itemInfo=" ++ (format =<< eString) ++ "}")
+    format (DelayedWS defltWS) = cyan ("{delayedWS=" ++ show defltWS ++ "}")
+    format (WSItem defltWS) = blue ("{wsItem=" ++ show defltWS ++ "}")
+    format (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
+    format (NestedItem s) = yellow "<<<" ++ (format =<< s) ++ yellow ">>>"
+    format (VOut attrName) = green ("[" ++ attrName ++ "]")
+    format (VStart attrName _) = green ("{" ++ attrName ++ "=")
+    format (VEnd) = green "}"
+    format (VAssign attrName maybeVal _) = green ("assign{" ++ attrName ++ "=" ++ formatMaybe maybeVal ++ "}")
+    format (TabLeft) = magenta "<=="
+    format (TabRight tabString) = magenta ("==>(" ++ tabString ++ ")")
+    format Unknown = red "Unknown"
+    format StartBlock = red "["
+    format EndBlock = red "]"
+    format (InfixTag InfixOp{opPriority=p, opName=opName'}) = cyan ("<-" ++ opName' ++ ":" ++ show p ++ "->")
+    format (EndCap endCapName) = yellow ("EndCap(" ++ endCapName ++ ")")
+    format (Fail err) = red ("Fail: " ++ message err)
 
 type EString = [EChar]
 

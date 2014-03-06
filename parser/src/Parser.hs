@@ -137,7 +137,7 @@ createEParser g = createEParserForClass (g^.main) g
 
 createParser::Grammar->Parser
 createParser g =
---    show
+--    (format =<<)
     enhancedString2String
     . (>>= eAmpEscape)
     . expandOperators

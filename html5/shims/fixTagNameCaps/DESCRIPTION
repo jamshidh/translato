@@ -1,0 +1,2 @@
+
+".tagName" is supposed to normalize the tagnames to uppercase....  IE8 doesn't do this, so this shim fixes that.

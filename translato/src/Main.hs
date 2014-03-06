@@ -20,4 +20,4 @@ main = do
             ('.':ext) -> ext
             _ -> error ("translato filename has no extension: " ++ filename)
     
-    readFile filename >>= applyShims specName userAgent >>= putStrLn
+    readFile filename >>= translate specName userAgent >>= putStrLn

@@ -4,8 +4,9 @@
 module WidgetLibGenerator (
     getWidgetNames,
     getNeededShims,
-    getWidgetLibContent
-) where
+    getWidgetLibContent,
+    Lib(..)
+    ) where
 
 import Control.Monad
 import qualified Data.ByteString.UTF8 as B
@@ -28,10 +29,17 @@ import WidgetJSLibrary
 import WidgetMerger ()
 import WidgetParser
 
-import Debug.Trace
+--import Debug.Trace
+
+
+data Lib = CSSLib{libname::T.Text} | JSLib{libname::T.Text} deriving (Ord, Eq, Show)
+
+instance IsString Lib where
+  fromString x = JSLib $ fromString x
+
 
 getShimNames::FilePath->IO [FilePath]
-getShimNames shimDir =
+getShimNames shimDir = do
     filterM doesDirectoryExist
         =<< map (shimDir </>)
         <$> filter (not . ("." `isPrefixOf`))
@@ -72,7 +80,7 @@ isShimEligible userAgent shimFilePath = do
 
 getWidgetNames::FilePath->IO [String]
 getWidgetNames shimDir = do
-    nub <$> sort <$> map takeBaseName <$> trace "abcdabcd" <$>
+    nub <$> sort <$> map takeBaseName <$> 
         Find.find (depth <=? 2) (depth ==? 2 &&? extension ==? ".widget") shimDir
 
 getDirectoryFilePathContents::FilePath->IO [FilePath]
@@ -90,18 +98,16 @@ getNeededShims userAgentString shimDir = do
 getWidgetLibContent::FilePath->String->String->IO (Maybe String, Maybe String)
 getWidgetLibContent shimDir userAgentString widgetName = do
     neededShims <- getNeededShims userAgentString shimDir
-    putStrLn ("Needed shims: " ++ show (takeBaseName <$> neededShims))
     widgetFiles <-
-        filter ((widgetName ++ ".widget" ==) . takeFileName)
+        filter ((takeBaseName widgetName ++ ".widget" ==) . takeFileName)
             <$> concat
             <$> (sequence $ getDirectoryFilePathContents <$> neededShims)
-    trace ("widgetFiles: " ++ show widgetFiles) $ return ()
     case widgetFiles of
         [] -> return (Nothing, Nothing)
         _ -> do
             contents <- sequence $ XML.readFile XML.def <$> fromString <$> widgetFiles
             let widget = fold $ reverse $ xml2Widget <$> XML.documentRoot <$> contents
-            content <- widget2js widgetName $ format $ widget
+            content <- widget2js (takeBaseName widgetName) $ format $ widget
             let cssContent = style widget
             return (if length widgetFiles == 0 then Nothing else Just content, cssContent)
 

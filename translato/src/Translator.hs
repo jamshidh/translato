@@ -1,44 +1,25 @@
 {-# OPTIONS_GHC -Wall #-}
 
 module Translator (
-  applyShims
+  translate
 ) where
 
-import Control.Monad
 import Data.Functor
+import qualified Data.Text.Lazy as TL
 import System.Directory
 import System.FilePath
 import System.Process
 
-import Paths_translato
-
-import Parser
-import WidgetLibGenerator
-
-applyShims::String->String->String->IO String
-applyShims specName userAgent input = do
+import Reorganizer
+import Shims
+  
+translate::String->String->String->IO String
+translate specName userAgent input = do
   
   shimDir <- (</> "GlowApps" </> "html5" </> "shims") <$> getHomeDirectory
 
-  neededShimDirs <- getNeededShims userAgent shimDir
-
-  translators <- map doXsltXform <$> (filterM doesFileExist $ (</> "translate.xsl") <$> neededShimDirs)
+  result <- reorganize shimDir userAgent . TL.pack =<< applyShims shimDir specName userAgent input
+  case result of
+    Right reorganized -> readProcess "parser" ["generate", specName] . TL.unpack $ reorganized
+    Left err -> error $ show err
     
-  --putStrLn ("There are " ++ show (length translators) ++ " translators")
-    
-  --This chains together functions in a list [a, b, c, d]
-  --using (>>=), like this ">>= a >>= b >>= c >>= d"
-  let allTranslatorsTogether =
-        if length translators == 0
-        then id
-        else foldl1 (.) $ (=<<) <$> translators
-    
-  reorganizerFile <- getDataFileName "reorganize.xsl"
-
-  (allTranslatorsTogether $ (parseUsingSpecName specName input))
-        >>= (doXsltXform reorganizerFile)
-        >>= readProcess "parser" ["generate", specName]
-
-doXsltXform::FilePath->String->IO String
-doXsltXform xsltFilePath = readProcess "xmlstarlet" ["tr", xsltFilePath, "-"]
-

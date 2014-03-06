@@ -10,6 +10,8 @@
   </style>
 
   <code>
+    document.createElement("details");
+
     function closeIt(detailsEl) {
       var notSummaryEls = getDetailsNotSummary(detailsEl);
       var summaryEl = detailsEl.getElementsByTagName("SUMMARY")[0];
@@ -43,7 +45,8 @@
     var summaryEls = element.getElementsByTagName("summary");
 	
     if (summaryEls.length != 1) {
-      console.log("qqqq");
+      //console.log("qqqq");
+      alert("You need one summary element");
     }
 
     var summaryEl = summaryEls[0];

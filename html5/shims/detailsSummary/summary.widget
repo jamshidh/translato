@@ -17,6 +17,9 @@
     details[open]> summary:before { content: '▼ '; }
 
   </style>
+  <code>
+    document.createElement("summary");
+  </code>
   <eventHandler name="click">
       //summaryEl.focus();
       element.parentNode.open = !element.parentNode.open;

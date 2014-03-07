@@ -22,7 +22,7 @@ import qualified LString as LS
 import ParseError
 import SequenceMap
 
---import JDebug
+import JDebug
 
 type Attribute = (String, String)
 
@@ -67,7 +67,7 @@ dropWhiteSpace [] s = Right $ LS.dropWhile isSpace s
 dropWhiteSpace [wsSeq@(first:restWSSeq)] s = 
   case LS.string s of
     (c:_) | isSpace c -> dropWhiteSpace [wsSeq] $ LS.dropWhile isSpace s --For now I will hardcode isSpace as whitespace....  I will probably remove this later and make it just another sequence.
-    _ | succeeds $ matchOne first s -> miniParse wsSeq s
+    _ | succeeds $ matchOne first s -> dropWhiteSpace [wsSeq] =<< miniParse wsSeq s
     _ -> Right s
   where
     succeeds (Right _) = True

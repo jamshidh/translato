@@ -103,8 +103,8 @@ getWidgetLibContent shimDir userAgentString widgetName = do
             <$> concat
             <$> (sequence $ getDirectoryFilePathContents <$> neededShims)
     case widgetFiles of
-        [] -> return (Nothing, Nothing)
-        _ -> do
+      [] -> return (Nothing, Nothing)
+      _ -> do
             contents <- sequence $ XML.readFile XML.def <$> fromString <$> widgetFiles
             let widget = fold $ reverse $ xml2Widget <$> XML.documentRoot <$> contents
             content <- widget2js (takeBaseName widgetName) $ format $ widget

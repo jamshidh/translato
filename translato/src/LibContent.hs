@@ -17,7 +17,7 @@ import System.FilePath
 import Shims
 import WidgetLibGenerator
 
-import Debug.Trace
+--import Debug.Trace
 
 libContent::FilePath->String->Lib->IO (Maybe String)
 libContent shimDir userAgent lib = do
@@ -29,7 +29,15 @@ libContent shimDir userAgent lib = do
         <$> getDirectoryContents shimDir
 
   case (staticLibFiles, lib) of
-    ([], JSLib _) -> fst <$> getWidgetLibContent shimDir userAgent (T.unpack $ libname lib)
-    ([], CSSLib _) -> snd <$> getWidgetLibContent shimDir userAgent (T.unpack $ libname lib)
+    ([], JSLib _) -> do
+      jsContent <- fst <$> getWidgetLibContent shimDir userAgent (T.unpack $ libname lib)
+      case jsContent of
+        Nothing -> error ("neither '<shimDir>/*/lib/" ++ T.unpack (libname lib) ++ "' nor '<shimDir>/*/" ++ takeBaseName (T.unpack $ libname lib) ++ ".widget' exists")
+        x -> return x
+    ([], CSSLib _) -> do
+      cssContent <- snd <$> getWidgetLibContent shimDir userAgent (T.unpack $ libname lib)
+      case cssContent of
+        Nothing -> error ("neither '<shimDir>/*/lib/" ++ T.unpack (libname lib) ++ "' nor '<shimDir>/*/" ++ takeBaseName (T.unpack $ libname lib) ++ ".widget' exists")
+        x -> return x
     ([staticFile], _) -> Just <$> readFile staticFile
     _ -> error ("Library '" ++ T.unpack (libname lib) ++ "' appears in more than one place")

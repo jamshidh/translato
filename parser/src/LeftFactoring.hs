@@ -106,7 +106,7 @@ recombine shouldExpandLinks sm fps =
         (Nothing, _, _) -> --If there is no firstTok, the remainder of the sequence is just ws and outs....  This is only allowed if all seqs are identical, else the choice is ambiguous.  This is needed if an option appears at the end of two similar production rules (ie- x=>A B?; x=> A C?;, which expands to x=>A Or[B,[]]; x=>A Or[C,[]];, or x=>A Or[B,C,[],[]] after left factoring.... notice the repeat idenitcal []'s).
           case nub fps of
             [uniqueFirstParsedSeq] -> (outify =<< outs) ++ (wsify =<< defltWSs) ++ theRemainder uniqueFirstParsedSeq
-            _ -> error "ambiguity in recombine"
+            _ -> error ("ambiguity in recombine: " ++ show fps)
         (_, [Just defltWS], [outVal]) -> outify outVal ++ [WhiteSpace [] defltWS]
             ++ leftFactor shouldExpandLinks sm (orify (theRemainder <$> fps))
         (_, [Just defltWS], _) -> [Out [FutureItem Nothing], WhiteSpace [] defltWS]

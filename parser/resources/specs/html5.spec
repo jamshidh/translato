@@ -70,6 +70,10 @@ code=>
 <code>{bodyNode}*</code>
 ;
 
+strong=>
+<strong>{bodyNode}*</strong>
+;
+
 details=>
 <details_{attribute}*_>
   {summary}
@@ -90,7 +94,7 @@ h1=>
 ;
 
 progress=>
-<progress_{attribute}*_>{bodyNode}*</progress>
+<progress_{attribute}*_>_{bodyNode}*_</progress>
 ;
 
 section=>

@@ -27,9 +27,11 @@ Object.fixedDefineProperty = function (obj, prop, descriptor) {
     }
 
     obj.setAttribute = function (name, value) {
-	if (name === prop) theRealValue = value;
+	if (name === prop) {
+	    theRealValue = value;
+	    setRealValue(this, name, value);
+	}
 	else originalSetAttribute(name, value);
-	setRealValue(this, name, value);
 	obj.className=obj.className;
     };
     

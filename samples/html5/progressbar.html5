@@ -27,6 +27,8 @@
 
     <button onclick="addCoolness()">Add Coolness</button>
     <button onclick="reallyAddCoolness()">Really Add Coolness</button>
+    <button onclick="setCoolnessTo10();">Set coolness to 10</button>
+    <button onclick="makeCoolnessUnknown();">Make coolness unknown</button>
 
     <br><br>
 
@@ -70,6 +72,16 @@
       function reallyAddCoolness() {
         if (progressbar.getAttribute("value") <= 85) 
 	  progressbar.setAttribute("value", progressbar.value + 15);
+	  setTimeout(function () { updateDisplay(); }, 0);
+      }
+
+      function setCoolnessTo10() {
+	  progressbar.value = 10;
+	  setTimeout(function () { updateDisplay(); }, 0);
+      }
+
+      function makeCoolnessUnknown() {
+	  progressbar.removeAttribute("value");
 	  setTimeout(function () { updateDisplay(); }, 0);
       }
 

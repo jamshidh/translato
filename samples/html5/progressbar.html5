@@ -3,13 +3,77 @@
 
   <head>
 
+    <style>
+      table {
+        border:solid 1px;
+      }
+      td {
+        border:solid 1px;
+      }
+      tr {
+        border:solid 1px;
+      }
+    </style>
+    
   </head>
 
-  <body>  
+  <body>
 
-    <progress max="100" value="60">
+    <h1>Your Coolness:</h1>
+
+    <progress id="progressbar" max="100" value="60">
       <strong>Progress: 60% done.</strong>
-    </progress>
+    </progress><br>
+
+    <button onclick="addCoolness()">Add Coolness</button>
+    <button onclick="reallyAddCoolness()">Really Add Coolness</button>
+
+    <br><br>
+
+    values:
+    <table>
+      <tr><td>value attr</td><td id="valueattr"></td><td id="valueattrtype"></td></tr>
+      <tr><td>value prop</td><td id="valueprop"></td><td id="valueproptype"></td></tr>
+      <tr><td>max attr</td><td id="maxattr"></td><td id="maxattrtype"></td></tr>
+      <tr><td>max prop</td><td id="maxprop"></td><td id="maxproptype"></td></tr>
+      <tr><td>position attr</td><td id="positionattr"></td><td id="positionattrtype"></td></tr>
+      <tr><td>position prop</td><td id="positionprop"></td><td id="positionproptype"></td></tr>
+    </table>
+
+    <script>
+
+      var progressbar = document.getElementById("progressbar");
+
+      function updateDisplay() {
+        document.getElementById("valueattr").innerHTML=progressbar.getAttribute("value");
+        document.getElementById("maxattr").innerHTML=progressbar.getAttribute("max");
+        document.getElementById("valueprop").innerHTML=progressbar.value;
+        document.getElementById("maxprop").innerHTML=progressbar.max;
+        document.getElementById("positionattr").innerHTML=progressbar.getAttribute("position");
+        document.getElementById("positionprop").innerHTML=progressbar.position;
+
+        document.getElementById("valueattrtype").innerHTML=typeof progressbar.getAttribute("value");
+        document.getElementById("maxattrtype").innerHTML=typeof progressbar.getAttribute("max");
+        document.getElementById("valueproptype").innerHTML=typeof progressbar.value;
+        document.getElementById("maxproptype").innerHTML=typeof progressbar.max;
+        document.getElementById("positionattrtype").innerHTML=typeof progressbar.getAttribute("position");
+        document.getElementById("positionproptype").innerHTML=typeof progressbar.position;
+      }
+
+      updateDisplay();
+
+      function addCoolness() {
+        if (progressbar.value <= 90) progressbar.value += 10;
+	setTimeout(function () { updateDisplay(); }, 0);
+      }
+
+      function reallyAddCoolness() {
+        if (progressbar.getAttribute("value") <= 85) 
+	  progressbar.setAttribute("value", progressbar.value + 15);
+	  setTimeout(function () { updateDisplay(); }, 0);
+      }
+
+    </script>
     
   </body>
   

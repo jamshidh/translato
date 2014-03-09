@@ -84,7 +84,7 @@ separator: '_, '
 ====[expression:lvalue]=========
 
 num => @value(\d+);
-nnum => @value(-\d+);
+nnum => -@value(\d+);
 
 string => "@value([^"]*)";
 

@@ -35,6 +35,8 @@ backgroundSize=>background-size: @value([^;]*)\;;
 mozBackgroundSize=>-moz-background-size: @value([^;]*)\;;
 webkitBackgroundSize=>-webkit-background-size: @value([^;]*)\;;
 
+border=>border: @value([^;]*)\;;
+
 mozBoxSizing=>-moz-box-sizing: @value([^;]*)\;;
 boxSizing=>box-sizing: @value([^;]*)\;;
 

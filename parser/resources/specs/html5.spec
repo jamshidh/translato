@@ -25,7 +25,7 @@ head=>
 ;
 
 body=>
-<body>
+<body_{attribute}*_>
   {bodyNode}*
 </body>
 ;
@@ -66,6 +66,8 @@ button=>
 <button_{attribute}*_>{bodyNode}*</button>
 ;
 
+br=><br>;
+
 code=>
 <code>{bodyNode}*</code>
 ;
@@ -79,6 +81,12 @@ details=>
   {summary}
   {bodyNode}*
 </details>
+;
+
+table=>
+<table>
+  {tr}*
+</table>
 ;
 
 dl=>
@@ -114,6 +122,18 @@ dd=>
 <dd>{bodyNode}*</dd>
 ;
 
+
+tr=>
+<tr>
+  {td}*
+</tr>
+;
+
+td=>
+<td_{attribute}*_>
+  {bodyNode}*
+</td>
+;
 
 summary=>
 <summary_{attribute}*_>

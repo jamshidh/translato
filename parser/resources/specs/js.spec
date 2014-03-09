@@ -21,9 +21,14 @@ separator: '_, '
 
 
 
-commandBody => \{
+====[commandBody:command]====
+
+fullBody => \{
   {command}*
 \};
+
+====[/commandBody]===========
+
 
 ====[command]========
 
@@ -32,6 +37,7 @@ varDeclaration => var @name_(=_{expression}_)?\;?;
 expressionCommand => {expression}_\;?;
 
 assignment => {lvalue} = {expression}_\;?;
+addAssignment => {lvalue} \+= {expression}_\;?;
 
 return => return( {expression})?_\;?;
 #return => return([ \t]+{expression})?_\;?;
@@ -39,8 +45,6 @@ return => return( {expression})?_\;?;
 comment => //[^\n]*[\n];
 
 if => if \({expression}\) {commandBody}( else {commandBody})?;
-
-if => if \({expression}\) {command}( else {command})?;
 
 try => try {commandBody}
 catch\({expression}\) {commandBody};
@@ -51,7 +55,7 @@ for => for \({varDeclaration}_ {expression}_\; {expression}\) {commandBody};
 
 iteratorFor => for \({variable} in {expression}_\) {commandBody};
 
-funcDeclaration => function @name\({parameter}*\) {commandBody};
+funcDeclaration => function @name\({parameter}*\) {fullBody};
 
 blankCommand => \;;
 
@@ -80,6 +84,7 @@ separator: '_, '
 ====[expression:lvalue]=========
 
 num => @value(\d+);
+nnum => @value(-\d+);
 
 string => "@value([^"]*)";
 
@@ -88,6 +93,8 @@ singleQuoteString => '@value([^']*)';
 incrementor => {expression}\+\+;
 
 booleanNot => !{expression};
+
+typeof => typeof {expression};
 
 object => \{_{field}*_\};
 
@@ -119,7 +126,7 @@ function => {lvalue}\(_{expression}*_\);
 
 arrayIndex => {lvalue}\[{expression}\];
 
-lambda => function \(_{parameter}*_\) {commandBody};
+lambda => function \(_{parameter}*_\) {fullBody};
 
 ====[/lvalue]=================
 

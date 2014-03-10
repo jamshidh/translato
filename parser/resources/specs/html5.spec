@@ -67,9 +67,24 @@ button=>
 ;
 
 br=><br>;
+br=><br_/>;
 
 code=>
 <code>{bodyNode}*</code>
+;
+
+form=>
+<form_{attribute}*_>
+  {bodyNode}*
+</form>
+;
+
+img=>
+<img_{attribute}*_/>
+;
+
+input=>
+<input_{attribute}*_/>
 ;
 
 strong=>

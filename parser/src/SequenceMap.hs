@@ -69,14 +69,12 @@ fillInWSSeqs g sMap = mapWithKey (\rulename -> (>>= eModify (addWSSeq (getIt wsM
     addWSSeq wsSeqs (WhiteSpace _ dfltWS) = [WhiteSpace ((>>= eModify normalizeWSExp) <$> wsSeqs) dfltWS]
     addWSSeq _ x = [x]
 
-    wsSeq = [TextMatch "/*" Nothing, List 0 [Character (CharSet False [Any]) Nothing], TextMatch "*/" Nothing]
-
     wsMap::Map Name [Sequence]
     wsMap = fromList $ class2wsTuples =<< (elems $ g^.classes)
 
     class2wsTuples::Class->[(String, [Sequence])]
-    class2wsTuples cl = (\n -> (n, cl^.whiteSpaceSequences)) <$> (^.name) <$> cl^.rules
-
+    class2wsTuples cl = ((\n -> (n, cl^.whiteSpaceSequences)) <$> (^.name) <$> cl^.rules)
+                                 ++ [(cl^.className, cl^.whiteSpaceSequences)]
     normalizeWSExp::Expression->Sequence
     normalizeWSExp (EQuote count sq) = [List count sq] --Under the assumptions of simplicity, EQuote=SepBy=List
     normalizeWSExp x = [x]

@@ -324,12 +324,12 @@ data SequenceItem = TextItem String | SequenceItem Sequence | ExpressionItem Exp
 matchSequenceItem =
     do
         item <- (
-            exp2 SequenceItem matchAttribute
-            <|> exp2 ExpressionItem matchLink
-            <|> exp2 SequenceItem matchParen
-            <|> exp2 ExpressionItem matchCharset
-            <|> exp2 ExpressionItem matchSimpleCharsetChar
-            <|> exp2 TextItem matchText)
+            (SequenceItem <$> matchAttribute)
+            <|> (ExpressionItem <$> matchLink)
+            <|> (SequenceItem <$> matchParen)
+            <|> (ExpressionItem <$> matchCharset)
+            <|> (ExpressionItem <$> matchSimpleCharsetChar)
+            <|> (TextItem <$> matchText))
         count <- option "" (string "*" <|> string "+" <|> string "?")
         return (case (count, item) of
             ("", ExpressionItem exp) -> [exp]
@@ -352,12 +352,6 @@ exp2Seq x =
     do
         ret<-x
         return [ret]
-
-exp2::(a->b)->Parser a->Parser b
-exp2 f x =
-    do
-        ret<-x
-        return (f ret)
 
 matchAttribute =
     do
@@ -402,7 +396,8 @@ matchCharsetRange =
 matchSimpleCharsetChar =
     do
         chartype <- (
-            try (string "\\s" >> return Space)
+            try (string "." >> return Any)
+            <|> try (string "\\s" >> return Space)
             <|> try (string "\\d" >> return Digit)
             <|> try (string "\\w" >> return WordChar)
             )
@@ -419,8 +414,9 @@ matchLink =
 matchText::Parser String
 matchText =
     do
-        text<-many1 (noneOf ";*()[]+{}@?\\"
+        text<-many1 (noneOf ";*()[]+{}@?\\."
             <|> (try (string "\\@") >> return '@')
+            <|> (try (string "\\.") >> return '.')
             <|> (try (string "\\?") >> return '?')
             <|> (try (string "\\*") >> return '*')
             <|> (try (string "\\+") >> return '+')

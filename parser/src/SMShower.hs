@@ -44,7 +44,7 @@ showSequenceMap simplify args = do
     grammar<-loadGrammarAndSimplifyForParse (specFileName options)
     let rawSequenceMap = sequenceMap grammar
     let sequenceMap = if simplify
-                        then leftFactorSequenceMap True $ fmap removeDefaultWS $ rawSequenceMap
+                        then fillInWSSeqs grammar $ leftFactorSequenceMap True $ fmap removeDefaultWS $ rawSequenceMap
                         else rawSequenceMap
     case ruleName options of
         Nothing->putStrLn $ formatSequenceMap sequenceMap

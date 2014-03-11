@@ -241,8 +241,8 @@ expandOperatorsInBlock items | null $ filter (not . isCharacter) items = items
     isCharacter (Ch _) = True
     isCharacter _ = False
 expandOperatorsInBlock [] =  []
-expandOperatorsInBlock s =
-    error ("Missing case in expandOperatorsInBlock: (" ++ (format =<< s))
+expandOperatorsInBlock s = s --Only needed for error reporting....  Note, this *will* pass through inline operators and nested items that should not be passed through
+  --error ("Missing case in expandOperatorsInBlock: (" ++ (format =<< s))
 
 
 simplifyOpPair::EString->InfixOp->EString->InfixOp->EString->EString
@@ -283,6 +283,7 @@ splitByEndCap x = error ("Missing case in splitByEndCap: " ++ (format =<< x))
 
 
 getNestedItem::EString->(EString, EChar, EString)
+getNestedItem [] = ([], EEnd "", []) --Only needed for error reporting
 getNestedItem (c@(Fail _):rest) = ([], c, rest)
 getNestedItem (EEnd name:rest) = ([], EEnd name, rest)
 getNestedItem (FilledInEStart name atts:rest) = ([FilledInEStart name atts] ++ inside1 ++ endTag1:inside2, endTag2, outside2)

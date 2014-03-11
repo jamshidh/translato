@@ -22,7 +22,7 @@ import qualified LString as LS
 import ParseError
 import SequenceMap
 
-import JDebug
+--import JDebug
 
 type Attribute = (String, String)
 
@@ -47,10 +47,14 @@ expectErr s expectation = ExpectationError [singleCharacterRangeAt s] [expectati
 --where I will.
 miniParse::Sequence->LString->Either ParseError LString
 miniParse [] s = Right s
-miniParse sq@(List 0 listSq@(Character _ _:_):tExp@(TextMatch text _:rest)) s = 
+miniParse sq@(List 0 listSq@(Character _ _:_):tExp@((Character (CharSet False [SingleChar _]) _):rest)) s =
   case miniParse tExp s of
     Left err -> miniParse (listSq ++ sq) s
-    Right remaining -> miniParse (List 0 sq:rest) remaining
+    Right remaining -> miniParse rest remaining
+miniParse sq@(List 0 listSq@(Character _ _:_):tExp@(TextMatch text _:rest)) s =
+  case miniParse tExp s of
+    Left err -> miniParse (listSq ++ sq) s
+    Right remaining -> miniParse rest remaining
 miniParse (List 0 _:TextMatch text _:rest) s = error "miniParse: case not coded yet"
 miniParse (List 0 (TextMatch text _:_):_) s = error "miniParse: case not coded yet"
 miniParse (List 0 sq:rest) s = 
@@ -64,14 +68,20 @@ miniParse (exp:rest) s =
 
 dropWhiteSpace::[Sequence]->LString->Either ParseError LString
 dropWhiteSpace [] s = Right $ LS.dropWhile isSpace s
-dropWhiteSpace [wsSeq@(first:restWSSeq)] s = 
+dropWhiteSpace wsSeqs s = 
   case LS.string s of
-    (c:_) | isSpace c -> dropWhiteSpace [wsSeq] $ LS.dropWhile isSpace s --For now I will hardcode isSpace as whitespace....  I will probably remove this later and make it just another sequence.
-    _ | succeeds $ matchOne first s -> dropWhiteSpace [wsSeq] =<< miniParse wsSeq s
-    _ -> Right s
+    (c:_) | isSpace c -> dropWhiteSpace wsSeqs $ LS.dropWhile isSpace s --For now I will hardcode isSpace as whitespace....  I will probably remove this later and make it just another sequence.
+    _ -> dropFirstMatchingWS wsSeqs s
   where
     succeeds (Right _) = True
     succeeds (Left _) = False
+
+    dropFirstMatchingWS::[Sequence]->LString->Either ParseError LString
+    dropFirstMatchingWS [] s = Right s
+    dropFirstMatchingWS (firstSeq@(firstExp:_):rest) s | succeeds $ matchOne firstExp s = 
+      dropWhiteSpace wsSeqs =<< miniParse firstSeq s
+    dropFirstMatchingWS (firstSeq:rest) s = dropFirstMatchingWS rest s
+      
 
 matchOne::Expression->LString->Either ParseError (EString, LString)
 

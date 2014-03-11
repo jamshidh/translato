@@ -46,7 +46,7 @@ separator: '_,\n   '
 
 ====[command]========
 
-varDeclarationExpression => var {varDeclaration}*;
+varDeclarationExpression => var {varDeclaration}*\;?;
 
 expressionCommand => {expression}_\;?;
 

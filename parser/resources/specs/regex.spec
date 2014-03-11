@@ -25,9 +25,9 @@ charset=>\[{charsetChar}*\];
 
 zeroOrMore=>{regexItem}\*;
 
-#oneOrMore=>{regexItem}+;
+oneOrMore=>{regexItem}\+;
 
-#optional=>{regexItem}?;
+optional=>{regexItem}\?;
 
 separator: ''
 

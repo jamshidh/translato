@@ -1,5 +1,5 @@
 
-whitespace:/\*[^*]*\*/;
+whitespace:/\*.*\*/;
 
 jsFile =>
 
@@ -104,7 +104,7 @@ conditional => {expression} \? {expression} : {expression};
 
 void => void {expression};
 
-operators: ' in ' ' === ' ' == ' ' != ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '_*_' ' / ' ' + ' '-' ' || ' ' && '
+operators: ' in ' ' === ' ' !== ' ' == ' ' != ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '_*_' ' / ' ' + ' '-' ' || ' ' && '
 
 separator: '_, '
 

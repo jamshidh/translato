@@ -1,5 +1,5 @@
 
-whitespace:/\*[^*]*\*/;
+whitespace:/\*.*\*/;
 
 cssFile =>
 

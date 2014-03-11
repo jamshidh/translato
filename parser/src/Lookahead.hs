@@ -153,12 +153,24 @@ chooseOne s forest =
         [(t, _)] -> Right (t, SeqFP{doesNotAllowWS=True, matchType=RegularMatch, importance=Medium}) --TODO- Should the "isWhitespace bool" be set to something more accurate?
         x -> Left $ fold (snd <$> x)
     [x] -> Right x
-    _ -> Left $ AmbiguityError [singleCharacterRangeAt s]
+    items -> Left $ AmbiguityError [singleCharacterRangeAt s] (treeItem2HumanReadableSummary <$> fst <$> items)
   where
     matchResults::[(Tree Expression, Either ParseError SeqFP)]
     matchResults = (\t -> (t, matchOneWrapper s t)) <$> forest
 
 
+treeItem2HumanReadableSummary::Tree Expression->String
+treeItem2HumanReadableSummary Node{rootLabel=e@(TextMatch _ _)} = 
+  "<" ++ formatExpression e ++ ">"
+treeItem2HumanReadableSummary Node{rootLabel=e@(Character _ _)} = 
+  "<" ++ formatExpression e ++ ">"
+treeItem2HumanReadableSummary Node{rootLabel=e@(Out _), subForest=[rest]} = treeItem2HumanReadableSummary rest
+treeItem2HumanReadableSummary Node{rootLabel=e, subForest=rest} = 
+  error ("Missing case in treeItem2HumanReadableSummary: " ++ formatExpression e)
+  
+  
+  
+  
 
 {-    items ->  jtrace ("===================\n\nmultiple things matched in chooseOne:\n\n      "
                                   -- ++ (safeDrawEForest $ tree <$> items) ++ "\n"

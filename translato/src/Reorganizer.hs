@@ -9,6 +9,7 @@ import Data.Either
 import Data.Functor
 import Data.List
 import qualified Data.Map as M
+import Data.Maybe
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
@@ -24,9 +25,7 @@ import Shims
 reorganize::FilePath->String->TL.Text->IO (Either String TL.Text)
 reorganize shimDir userAgent input = do
   case parseText def input of
-    Right doc -> do 
-      output <- renderText def <$> modify shimDir userAgent doc
-      return $ Right output
+    Right doc -> Right <$> renderText def <$> modify shimDir userAgent doc
     Left err -> return $ Left $ ("Error parsing document: " ++ show err)
 
 --Gets the needed libs in one file, and then recursively get all the needed libs in each needed lib
@@ -47,8 +46,7 @@ libToDocument::FilePath->String->Lib->IO Document
 libToDocument shimDir userAgent lib = do
   maybeContent <- libContent shimDir userAgent lib 
   case maybeContent of
-    Just content -> do 
-      parseText_ def <$> TL.pack <$> applyShims shimDir (libToParserSpec lib) userAgent content
+    Just content -> parseText_ def <$> TL.pack <$> applyShims shimDir (libToParserSpec lib) userAgent content
     Nothing -> error ("error calling libContent for " ++ show lib)
 
 libToParserSpec::Lib->String
@@ -60,6 +58,7 @@ documentToLibs::FilePath->String->S.Set Lib->Document->IO (S.Set Lib)
 documentToLibs shimDir userAgent currentLibs doc = do 
   let newLibs = libsDirectlyInDocument S.\\ currentLibs
   subLibs <- sequence $ ((documentToLibs shimDir userAgent (S.union currentLibs newLibs)  =<<) . (libToDocument shimDir userAgent)) <$> S.toList newLibs
+  
   return $ S.union libsDirectlyInDocument (S.unions subLibs)
   
   where 

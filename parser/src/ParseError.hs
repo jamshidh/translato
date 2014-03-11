@@ -56,7 +56,7 @@ data ParseError =
     Error { ranges::[Range], description::String } |
     ExpectationError { ranges::[Range], expected::[String], actual::LS.LString } |
     MatchError { name::String, ranges::[Range], firstVal::String, secondVal::String } |
-    AmbiguityError { ranges::[Range] }
+    AmbiguityError { ranges::[Range], expected::[String] }
     deriving (Eq, Ord, Show)
 
 --TODO Figure out how to merge cases where actual1 /= actual2
@@ -90,8 +90,9 @@ instance Format ParseError where
         ++ "\n    --input = " ++ shortShowString (LS.string actual)
     format (MatchError name ranges firstVal secondVal) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"
         ++ name ++ " didn't match: first=" ++ firstVal ++ ", second=" ++ secondVal
-    format (AmbiguityError ranges) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"
-        ++ "AmbiguityError"
+    format (AmbiguityError ranges expected) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n"
+        ++ "    --AmbiguityError\n"
+        ++ "    --expected: " ++ intercalate ", " expected ++ "\n"
 
 shortShowString::String->String
 shortShowString s | length s <= 20 = show s

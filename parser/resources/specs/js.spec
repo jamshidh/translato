@@ -30,9 +30,18 @@ fullBody => \{
 ====[/commandBody]===========
 
 
+====[varDeclaration]========
+
+varDeclaration => @name_(=_{expression}_)?;
+
+separator: '_,\n   '
+
+====[/varDeclaration]=======
+
+
 ====[command]========
 
-varDeclaration => var @name_(=_{expression}_)?\;?;
+varDeclarationExpression => var {varDeclaration}*;
 
 expressionCommand => {expression}_\;?;
 
@@ -104,7 +113,7 @@ conditional => {expression} \? {expression} : {expression};
 
 void => void {expression};
 
-operators: ' in ' ' === ' ' !== ' ' == ' ' != ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '_*_' ' / ' ' + ' '-' ' || ' ' && '
+operators: ' instanceof ' ' in ' ' === ' ' !== ' ' == ' ' != ' ' < ' ' > ' ' <= ' ' >= ' r:' ^ ' '_*_' ' / ' ' + ' '-' ' || ' ' && '
 
 separator: '_, '
 

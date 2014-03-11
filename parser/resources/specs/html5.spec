@@ -164,6 +164,8 @@ doctype => <!DOCTYPE @value>;
 ====[attribute]===============
 attribute =>@name([a-zA-Z\-]+)(="@value([^"]*)")?;
 
+onclick=>onclick_="{command}*";
+
 #booleanAttribute => @name([a-zA-Z\-]+);
 
 separator: ' '

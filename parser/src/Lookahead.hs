@@ -11,11 +11,9 @@ import Data.Foldable hiding (concat, maximum)
 import Data.Functor
 import Data.Tree
 
-import CharSet
 import ExpressionMatcher
 import Grammar
 import qualified LString as LS
-import LString (LString)
 import ParseError
 
 --import JDebug
@@ -34,7 +32,7 @@ data MatchType = TextMatched Int | RegularMatch deriving (Eq, Show)
 
 instance Ord MatchType where
   TextMatched x <= TextMatched y = x <= y
-  TextMatched x <= RegularMatch = False
+  TextMatched _ <= RegularMatch = False
   RegularMatch <= TextMatched _ = True
   RegularMatch <= RegularMatch = True
 
@@ -110,7 +108,7 @@ exp2Type _ = RegularMatch
 -- 2. Some matches don't count as far as "chooseOne" is concerned.  An options can't be resolved based on whitespace matching, or stuff that is just output.  "matchOneWrapper" continues onward to the second match when needed.
 -- 3. Since "chooseOne" considers TextMatch as special, it is tagged.
 -- 4. If a Priority tag is encountered, the priority of the result is set to what is in it.
-matchOneWrapper::LString->Tree Expression->Either ParseError SeqFP
+matchOneWrapper::LS.LString->Tree Expression->Either ParseError SeqFP
 matchOneWrapper s Node{rootLabel=Priority p, subForest=rest} = 
   (\fp -> fp{importance=p}) <$> snd <$> chooseOne s rest
 --matchOneWrapper s Node{rootLabel=WhiteSpace _ _, subForest=rest} = 
@@ -130,7 +128,7 @@ matchOneWrapper s node@Node{rootLabel=x, subForest=rest} =
 
 ---------------------------------
 
-chooseOne::LString->Forest Expression->Either ParseError (Tree Expression, SeqFP)
+chooseOne::LS.LString->Forest Expression->Either ParseError (Tree Expression, SeqFP)
 chooseOne s [t] = --This first case is put in as a performance boost, but it isn't *needed*.
   --It is also really nice to isolate this case from nontrivial choices (ie- where you have more than one thing to choose from vs. Soviet style election) when printing debug information in the next case.
   case matchOneWrapper s t of

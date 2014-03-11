@@ -1,5 +1,6 @@
 
 whitespace:/\*.*\*/;
+whitespace://.*[\n];
 
 jsFile =>
 
@@ -9,6 +10,7 @@ jsFile =>
 
 ====<subgrammars>===============
 <{html5}>
+<{regex}>
 ====</subgrammars>==============
 
 ====[parameter]===============
@@ -30,9 +32,12 @@ fullBody => \{
 ====[/commandBody]===========
 
 
+varName=>[$_a-zA-Z][$_a-zA-Z0-9]*;
+
+
 ====[varDeclaration]========
 
-varDeclaration => @name_(=_{expression}_)?;
+varDeclaration => @name([$_a-zA-Z][$_a-zA-Z0-9]*)_(=_{expression}_)?;
 
 separator: '_,\n   '
 
@@ -51,16 +56,19 @@ addAssignment => {lvalue} \+= {expression}_\;?;
 return => return( {expression})?_\;?;
 #return => return([ \t]+{expression})?_\;?;
 
-comment => //[^\n]*[\n];
-
-if => if \({expression}\) {commandBody}( else {commandBody})?;
+if => if \(_{expression}_\) {commandBody}( else {commandBody})?;
 
 try => try {commandBody}
-catch\({expression}\) {commandBody};
+catch_\({expression}\) {commandBody};
 
 for => for \({expression}_\; {expression}_\; {expression}\) {commandBody};
 
-for => for \({varDeclaration}_ {expression}_\; {expression}\) {commandBody};
+#Be careful- varDeclarationExpression and assignment already have terminating semicolons, don't repeat them 
+#here
+
+for => for \({varDeclarationExpression}_ {expression}_\; {expression}\) {commandBody};
+
+for => for \({assignment}_ {expression}_\; {expression}\) {commandBody};
 
 iteratorFor => for \({variable} in {expression}_\) {commandBody};
 
@@ -78,7 +86,8 @@ separator: '\n'
 
 fieldName => "@value([^"]*)";
 fieldName => '@value([^']*)';
-fieldName => @value;
+#fieldName => @value;
+fieldName => @value([$_a-zA-Z][$_a-zA-Z0-9]*);
 
 ====[/fieldName]====================
 
@@ -109,6 +118,8 @@ object => \{_{field}*_\};
 
 embeddedElement => {widget};
 
+embeddedRegex => {regex};
+
 conditional => {expression} \? {expression} : {expression};
 
 void => void {expression};
@@ -123,7 +134,7 @@ separator: '_, '
 
 ====[lvalue]==================
 
-variable => @name;
+variable => @name([$_a-zA-Z][$_a-zA-Z0-9]*);
 
 array => \[_{expression}*_\];
 

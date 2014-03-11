@@ -1,0 +1,7 @@
+
+while true
+do
+	echo "copying files"
+	inotifywait -r -e modify html5/shims
+	./install
+done

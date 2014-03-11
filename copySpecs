@@ -1,0 +1,2 @@
+
+cp parser/resources/specs/* ~/.cabal/share/parser-0.0.1/specs/

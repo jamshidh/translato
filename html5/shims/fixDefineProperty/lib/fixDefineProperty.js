@@ -49,7 +49,12 @@ Object.fixedDefineProperty = function (obj, prop, descriptor) {
 	else originalRemoveAttribute(name);
     };
     
-    Object.defineProperty(obj, prop, descriptor);
+    var fixedDescriptor = descriptor;
+    //TODO- figure out how to deal with this, or at least warn the user.
+    fixedDescriptor.enumerable = false; //enumerable not allowed in IE 8
+
+
+    Object.defineProperty(obj, prop, fixedDescriptor);
 }
 
 

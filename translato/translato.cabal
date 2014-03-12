@@ -55,7 +55,8 @@ executable translato
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
                    json >=0.7 && <0.8, parser -any, process >=1.2.0.0 && <1.3,
                    text >=0.11.2.3 && <0.12, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit >=1.1.0.9 && <1.2
+                   utf8-string >=0.3.7 && <0.4, xml-conduit >=1.1.0.9 && <1.2,
+                   cmdargs -any
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src

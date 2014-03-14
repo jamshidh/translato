@@ -32,11 +32,11 @@ import Grammar
 --import Debug.Trace
 
 
-specNameToSpecFile::FilePath->SpecName->IO FilePath
-specNameToSpecFile baseDir specName = do
+specNameToSpecFile::SpecName->IO FilePath
+specNameToSpecFile specName = do
   if elem '.' specName || elem '/' specName
     then
-    return $ baseDir </> specName
+    return specName
     else do
     specDir <- getDataFileName "specs"
     return $ specDir </> specName ++ ".spec"
@@ -44,24 +44,22 @@ specNameToSpecFile baseDir specName = do
 --parses grammar, then parses and merges in all the recursive subgrammars
 parseFullGrammar::SpecName->IO Grammar
 parseFullGrammar specName = do
-  let baseDir = takeDirectory specName
-  specFile <- specNameToSpecFile baseDir specName
+  specFile <- specNameToSpecFile specName
   builtinsFilePath <- getDataFileName "builtins.spec"
 
   foldl1 mergeGrammar
-    <$> parseFullGrammar' baseDir S.empty [specFile, builtinsFilePath]
+    <$> parseFullGrammar' S.empty [specFile, builtinsFilePath]
 
   where
-    parseFullGrammar'::FilePath->S.Set String->[String]->IO [Grammar]
-    parseFullGrammar' _ _ [] = return []
-    parseFullGrammar' baseDir obtained (needed:remainingNeeded) | needed `S.member` obtained =
-      parseFullGrammar' baseDir obtained remainingNeeded
-    parseFullGrammar' baseDir obtained (needed:remainingNeeded) = do
-      (grammar, subGrammars) <- loadGrammarAndSubGrammarNames $ baseDir </> needed
-      subGrammarFiles <- sequence $ specNameToSpecFile baseDir <$> subGrammars
+    parseFullGrammar'::S.Set String->[String]->IO [Grammar]
+    parseFullGrammar' _ [] = return []
+    parseFullGrammar' obtained (needed:remainingNeeded) | needed `S.member` obtained =
+      parseFullGrammar' obtained remainingNeeded
+    parseFullGrammar' obtained (needed:remainingNeeded) = do
+      (grammar, subGrammars) <- loadGrammarAndSubGrammarNames $ needed
+      subGrammarFiles <- sequence $ specNameToSpecFile <$> subGrammars
       remaining <-
         parseFullGrammar'
-            baseDir
             (S.insert needed obtained)
             (remainingNeeded ++ subGrammarFiles)
       return (grammar:remaining)

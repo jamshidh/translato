@@ -114,6 +114,12 @@ booleanNot => !{expression};
 
 typeof => typeof {expression};
 
+delete => delete {expression};
+
+new => new {expression};
+
+throw => throw {expression};
+
 object => \{_{field}*_\};
 
 embeddedElement => {widget};

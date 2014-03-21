@@ -42,8 +42,11 @@ boxSizing=>box-sizing: @value([^;]*)\;;
 
 color=>color: @value([^;]*)\;;
 content=>content: @value([^;]*)\;;
+cursor=>cursor: @value([^;]*)\;;
 display=>display: @value([^;]*)\;;
+float=>float: @value([^;]*)\;;
 height=>height: @value([^;]*)\;;
+padding=>padding: @value([^;]*)\;;
 position=>position: @value([^;]*)\;;
 transition=>transition: @value([^;]*)\;;
 verticalAlign=>vertical-align: @value([^;]*)\;;
@@ -67,7 +70,7 @@ separator: '\n'
 
 
 ====[selector]===============
-tagname=>@value([a-zA-Z0-9\-]+);
+tagname=>@value([a-zA-Z0-9\-]+)(\.@className)?;
 
 filter=>{selector}\[{qualifier}\];
 

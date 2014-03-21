@@ -167,7 +167,7 @@ parseFullClass =
             <|> (ClassComment <$> parseComment)) spaces
         spaces
         string "====[/"
-        name<-ident
+        _ <- string name
         char ']'
         many (char '=')
         return (classWithPriorities items name parents)

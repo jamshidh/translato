@@ -81,37 +81,37 @@ separator: '_, '
 
 ====[pseudoElement]==============
 
-pseudoElement=>before;
-pseudoElement=>after;
-pseudoElement=>link;
-pseudoElement=>visited;
-pseudoElement=>active;
-pseudoElement=>hover;
-pseudoElement=>focus;
-pseudoElement=>first-letter;
-pseudoElement=>first-line;
-pseudoElement=>first-child;
-pseudoElement=>before;
-pseudoElement=>after;
-pseudoElement=>lang(@value);
-pseudoElement=>first-of-type;
-pseudoElement=>last-of-type;
-pseudoElement=>only-of-type;
-pseudoElement=>only-child;
-pseudoElement=>nth-child(@value);
-pseudoElement=>nth-last-child(@value);
-pseudoElement=>nth-of-type(@value);
-pseudoElement=>nth-last-of-type(@value);
-pseudoElement=>last-child;
-pseudoElement=>root;
-pseudoElement=>empty;
-pseudoElement=>target;
-pseudoElement=>enabled;
-pseudoElement=>disabled;
-pseudoElement=>checked;
-pseudoElement=>not({selector});
+peBefore=>before;
+peAfter=>after;
+peLink=>link;
+peVisited=>visited;
+peActive=>active;
+peHover=>hover;
+peFocus=>focus;
+peFirstLetter=>first-letter;
+peFirstLine=>first-line;
+peFirstChild=>first-child;
+peBefore=>before;
+peAfter=>after;
+peLang=>lang(@value);
+peFirstOfType=>first-of-type;
+peLastOfType=>last-of-type;
+peOnlyOfType=>only-of-type;
+peOnlyChild=>only-child;
+peNthChild=>nth-child(@value);
+peNthLastChild=>nth-last-child(@value);
+peNthOfType=>nth-of-type(@value);
+peNthLastOfType=>nth-last-of-type(@value);
+peLastChild=>last-child;
+peRoot=>root;
+peEmpty=>empty;
+peTarget=>target;
+peEnabled=>enabled;
+peDisabled=>disabled;
+peChecked=>checked;
+peNot=>not({selector});
 
-====[/pseutoElement]=============
+====[/pseudoElement]=============
 
 
 

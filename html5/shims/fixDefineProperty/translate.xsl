@@ -15,4 +15,15 @@
     </xsl:copy>
   </xsl:template>
 
+  <!--This only works on objects created empty-->
+  <xsl:template match="object[count(*) = 0]">
+    <function>
+      <dot>
+	<variable name="document" />
+	<variable name="createElement" />
+      </dot>
+      <string value="div"/>
+    </function>
+  </xsl:template>
+
 </xsl:stylesheet>

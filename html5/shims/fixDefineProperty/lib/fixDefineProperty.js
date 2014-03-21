@@ -14,12 +14,9 @@ Object.fixedDefineProperty = function (obj, prop, descriptor) {
     fixedDescriptor.enumerable = false; //enumerable not allowed in IE 8
 
     if (!isElement(obj)) {
-	//eval('alert("Not a dom object: " + Object.defineProperty);');
 	eval('Object.defineProperty(obj, prop, fixedDescriptor);');
 	return;
     }
-
-    //alert("tagName = " + obj.tagName);
 
     var theRealValue;
 
@@ -52,7 +49,7 @@ Object.fixedDefineProperty = function (obj, prop, descriptor) {
 	    //I can guess why this is so, but honestly, this was just found through playing around,
 	    //and I don't really *know* why this is so.  Note that anything that break up the thread control,
 	    //like an alert, or putting the code outside of this function seems to work.
-	    setTimeout(function() {Object.defineProperty(obj, prop, descriptor);}, 0);
+	    setTimeout(function() {eval('Object.defineProperty(obj, prop, descriptor)');}, 0);
 	}, 0);
 
     }
@@ -60,7 +57,7 @@ Object.fixedDefineProperty = function (obj, prop, descriptor) {
     obj.setAttribute = function (name, value) {
 	if (name === prop) {
 	    theRealValue = value;
-	    setRealValue(this, name, value);
+	    setRealValue(obj, name, value);
 	}
 	else originalSetAttribute(name, value);
 	obj.className=obj.className;

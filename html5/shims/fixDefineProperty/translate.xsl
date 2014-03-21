@@ -8,7 +8,7 @@
   </xsl:template>
 
   <xsl:template match="variable[@name = 'defineProperty']">
-    <library src="fixDefineProperty.js" />
+    <shimLib name="fixDefineProperty" />
     <xsl:copy>
       <xsl:attribute name="name">fixedDefineProperty</xsl:attribute>
       <xsl:apply-templates select="*|text()" />

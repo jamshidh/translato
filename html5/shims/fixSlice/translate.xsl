@@ -8,7 +8,7 @@
   </xsl:template>
 
   <xsl:template match="variable[@name = 'slice']">
-    <library src="fixSlice.js" />
+    <shimLib name="fixSlice" />
     <xsl:copy>
       <xsl:apply-templates select="*|@*|text()" />
     </xsl:copy>

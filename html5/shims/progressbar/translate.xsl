@@ -8,7 +8,7 @@
   </xsl:template>
 
   <xsl:template match="progress">
-    <library src="progress.js" />
+    <shimLib name="progressbar" />
     <styleLib src="progress.css" />
     <xsl:copy>
       <xsl:apply-templates select="attribute" />

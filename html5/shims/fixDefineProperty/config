@@ -1,2 +1,4 @@
 
 browsers: ie < 9
+
+libs: fixDefineProperty.js

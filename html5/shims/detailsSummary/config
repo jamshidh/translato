@@ -1,2 +1,6 @@
 
-browsers: mozilla 1.2 <=, ie
+browsers: mozilla 1.2<=, ie
+
+dependencies: addEventHandler
+
+libs: details.js, details.css, summary.css

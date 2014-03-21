@@ -8,7 +8,7 @@
   </xsl:template>
 
   <xsl:template match="variable[@name = 'addEventListener']">
-    <library src="addEventHandler.js" />
+    <shimLib name="addEventHandler.js" />
     <xsl:copy>
       <xsl:apply-templates select="*|@*|text()" />
     </xsl:copy>

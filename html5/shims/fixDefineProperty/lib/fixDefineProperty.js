@@ -1,8 +1,35 @@
 
+//Returns true if it is a DOM element    
+function isElement(o){
+  return (
+    typeof HTMLElement === "object" ? o instanceof HTMLElement : //DOM2
+    o && typeof o === "object" && o !== null && o.nodeType === 1 && typeof o.nodeName==="string"
+);
+}
 
 Object.fixedDefineProperty = function (obj, prop, descriptor) {
 
-    var theRealValue = obj.getAttribute(prop);
+    var fixedDescriptor = descriptor;
+    //TODO- figure out how to deal with this, or at least warn the user.
+    fixedDescriptor.enumerable = false; //enumerable not allowed in IE 8
+
+    if (!isElement(obj)) {
+	//eval('alert("Not a dom object: " + Object.defineProperty);');
+	eval('Object.defineProperty(obj, prop, fixedDescriptor);');
+	return;
+    }
+
+    //alert("tagName = " + obj.tagName);
+
+    var theRealValue;
+
+    try{
+	theRealValue = obj.getAttribute(prop);
+    }
+    catch(err) {
+	theRealValue = undefined;
+    }
+
     
     var originalSetAttribute = obj.setAttribute;
     var originalGetAttribute = obj.getAttribute;
@@ -49,12 +76,7 @@ Object.fixedDefineProperty = function (obj, prop, descriptor) {
 	else originalRemoveAttribute(name);
     };
     
-    var fixedDescriptor = descriptor;
-    //TODO- figure out how to deal with this, or at least warn the user.
-    fixedDescriptor.enumerable = false; //enumerable not allowed in IE 8
-
-
-    Object.defineProperty(obj, prop, fixedDescriptor);
+    eval('Object.defineProperty(obj, prop, fixedDescriptor);');
 }
 
 

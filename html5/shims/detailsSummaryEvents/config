@@ -1,2 +1,4 @@
 
 browsers: *
+
+libs: details.js

@@ -66,7 +66,7 @@ button=>
 <button_{attribute}*_>{bodyNode}*</button>
 ;
 
-br=><br>;
+br=><br_>;
 br=><br_/>;
 
 code=>

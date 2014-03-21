@@ -1,4 +1,6 @@
 
 browsers: ie < 9
 
-libs: progress.js
+dependencies: addEventHandler, fixDefineProperty
+
+libs: progress.js, progress.css

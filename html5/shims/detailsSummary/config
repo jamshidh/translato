@@ -1,6 +1,6 @@
 
 browsers: mozilla 1.2<=, ie
 
-dependencies: addEventHandler
+dependencies: addEventHandler, fixDefineProperty, fixSlice
 
 libs: details.js, details.css, summary.css

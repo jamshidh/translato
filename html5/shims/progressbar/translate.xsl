@@ -9,7 +9,6 @@
 
   <xsl:template match="progress">
     <shimLib name="progressbar" />
-    <styleLib src="progress.css" />
     <xsl:copy>
       <xsl:apply-templates select="attribute" />
     </xsl:copy>

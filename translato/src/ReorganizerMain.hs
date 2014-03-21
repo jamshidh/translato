@@ -8,7 +8,7 @@ import System.Environment
 
 import Paths_translato
 
-main = do
+main = undefined {-do
   args <- getArgs
   case args of
     [userAgent] -> do
@@ -18,4 +18,4 @@ main = do
       case result of
         Right reorganized -> putStrLn $ TL.unpack reorganized
         Left err -> error (show err)
-    _ -> error "Usage:\n  reorganizo <userAgent>"
+    _ -> error "Usage:\n  reorganizo <userAgent>"-}

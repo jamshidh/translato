@@ -4,7 +4,7 @@ import qualified Data.ByteString.Lazy.UTF8 as B
 import qualified Data.ByteString.Lazy as B
 import Data.String
 
-import WidgetConfig
+import ShimConfig
 
 main = do
     undefined

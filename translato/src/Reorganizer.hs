@@ -4,29 +4,39 @@ module Reorganizer (
   reorganize
   ) where
 
+import Control.Monad
+import Control.Monad.IO.Class
+import Control.Monad.Trans.Either
 import Data.Default
 import Data.Either
 import Data.Functor
+import Data.Graph
 import Data.List
 import qualified Data.Map as M
 import Data.Maybe
 import qualified Data.Set as S
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
-import System.Directory.Tree
-import Text.XML
+import Data.Tree
+import System.Directory
+import System.FilePath
+import qualified Text.XML as XML
 import Text.XML.Cursor
 
 import LibContent
 import Shims
+import ShimConfig
 
 --import Debug.Trace
 
-reorganize::FilePath->String->TL.Text->IO (Either String TL.Text)
-reorganize shimDir userAgent input = do
-  case parseText def input of
-    Right doc -> Right <$> renderText def <$> modify shimDir userAgent doc
-    Left err -> return $ Left $ ("Error parsing document: " ++ show err)
+reorganize::[ShimConfig]->String->TL.Text->EitherT String IO String
+reorganize shimConfigs userAgent input = do
+  case XML.parseText def input of
+    Right doc -> do
+      doc <- liftIO $ XML.renderText def <$> modify shimConfigs userAgent doc
+      right $ TL.unpack doc
+    Left err -> left $ ("Error parsing document: " ++ show err)
+
 
 --Gets the needed libs in one file, and then recursively get all the needed libs in each needed lib
 {-addRecursivelyNeededLibs::DirTree TL.Text->Name->Document->S.Set T.Text->S.Set T.Text
@@ -42,57 +52,71 @@ addLibLibs shimDir libname currentLibs =
     libLibs::Lib->S.Set Lib
     libLibs lib = documentToLibs $ libToDocument lib-}
 
-libToDocument::FilePath->String->Lib->IO Document
+getShimFiles::FilePath->String->IO [(String, String)]
+getShimFiles shimDir filename = do
+  dependencies <- filterM doesFileExist =<< map (</> filename) <$> map (shimDir </>) <$> getDirectoryContents shimDir
+  sequence $ nameAndContent <$> dependencies
+  where
+    nameAndContent::FilePath->IO (String, String)
+    nameAndContent filepath = do
+      contents <- readFile filepath
+      return (takeFileName $ takeDirectory filepath, contents)
+ 
+addLibsRecursively::[ShimConfig]->[ShimName]->[Lib]
+addLibsRecursively shimConfigs neededLibs = do
+  let (dependGraph, v2k, k2v) = graphFromEdges $ 
+                                ([], ShimName "#basename#", neededLibs)
+                                :
+                                ((\ShimConfig{libs=l, name=n, dependencies=d} ->(l, n, d)) <$> shimConfigs)
+                
+      (childDependGraph, v2k', k2v') = graphFromEdges (v2k <$> reachable dependGraph (fromJust $ k2v $ ShimName "#basename#"))
+    
+    in concat $ fst3 <$> v2k' <$> (flatten =<< scc childDependGraph)
+
+  where 
+    fst3 (x, _, _) = x
+
+{-libToDocument::FilePath->String->Lib->IO XML.Document
 libToDocument shimDir userAgent lib = do
   maybeContent <- libContent shimDir userAgent lib 
   case maybeContent of
-    Just content -> parseText_ def <$> TL.pack <$> applyShims shimDir (libToParserSpec lib) userAgent content
-    Nothing -> error ("error calling libContent for " ++ show lib)
+    Just content -> XML.parseText_ def <$> TL.pack <$> applyShims shimDir (libToParserSpec lib) userAgent content
+    Nothing -> error ("error calling libContent for " ++ show lib)-}
 
 libToParserSpec::Lib->String
 libToParserSpec (JSLib _) = "js"
 libToParserSpec (CSSLib _) = "css"
     
 --Gets needed libs in a single file, but don't add libs needed by those libs
-documentToLibs::FilePath->String->S.Set Lib->Document->IO (S.Set Lib)
-documentToLibs shimDir userAgent currentLibs doc = do 
-  let newLibs = libsDirectlyInDocument S.\\ currentLibs
-  subLibs <- sequence $ ((documentToLibs shimDir userAgent (S.union currentLibs newLibs)  =<<) . (libToDocument shimDir userAgent)) <$> S.toList newLibs
-  
-  return $ S.union libsDirectlyInDocument (S.unions subLibs)
-  
-  where 
-    libsDirectlyInDocument::S.Set Lib
-    libsDirectlyInDocument = S.fromList $
-      (JSLib <$> ((descendant $ fromDocument doc) >>= element "library" >>= attribute "src"))
-      ++ (CSSLib <$> ((descendant $ fromDocument doc) >>= element "styleLib" >>= attribute "src"))
+documentToLibs::XML.Document->[ShimName]
+documentToLibs doc = 
+      (ShimName <$> ((descendant $ fromDocument doc) >>= element "shimLib" >>= attribute "name"))
       
   
 
 
-modify::FilePath->String->Document->IO Document
-modify shimDir userAgent doc = do
-  libs <- documentToLibs shimDir userAgent S.empty doc
-  return $ modifyRoot (addLibs (S.toList libs)) doc
+modify::[ShimConfig]->String->XML.Document->IO XML.Document
+modify shimConfigs userAgent doc = do
+  let neededLibs = addLibsRecursively shimConfigs $ documentToLibs doc
+  return $ modifyRoot (addLibs neededLibs) doc
   where
-    modifyRoot::(Element->[Element])->Document->Document
-    modifyRoot f (Document prologue root epilogue) = 
+    modifyRoot::(XML.Element->[XML.Element])->XML.Document->XML.Document
+    modifyRoot f (XML.Document prologue root epilogue) = 
       case f root of
-           [uniqueRoot] -> Document prologue uniqueRoot epilogue
+           [uniqueRoot] -> XML.Document prologue uniqueRoot epilogue
 
-libname2El::Lib->Element
-libname2El (JSLib libname) = Element "script" (M.fromList [("src", "/lib/" `T.append` libname)]) []
-libname2El (CSSLib libname) = Element "link" (M.fromList [("rel", "stylesheet"), ("type", "text/css"), ("href", "/lib/" `T.append` libname)]) []
+libname2El::Lib->XML.Element
+libname2El (JSLib libname) = XML.Element "script" (M.fromList [("src", "/lib/" `T.append` libname)]) []
+libname2El (CSSLib libname) = XML.Element "link" (M.fromList [("rel", "stylesheet"), ("type", "text/css"), ("href", "/lib/" `T.append` libname)]) []
                                                      
-addLibs::[Lib]->Element->[Element]
-addLibs libs (Element "library" attrs children) = []
-addLibs libs (Element "styleLib" attrs children) = []
-addLibs libs (Element "head" attrs children) = 
-  [Element "head" attrs (
-      (NodeElement <$> libname2El <$> libs) 
+addLibs::[Lib]->XML.Element->[XML.Element]
+addLibs libs (XML.Element "shimLib" attrs children) = []
+addLibs libs (XML.Element "head" attrs children) =
+  [XML.Element "head" attrs (
+      (XML.NodeElement <$> libname2El <$> libs) 
       ++ (passTo (addLibs libs) =<< children))]
-addLibs libs (Element name attrs children) = [Element name attrs (passTo (addLibs libs) =<< children)]
+addLibs libs (XML.Element name attrs children) = [XML.Element name attrs (passTo (addLibs libs) =<< children)]
 
-passTo::(Element->[Element])->Node->[Node]
-passTo f (NodeElement el) = NodeElement <$> f el
-passTo _ (NodeContent text) = [NodeContent text]
+passTo::(XML.Element->[XML.Element])->XML.Node->[XML.Node]
+passTo f (XML.NodeElement el) = XML.NodeElement <$> f el
+passTo _ (XML.NodeContent text) = [XML.NodeContent text]

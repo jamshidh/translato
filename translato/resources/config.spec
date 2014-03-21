@@ -1,11 +1,26 @@
 
 config =>
 
-{browsers}?
+{configItem}*
 
 ;
 
+====[configItem]===========
 browsers=>browsers: {browser}+;
+libs=>libs: {libName}*;
+dependencies=>dependencies: {shimName}*;
+separator: '\n'
+====[/configItem]==========
+
+====[libName]===============
+lib=>@name([a-zA-Z.]+);
+separator: '_, '
+====[/libName]==============
+
+====[shimName]===============
+shim=>@name;
+separator: '_, '
+====[/shimName]==============
 
 ====[browser]===============
 

@@ -4,8 +4,7 @@
 module WidgetLibGenerator (
     getWidgetNames,
     getNeededShims,
-    getWidgetLibContent,
-    Lib(..)
+    getWidgetLibContent
     ) where
 
 import Control.Monad
@@ -23,7 +22,7 @@ import Web.UAParser
 
 import Format
 import Widget
-import WidgetConfig
+import ShimConfig
 import WidgetFormatter ()
 import WidgetJSLibrary
 import WidgetMerger ()
@@ -32,18 +31,12 @@ import WidgetParser
 --import Debug.Trace
 
 
-data Lib = CSSLib{libname::T.Text} | JSLib{libname::T.Text} deriving (Ord, Eq, Show)
-
-instance IsString Lib where
-  fromString x = JSLib $ fromString x
-
-
-getShimNames::FilePath->IO [FilePath]
+getShimNames::FilePath->IO [ShimName]
 getShimNames shimDir = do
-    filterM doesDirectoryExist
-        =<< map (shimDir </>)
-        <$> filter (not . ("." `isPrefixOf`))
-        <$> getDirectoryContents shimDir
+  map (ShimName . T.pack) <$> (  
+    filterM (doesDirectoryExist . (shimDir </>))
+        =<< filter (not . ("." `isPrefixOf`))
+        <$> getDirectoryContents shimDir)
 
 versionInRange::Version->VersionRange->Bool
 versionInRange v1 (Exact v2) = v1 == v2
@@ -72,10 +65,9 @@ uaInBrowserRange uaResult@UAResult{uarFamily="IE"} (IE versionRange) =
     versionInRange (uaResultToVersion uaResult) versionRange
 uaInBrowserRange _ _ = False
 
-isShimEligible::UAResult->FilePath->IO Bool
-isShimEligible userAgent shimFilePath = do
-    config <- getConfigFile shimFilePath
-    --putStrLn $ show config
+isShimEligible::FilePath->UAResult->ShimName->IO Bool
+isShimEligible shimDir userAgent shimName = do
+    config <- getShimConfig shimDir shimName
     return $ or $ uaInBrowserRange userAgent <$> browsers config
 
 getWidgetNames::FilePath->IO [String]
@@ -83,17 +75,21 @@ getWidgetNames shimDir = do
     nub <$> sort <$> map takeBaseName <$> 
         Find.find (depth <=? 2) (depth ==? 2 &&? extension ==? ".widget") shimDir
 
-getDirectoryFilePathContents::FilePath->IO [FilePath]
-getDirectoryFilePathContents x = map (x </>) <$> getDirectoryContents x
-
-getNeededShims::String->FilePath->IO [FilePath]
+getNeededShims::String->FilePath->IO [ShimName]
 getNeededShims userAgentString shimDir = do
-    uaParser <- loadUAParser
-    let userAgent = 
+  uaParser <- loadUAParser
+  
+  let userAgent = 
           case parseUA uaParser $ B.fromString userAgentString of
             Just x -> x
             Nothing -> error $ "Malformed userAgent: " ++ userAgentString
-    filterM (isShimEligible userAgent) =<< getShimNames shimDir
+  
+  filterM (isShimEligible shimDir userAgent) =<< getShimNames shimDir
+
+rootShimFiles::FilePath->ShimName->IO [FilePath]
+rootShimFiles shimDir (ShimName shim) = do
+  let shimNameString = T.unpack shim
+  map ((shimDir </> shimNameString)  </>) <$> getDirectoryContents (shimDir </> shimNameString)
 
 getWidgetLibContent::FilePath->String->String->IO (Maybe String, Maybe String)
 getWidgetLibContent shimDir userAgentString widgetName = do
@@ -101,7 +97,7 @@ getWidgetLibContent shimDir userAgentString widgetName = do
     widgetFiles <-
         filter ((takeBaseName widgetName ++ ".widget" ==) . takeFileName)
             <$> concat
-            <$> (sequence $ getDirectoryFilePathContents <$> neededShims)
+            <$> (sequence $ rootShimFiles shimDir <$>  neededShims)
     case widgetFiles of
       [] -> return (Nothing, Nothing)
       _ -> do

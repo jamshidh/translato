@@ -14,12 +14,12 @@ import Reorganizer
 import Shims
   
 translate::String->String->String->IO String
-translate specName userAgent input = do
+translate specName userAgent input = undefined {-do
   
   shimDir <- (</> "GlowApps" </> "html5" </> "shims") <$> getHomeDirectory
 
   result <- reorganize shimDir userAgent . TL.pack =<< applyShims shimDir specName userAgent input
   case result of
     Right reorganized -> readProcess "parser" ["generate", specName] . TL.unpack $ reorganized
-    Left err -> error $ show err
+    Left err -> error $ show err-}
     

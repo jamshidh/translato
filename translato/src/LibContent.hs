@@ -2,8 +2,9 @@
 
 module LibContent (
   libContent,
-  Lib(..)
-  ) where
+  Lib(..),
+  name2Lib
+) where
 
 import Control.Monad
 import Data.Functor
@@ -14,6 +15,7 @@ import qualified Data.Text.Lazy as TL
 import System.Directory
 import System.FilePath
 
+import Libs
 import Shims
 import WidgetLibGenerator
 

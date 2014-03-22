@@ -18,8 +18,8 @@ import System.Directory
 import System.FilePath
 import System.FilePath.Find as Find hiding (fold)
 import qualified Text.XML as XML
-import Web.UAParser
 
+import BrowserTools
 import Format
 import Widget
 import ShimConfig
@@ -27,6 +27,8 @@ import WidgetFormatter ()
 import WidgetJSLibrary
 import WidgetMerger ()
 import WidgetParser
+
+import Web.UAParser
 
 --import Debug.Trace
 
@@ -38,37 +40,6 @@ getShimNames shimDir = do
         =<< filter (not . ("." `isPrefixOf`))
         <$> getDirectoryContents shimDir)
 
-versionInRange::Version->VersionRange->Bool
-versionInRange v1 (Exact v2) = v1 == v2
-versionInRange v1 (LowerBound v2) = v1 >= v2
-versionInRange v1 (UpperBound v2) = v1 < v2
-versionInRange v1 (Range v2 v3) = v1 >= v2 && v1 <= v3
-versionInRange _ AllVersions = True
-
-uaResultToVersion::UAResult->Version
-uaResultToVersion UAResult{uarV1=Just v1, uarV2=Just v2, uarV3=Just v3} =
-    read <$> T.unpack <$> [v1, v2, v3]
-uaResultToVersion UAResult{uarV1=Just v1, uarV2=Just v2, uarV3=Nothing} =
-    read <$> T.unpack <$> [v1, v2]
-uaResultToVersion UAResult{uarV1=Just v1, uarV2=Nothing, uarV3=Nothing} =
-    read <$> T.unpack <$> [v1]
-uaResultToVersion uaResult =
-    error ("Error: An odd parameter was passed to uaResultToVersion: " ++ show uaResult)
-
-uaInBrowserRange::UAResult->Browser->Bool
-uaInBrowserRange _ AllBrowsers = True
-uaInBrowserRange uaResult@UAResult{uarFamily="Firefox"} (Mozilla versionRange) =
-    versionInRange (uaResultToVersion uaResult) versionRange
-uaInBrowserRange uaResult@UAResult{uarFamily="Chrome"} (Webkit versionRange) =
-    versionInRange (uaResultToVersion uaResult) versionRange
-uaInBrowserRange uaResult@UAResult{uarFamily="IE"} (IE versionRange) =
-    versionInRange (uaResultToVersion uaResult) versionRange
-uaInBrowserRange _ _ = False
-
-isShimEligible::FilePath->UAResult->ShimName->IO Bool
-isShimEligible shimDir userAgent shimName = do
-    config <- getShimConfig shimDir shimName
-    return $ or $ uaInBrowserRange userAgent <$> browsers config
 
 getWidgetNames::FilePath->IO [String]
 getWidgetNames shimDir = do
@@ -78,13 +49,13 @@ getWidgetNames shimDir = do
 getNeededShims::String->FilePath->IO [ShimName]
 getNeededShims userAgentString shimDir = do
   uaParser <- loadUAParser
-  
+
   let userAgent = 
-          case parseUA uaParser $ B.fromString userAgentString of
+        case parseUA uaParser $ B.fromString userAgentString of
             Just x -> x
             Nothing -> error $ "Malformed userAgent: " ++ userAgentString
   
-  filterM (isShimEligible shimDir userAgent) =<< getShimNames shimDir
+  filterM (fmap (isShimEligible userAgent) . getShimConfig shimDir) =<< getShimNames shimDir
 
 rootShimFiles::FilePath->ShimName->IO [FilePath]
 rootShimFiles shimDir (ShimName shim) = do

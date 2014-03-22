@@ -7,6 +7,7 @@ module Reorganizer (
 import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Either
+import qualified Data.ByteString.Char8 as B
 import Data.Default
 import Data.Either
 import Data.Functor
@@ -22,7 +23,9 @@ import System.Directory
 import System.FilePath
 import qualified Text.XML as XML
 import Text.XML.Cursor
+import Web.UAParser
 
+import BrowserTools
 import LibContent
 import Shims
 import ShimConfig
@@ -30,7 +33,8 @@ import ShimConfig
 --import Debug.Trace
 
 reorganize::[ShimConfig]->String->TL.Text->EitherT String IO String
-reorganize shimConfigs userAgent input = do
+reorganize shimConfigs userAgentString input = do
+  userAgent <- liftIO $ userAgent2UAResult userAgentString
   case XML.parseText def input of
     Right doc -> do
       doc <- liftIO $ XML.renderText def <$> modify shimConfigs userAgent doc
@@ -62,12 +66,12 @@ getShimFiles shimDir filename = do
       contents <- readFile filepath
       return (takeFileName $ takeDirectory filepath, contents)
  
-addLibsRecursively::[ShimConfig]->[ShimName]->[Lib]
-addLibsRecursively shimConfigs neededLibs = do
+addLibsRecursively::UAResult->[ShimConfig]->[ShimName]->[Lib]
+addLibsRecursively userAgent shimConfigs neededLibs = 
   let (dependGraph, v2k, k2v) = graphFromEdges $ 
                                 ([], ShimName "#basename#", neededLibs)
                                 :
-                                ((\ShimConfig{libs=l, name=n, dependencies=d} ->(l, n, d)) <$> shimConfigs)
+                                ((\ShimConfig{libs=l, name=n, dependencies=d} -> (l, n, filter (isShimEligible userAgent . configForShimName shimConfigs) d)) <$> shimConfigs)
                 
       (childDependGraph, v2k', k2v') = graphFromEdges (v2k <$> reachable dependGraph (fromJust $ k2v $ ShimName "#basename#"))
     
@@ -75,6 +79,11 @@ addLibsRecursively shimConfigs neededLibs = do
 
   where 
     fst3 (x, _, _) = x
+    configForShimName::[ShimConfig]->ShimName->ShimConfig
+    configForShimName shimConfigs shimName = 
+      case find ((shimName ==) . name) shimConfigs of
+        Just x -> x
+        Nothing -> error ("Unknown shim name " ++ show shimName ++ " in addLibsRecursively")
 
 {-libToDocument::FilePath->String->Lib->IO XML.Document
 libToDocument shimDir userAgent lib = do
@@ -104,9 +113,9 @@ documentToLibs doc =
         showAttribute (n, v)=T.unpack (XML.nameLocalName n) ++ "='" ++ T.unpack v ++ "'"
 
 
-modify::[ShimConfig]->String->XML.Document->IO XML.Document
+modify::[ShimConfig]->UAResult->XML.Document->IO XML.Document
 modify shimConfigs userAgent doc = do
-  let neededLibs = addLibsRecursively shimConfigs $ documentToLibs doc
+  let neededLibs = addLibsRecursively userAgent shimConfigs $ documentToLibs doc
   return $ modifyRoot (addLibs neededLibs) doc
   where
     modifyRoot::(XML.Element->[XML.Element])->XML.Document->XML.Document

@@ -8,7 +8,7 @@
   </xsl:template>
 
   <xsl:template match="details">
-    <shimLib name="detailsSummary" />
+    <shimLib name="detailsSummaryEvents" />
     <xsl:copy>
       <xsl:apply-templates select="*|@*|text()" />
     </xsl:copy>

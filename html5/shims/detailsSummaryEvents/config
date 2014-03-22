@@ -3,4 +3,4 @@ browsers: *
 
 dependencies: addEventHandler
 
-libs: details.js
+libs: details.js, summary.js

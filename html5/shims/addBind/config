@@ -1,4 +1,6 @@
 
 browsers: ie < 9
 
+dependencies: fixSlice
+
 libs: bind.js

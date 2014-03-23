@@ -99,7 +99,10 @@ details=>
 ;
 
 table=>
-<table>
+<table_{attribute}*_/>;
+
+table=>
+<table_{attribute}*_>
   {tr}*
 </table>
 ;

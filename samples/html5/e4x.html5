@@ -1,0 +1,21 @@
+
+<html>
+  <head>
+    <title>e4x Example</title>
+  </head>
+  <body>
+
+    <h1>This table was generated automatically</h1>
+    <table id="theTable" />
+
+  <script>
+
+    //var aRow = <tr><td>a</td><td>b</td><td>c</td></tr>;
+
+    aRow = document.createElement("tr");
+
+    theTable.appendChild(aRow);
+
+  </script>
+  </body>
+</html>

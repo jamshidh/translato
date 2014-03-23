@@ -11,6 +11,7 @@ jsFile =>
 ====<subgrammars>===============
 <{html5}>
 <{regex}>
+<{e4x}>
 ====</subgrammars>==============
 
 ====[parameter]===============
@@ -122,7 +123,7 @@ throw => throw {expression};
 
 object => \{_{field}*_\};
 
-embeddedElement => {widget};
+embeddedElement => {e4xElement};
 
 embeddedRegex => {regex};
 

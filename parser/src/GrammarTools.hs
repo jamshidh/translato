@@ -24,6 +24,7 @@ import Format
 import Grammar
 import GrammarParser
 import OperatorNames
+import SequenceTools
 
 --import JDebug
 
@@ -269,6 +270,40 @@ seq2Separator _ sq = error ("Missing case in seq2Separator: " ++ format sq)
 
 -------------------------------
 
+fillInWSSeqs::Grammar->Grammar
+fillInWSSeqs g = (classes.mapped %~ fillInWSSeqsInClass) g
+
+fillInWSSeqsInClass::Class->Class
+fillInWSSeqsInClass c =
+    ((separator %~ fillWSSeqsInSeq (c ^. whiteSpaceSequences))
+        . (left %~ fillWSSeqsInSeq (c ^. whiteSpaceSequences))
+        . (right %~ fillWSSeqsInSeq (c ^. whiteSpaceSequences))
+        . (rules.mapped.rawSequence %~ fillWSSeqsInSeq (c ^. whiteSpaceSequences))
+        . (suffixSeqs.mapped  %~ fillWSSeqsInSeq (c ^. whiteSpaceSequences))) c
+
+--I will assume that the sequences inputted for whitespace are simple....  They should only contain Character, TextMatch, and Lists (which at this point could include EQuote)
+--Note that I don't have any checks (yet) to enforce this, so the user could break us by adding something more complicated.
+--If after time I am convinced that this restriction is OK, I will probably add those checks.
+fillWSSeqsInSeq
+  ::[Sequence]->Sequence->Sequence
+fillWSSeqsInSeq
+ wsSeqs = (>>= eModify (addWSSeq wsSeqs))
+  where
+    addWSSeq::[Sequence]->Expression->Sequence
+    addWSSeq wsSeqs (WhiteSpace _ dfltWS) = [WhiteSpace ((>>= eModify normalizeWSExp) <$> wsSeqs) dfltWS]
+    addWSSeq _ x = [x]
+
+    class2wsTuples::Class->[(String, [Sequence])]
+    class2wsTuples cl = ((\n -> (n, cl^.whiteSpaceSequences)) <$> (^.name) <$> cl^.rules)
+                                 ++ [(cl^.className, cl^.whiteSpaceSequences)]
+    normalizeWSExp::Expression->Sequence 
+    normalizeWSExp (EQuote count sq) = [List count sq] --Under the assumptions of simplicity, EQuote=SepBy=List
+    normalizeWSExp x = [x]
+
+
+
+-------------------------------
+
 modifySeqsInGrammar::(Sequence->Sequence)->Grammar->Grammar
 modifySeqsInGrammar f = classes.mapped %~ ((rules.mapped.rawSequence %~ f) . (suffixSeqs.mapped %~ f))
 
@@ -360,7 +395,8 @@ loadGrammarAndSimplifyForParse specName = do
         $ stripWhitespaceFromGrammar
         $ removeOption
         $ removeSepBy
-        $ removeEQuote g)
+        $ removeEQuote
+        $ fillInWSSeqs g)
     where
       modifyGrammar::(Grammar->Class->Class)->Grammar->Grammar
       modifyGrammar f g = (classes.mapped %~ f g) g

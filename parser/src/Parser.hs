@@ -108,7 +108,8 @@ parseTree::Grammar->String->Forest Expression
 parseTree g startRule=seq2ParseTree (cleanSMap g) [Link startRule]
   where
         --cleanSMap = leftFactorSequenceMap True . fmap removeWSAndOut . fmap removeDefaultWS . sequenceMap
-    cleanSMap = fillInWSSeqs g . leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
+    --cleanSMap = fillInWSSeqs g . leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
+    cleanSMap = leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
 
 createEParserForClass::String->Grammar->EParser
 createEParserForClass startRule g =

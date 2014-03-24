@@ -88,7 +88,7 @@ splitFirstTok (expr@(Or _):rest) = FirstParsedSeq (Just expr) (e "") Nothing res
 splitFirstTok (expr@(Priority _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (Out eString:rest) = fp{outValue=eString ++ outValue fp}
     where fp = splitFirstTok rest
-splitFirstTok (WhiteSpace [] defltWS:rest) = FirstParsedSeq (Just $ WhiteSpace [] FutureWS) (e "") (Just defltWS) rest
+splitFirstTok (WhiteSpace wsSeqs defltWS:rest) = FirstParsedSeq (Just $ WhiteSpace wsSeqs FutureWS) (e "") (Just defltWS) rest
 splitFirstTok [] = FirstParsedSeq{
         firstTok = Nothing,
         outValue = e "",

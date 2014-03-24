@@ -77,32 +77,26 @@ fillInFutureItems (c:rest) = c:fillInFutureItems rest
 fillInFutureItems [] = []
 
 cleanUpAfterError::EString->EString
-cleanUpAfterError s = cleanUpAfterError' s ([], False, 0)
+cleanUpAfterError s = cleanUpAfterError' s []
     where
-        cleanUpAfterError'::EString->([String], Bool, Int)->EString
-        cleanUpAfterError' [] ([], False, 0) = []
+        cleanUpAfterError'::EString->EString->EString
+        cleanUpAfterError' [] [] = []
         cleanUpAfterError' [] state =
             error ("Error in cleanUpAgterError: string ended without closing all tags or ending values" ++ show state)
-        cleanUpAfterError' (c@StartBlock:rest) (tagStack, inValue, blockCount) =
-            c:cleanUpAfterError' rest (tagStack, inValue, blockCount+1)
-        cleanUpAfterError' (c@EndBlock:rest) (tagStack, inValue, blockCount) =
-            c:cleanUpAfterError' rest (tagStack, inValue, blockCount-1)
-        cleanUpAfterError' (c@(EStart name _):rest) (tagStack, inValue, blockCount) =
-            c:cleanUpAfterError' rest (name:tagStack, inValue, blockCount)
-        cleanUpAfterError' (c@(EEnd name):rest) (topName:restOfStack, inValue, blockCount) =
-            c:cleanUpAfterError' rest (restOfStack, inValue, blockCount)
-        cleanUpAfterError' (c@(VStart name _):rest) (tagStack, False, blockCount) =
-            c:cleanUpAfterError' rest (name:tagStack, True, blockCount)
-        cleanUpAfterError' (c@VEnd:rest) (topName:restOfStack, True, blockCount) =
-            c:cleanUpAfterError' rest (restOfStack, False, blockCount)
-        cleanUpAfterError' (c@(Fail _):rest) (tagStack, False, 0) =
-            c:(EEnd <$> tagStack)
-        cleanUpAfterError' (c@(Fail _):rest) (tagStack, True, blockCount) =
-            c:VEnd:(EEnd <$> tagStack)
-        cleanUpAfterError' (c@(Fail _):rest) (tagStack, False, blockCount) =
-            [c] ++ replicate blockCount EndBlock ++ (EEnd <$> tagStack)
-        cleanUpAfterError' (c:rest) (tagStack, inValue, blockCount) =
-            c:cleanUpAfterError' rest (tagStack, inValue, blockCount)
+        cleanUpAfterError' (c@StartBlock:rest) needed =
+            c:cleanUpAfterError' rest (EndBlock:needed)
+        cleanUpAfterError' (c@EndBlock:rest) (EndBlock:neededRest) =
+            c:cleanUpAfterError' rest neededRest
+        cleanUpAfterError' (c@(EStart name _):rest) needed =
+            c:cleanUpAfterError' rest (EEnd name:needed)
+        cleanUpAfterError' (c@(EEnd name):rest) (EEnd _:neededRest) =
+            c:cleanUpAfterError' rest neededRest
+        cleanUpAfterError' (c@(VStart name _):rest) needed =
+            c:cleanUpAfterError' rest (VEnd:needed)
+        cleanUpAfterError' (c@VEnd:rest) (VEnd:neededRest) =
+            c:cleanUpAfterError' rest neededRest
+        cleanUpAfterError' [c@(Fail _)] needed = c:needed
+        cleanUpAfterError' (c:rest) needed = c:cleanUpAfterError' rest needed
         --cleanUpAfterError' x _ = error ("Missing case in cleanUpAfterError: " ++ show x)
 
 
@@ -283,8 +277,6 @@ splitByEndCap x = error ("Missing case in splitByEndCap: " ++ (format =<< x))
 
 
 getNestedItem::EString->(EString, EChar, EString)
-getNestedItem [] = ([], EEnd "", []) --Only needed for error reporting
-getNestedItem (c@(Fail _):rest) = ([], c, rest)
 getNestedItem (EEnd name:rest) = ([], EEnd name, rest)
 getNestedItem (FilledInEStart name atts:rest) = ([FilledInEStart name atts] ++ inside1 ++ endTag1:inside2, endTag2, outside2)
     where

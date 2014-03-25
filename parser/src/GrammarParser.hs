@@ -29,9 +29,6 @@ import Grammar
 
 --import JDebug
 
---import Debug.Trace
-
-
 specNameToSpecFile::SpecName->IO FilePath
 specNameToSpecFile specName = do
   if elem '.' specName || elem '/' specName
@@ -254,19 +251,15 @@ parseLeft =
     do
         try (string "left:")
         spaces
-        left<- parseSequence
-        spaces
-        string ";"
-        return (LeftItem left)
+        left<- parseQuote
+        return $ LeftItem left
 
 parseRight =
     do
         try (string "right:")
         spaces
-        right<- parseSequence
-        spaces
-        string ";"
-        return (RightItem right)
+        right<- parseQuote
+        return $ RightItem right
 
 -----------------------------
 

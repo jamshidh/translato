@@ -137,7 +137,10 @@ fillInVariableAssignments (VStart name (Just s):rest) =
                 (Nothing, rest2) -> (Nothing, rest2)
         splitVariableValue (EStart _ _:rest) = splitVariableValue rest
         splitVariableValue (EEnd _:rest) = splitVariableValue rest
-        splitVariableValue (Fail err:rest) = (Nothing, [Fail err])
+        splitVariableValue (Fail err:VEnd:rest) = (Just "", Fail err:rest)
+        --I don't think this next case can occur, but if it does, it has to be dealt with.
+        --If an error is not followed immediatly by a VEnd, then we have to find the future VEnd and remove it, else there will one too many.
+        splitVariableValue (Fail err:rest) = error "unexpected internal data....  This is a bug that should be dealt with by a developer."
         splitVariableValue x = error ("Missing case in splitVariableValue: " ++ (format =<< x))
 fillInVariableAssignments (c:rest) = c:fillInVariableAssignments rest
 fillInVariableAssignments [] = []

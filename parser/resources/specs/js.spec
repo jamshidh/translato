@@ -77,6 +77,10 @@ funcDeclaration => function @name\({parameter}*\) {fullBody};
 
 blankCommand => \;;
 
+left: '\n  '
+
+right: '\n'
+
 separator: '\n'
 
 ====[/command]==================

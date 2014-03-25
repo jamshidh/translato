@@ -177,9 +177,7 @@ separator: ' '
 
 ====[script]======================
 
-script =><script_>
-  {command}*
-</script_>;
+script =><script_>{command}*</script_>;
 
 script =><script src="@src([^"]*)">_</script>;
 

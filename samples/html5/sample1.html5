@@ -1,19 +1,24 @@
 
 <html>
-  <script>
-    function changeRounded() {
-    var el = document.getElementById('rounded-example');
-    
-    var borderVal = document.getElementById('rounded-border').value;
-    
-    /* This is no need but its cool to see how much we slide */
-    document.getElementById('rounded-border-value').innerHTML = borderVal;
-    
-    el.style.borderRadius = borderVal + 'px';
-    }
-    
-  </script>
-  
-  <input type="range" onchange="changeRounded(event)" value="0" max="50" min="0" id="rounded-border" />
+  <head>
+    <script>
+      function changeRounded() {
+      var el = document.getElementById('rounded-example');
+      
+      var borderVal = document.getElementById('rounded-border').value;
+      
+      /* This is no need but its cool to see how much we slide */
+      document.getElementById('rounded-border-value').innerHTML = borderVal;
+      
+      el.style.borderRadius = borderVal + 'px';
+      }
+      
+    </script>
+  </head>
+  <body>
+
+    <input type="range" onchange="changeRounded(event)" value="0" max="50" min="0" id="rounded-border" />
+
+  </body>
 
 </html>

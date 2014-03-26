@@ -52,7 +52,8 @@ singleCharacterRangeAt::LS.LString->Range
 singleCharacterRangeAt s = rangeAt s 1
 
 data ParseError =
-    NullError | --Only put in to make this a monoid....  This should never appear outside of this file
+    NullError { ranges::[Range] } | --Only put in to make this a monoid....  This should never appear outside of this file.
+    --Although this should never appear in the wild, I was running into a case where it did, and the program was crashing when it tried to use ranges.  I've added it here now to fix the problem, although I really should just figure out what caused that to happen.  Yeah, I know that is lame, but I have too much other stuff to do.
     Error { ranges::[Range], description::String } |
     ExpectationError { ranges::[Range], expected::[String], actual::LS.LString } |
     MatchError { name::String, ranges::[Range], firstVal::String, secondVal::String } |
@@ -61,13 +62,13 @@ data ParseError =
 
 --TODO Figure out how to merge cases where actual1 /= actual2
 instance Monoid ParseError where
-  mempty = NullError
+  mempty = NullError []
   mappend (ExpectationError r1 expected1 actual1) (ExpectationError r2 expected2 actual2) | r1 == r2 && actual1 == actual2 = ExpectationError r1 (expected1++expected2) actual1
   mappend err1@(ExpectationError _ _ actual1) err2@(ExpectationError _ _ actual2) | actual1 /= actual2 = 
                           error ("error in ParseError mappend: trying to merge two expectation errors with different actuals:\n----" ++ format err1 ++ "\n----" ++ format err2)
   mappend (ExpectationError r1 expected1 actual1) (ExpectationError r2 expected2 actual2) = ExpectationError (r1++r2) (expected1++expected2) actual1
-  mappend NullError e = e
-  mappend e NullError = e
+  mappend (NullError []) e = e
+  mappend e (NullError []) = e
   
 message::ParseError->String
 message Error{description=description} = description

@@ -164,10 +164,26 @@ summary=>
 
 doctype => <!DOCTYPE @value>;
 
+====[attributeCommand:command]===========
+#Same as (javascript) commands, but all smashed on one line.
+left: '_'
+right: '_'
+separator: ' '
+====[/attributeCommand]==================
+
+jsCommands => {attributeCommand}*;
+
+
+
+====[jsQuote]===============
+jsDQuote=>"[^"]*";
+jsSQuote=>'[^']*';
+====[/jsQuote]==============
+
 ====[attribute]===============
 attribute =>@name([a-zA-Z\-]+)(="@value([^"]*)")?;
 
-onclick=>onclick_="{command}*";
+onclick=>onclick_={jsQuote:jsCommands}*;
 
 #booleanAttribute => @name([a-zA-Z\-]+);
 

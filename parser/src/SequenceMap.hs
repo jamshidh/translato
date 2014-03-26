@@ -46,6 +46,6 @@ classSequence g cl =
         selfRule::[Sequence]
         selfRule = (^.rawSequence) <$> filter ((== cl^.className ) . (^.name)) (cl^.rules)
         nonSelfRule::[Sequence]
-        nonSelfRule = (:[]) <$> Link <$>
+        nonSelfRule = (:[]) <$> Link Nothing <$>
                       filter (/= cl^.className) (nub $ ((^.name) <$> cl^.rules) ++ (cl^.parentNames))
         suffix = orify (cl^.suffixSeqs)

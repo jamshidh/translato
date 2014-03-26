@@ -69,11 +69,15 @@ addName theName (TextMatch text _:rest) = TextMatch text (Just theName):rest
 addName theName (Character charset _:rest) = Character charset (Just theName):rest
 addName theName (c:rest) = c:addName theName rest
 
+addReparserIfNecessary::Maybe String->Sequence->Sequence
+addReparserIfNecessary Nothing sq = sq
+addReparserIfNecessary (Just reparseName) sq = [Out [ReparseStart reparseName]] ++ sq ++ [Out [ReparseEnd]]
+
 seq2ParseTree::SequenceMap->Sequence->Forest Expression
-seq2ParseTree sMap (Link theName:rest) =
+seq2ParseTree sMap (Link reparser theName:rest) =
     case M.lookup theName sMap of
         Nothing -> error ("The grammar links to a non-existant rule named '" ++ theName ++ "'")
-        Just sq -> seq2ParseTree sMap (addName theName (sq ++ rest))
+        Just sq -> seq2ParseTree sMap (addName theName (addReparserIfNecessary reparser sq ++ rest))
 seq2ParseTree sMap (List 0 sq:rest) =
     seq2ParseTree sMap [Or [sq ++ [List 0 sq] ++ rest, Priority Low:rest]]
 seq2ParseTree sMap (List count sq:rest) =
@@ -105,18 +109,20 @@ rawParse items s = case chooseOne s items of
 ------------------------
 
 parseTree::Grammar->String->Forest Expression
-parseTree g startRule=seq2ParseTree (cleanSMap g) [Link startRule]
+parseTree g startRule=seq2ParseTree (cleanSMap g) [Link Nothing startRule, EOF]
   where
         --cleanSMap = leftFactorSequenceMap True . fmap removeWSAndOut . fmap removeDefaultWS . sequenceMap
     --cleanSMap = fillInWSSeqs g . leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
     cleanSMap = leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
 
 createEParserForClass::String->Grammar->EParser
-createEParserForClass startRule g =
+createEParserForClass startRule g = 
     expandOperators
+    . reparseIfNeeded g
     . fillInAttributes
     . checkForVarConsistency []
     . fillInVariableAssignments
+    . cleanUpAfterError --has to happen after fillInFutureItems, as it counts tags, which might not be filled in until after that
     . fillInFutureItems
     . rawParse (parseTree g startRule)
     . (createLString $)
@@ -141,6 +147,7 @@ createParser g =
 --    (format =<<)
     enhancedString2String
     . (>>= eAmpEscape)
+    . reparseIfNeeded g
     . expandOperators
     . fillInAttributes
     . checkForVarConsistency []
@@ -169,6 +176,42 @@ parseUsingSpecName::SpecName->String->IO String
 parseUsingSpecName theSpecName input = do
     grammar<-loadGrammarAndSimplifyForParse theSpecName
     return $ createParser grammar input
+
+
+-----------------------
+
+reparseIfNeeded::Grammar->EString->EString
+reparseIfNeeded _ [] = []
+reparseIfNeeded g (ReparseStart reparseName:FilledInEStart _ _:rest) = 
+  doReparse theString ++ reparseIfNeeded g rest'
+  where 
+    (theString, rest') = splitReparseString reparseName rest
+    doReparse = createEParserForClass reparseName g
+reparseIfNeeded _ (ReparseStart reparseName:e:rest) = error ("reparseIfNeeded: Shouldn't be here: ReparseStart followed by " ++ show e)
+reparseIfNeeded _ (ReparseEnd:rest) = error "reparseIfNeeded: Shouldn't be here"
+reparseIfNeeded g (c:rest) = c:reparseIfNeeded g rest
+
+splitReparseString::String->EString->(String, EString)
+splitReparseString reparseName (EEnd _:ReparseEnd:rest) = ("", rest)
+splitReparseString reparseName (Ch c:rest) = (c:out, rest')
+  where (out, rest') = splitReparseString reparseName rest
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 ---------

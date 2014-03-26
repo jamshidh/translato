@@ -25,9 +25,11 @@ import Control.Arrow
 import Data.Char
 import Data.Functor
 import Data.Function
+import Control.Lens
 import Data.List hiding (lookup)
 import qualified Data.Map as M
 import qualified Data.Set as S
+import Data.String
 import qualified Data.Text as T
 import Data.Text.Lazy.IO as TL hiding (putStrLn, interact)
 import Text.XML
@@ -151,10 +153,26 @@ seq2EString g sMap (Out [VStart attrName _]:rest) (usedAttsTop:usedAttsRest) c r
             dropUntilVEnd (Out [VEnd]:rest) = rest
             dropUntilVEnd (x:rest) = dropUntilVEnd rest
             
-seq2EString g sMap (SepBy 0 [Link linkName] sep:rest) usedAtts c children =
+seq2EString g sMap (SepBy 0 [Link Nothing linkName] sep:rest) usedAtts c children =
     result ++ seq2EString g sMap rest usedAtts c otherChildren
     where
         (result, otherChildren) = applyTemplates g sMap children linkName sep usedAtts True
+
+seq2EString g sMap (SepBy 0 [Link (Just reparseName) linkName] sep:rest) usedAtts c children = --jtrace ("the middle: " ++ show (enhancedString2String result1)) $ 
+    result2 ++ seq2EString g sMap rest usedAtts c otherChildren1
+    where
+        (result1, otherChildren1) = applyTemplates g sMap children reparseName sep usedAtts True
+        (result2, otherChildren2) = applyTemplates g sMap [firstPassResult] linkName sep [] True
+        firstPassResult::Cursor
+        firstPassResult = fromNode $ NodeElement $ Element (fromString $ getConcreteLink g linkName) M.empty [NodeContent $ T.pack (enhancedString2String result1)]
+        eChar2Char (Ch c) = [c]
+        eChar2Char c = error ("error in seq2EString, eChar2Char: " ++ show c)
+        getConcreteLink::Grammar->String->String
+        getConcreteLink g theName =
+          case M.lookup theName $ g ^. classes of
+            Just c -> (head $ (c ^. rules)) ^. Grammar.name
+            Nothing -> theName
+
 
 seq2EString g sMap (SepBy 0 sq sep:rest) usedAtts c children =
     seq2EString g sMap [Or [sq++(SepBy 0 sq sep:rest), rest]] usedAtts c children
@@ -181,14 +199,15 @@ seq2EString g sMap (Or seqs:rest) usedAtts c children =
         --chosenSq = minimumBy (compare `on` length) allBestSeqs
         chosenSq = minimumBy (compare `on` length) (snd <$> matchingSqFPs) --commented out using allBestSeqs....  If this works well, I should just remove it.
 
-seq2EString _ _ (Link linkName:_) _ _ [] =
+seq2EString _ _ (Link _ linkName:_) _ _ [] =
     [Fail $ Error dummyRanges ("Looking for element with tagname '" ++ linkName ++ "', but there are no more elements")]
-seq2EString g sMap (Link linkName:rest) usedAtts c (firstChild:otherChildren) | isA g (tagName firstChild) linkName =
+seq2EString g sMap (Link _ linkName:rest) usedAtts c (firstChild:otherChildren) | isA g (tagName firstChild) linkName =
         cursor2String g sMap firstChild usedAtts ++ seq2EString g sMap rest usedAtts c otherChildren
-seq2EString _ _ (Link linkName:_) usedAtts _ (firstChild:_) =
+seq2EString _ _ (Link _ linkName:_) usedAtts _ (firstChild:_) =
         [Fail $ Error dummyRanges ("Expecting element with tagname '" ++ linkName ++ "', found " ++ showCursor firstChild)]
 
-seq2EString g sMap (WhiteSpace [] defltWS:rest) usedAtts c children = WSItem defltWS:seq2EString g sMap rest usedAtts c children
+seq2EString g sMap (WhiteSpace [] defltWS:rest) usedAtts c children = --jtrace (show defltWS) $ 
+                                                                      WSItem defltWS:seq2EString g sMap rest usedAtts c children
 --seq2EString g sMap (WhiteSpace (WSString defltWS):rest) c children = e defltWS  ++ seq2EString g sMap rest c children
 seq2EString g sMap (Out [TabRight tabString]:rest) usedAtts c children = TabRight tabString:seq2EString g sMap rest usedAtts c children
 seq2EString g sMap (Out [TabLeft]:rest) usedAtts c children = TabLeft:seq2EString g sMap rest usedAtts c children
@@ -269,11 +288,11 @@ getAllowedFirstLinkNames::Sequence->[Maybe String] --Returning a Nothing implies
 getAllowedFirstLinkNames [] = [Nothing]
 getAllowedFirstLinkNames (Out [VStart _ _]:rest) =
     getAllowedFirstLinkNames $ dropWhile (/= Out [VEnd]) rest
-getAllowedFirstLinkNames (Link linkName:_) =
+getAllowedFirstLinkNames (Link _ linkName:_) =
     [Just linkName] --Only return the first name for now (possibly forever)
-getAllowedFirstLinkNames (SepBy 0 [Link linkName] _:rest) =
+getAllowedFirstLinkNames (SepBy 0 [Link _ linkName] _:rest) =
     Just linkName:getAllowedFirstLinkNames rest --Only return the first name for now (possibly forever)
-getAllowedFirstLinkNames (SepBy _ [Link linkName] _:_) =
+getAllowedFirstLinkNames (SepBy _ [Link _ linkName] _:_) =
     [Just linkName] --Only return the first name for now (possibly forever)
 getAllowedFirstLinkNames (x:rest) = getAllowedFirstLinkNames rest
 

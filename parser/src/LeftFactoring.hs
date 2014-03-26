@@ -78,7 +78,7 @@ data FirstParsedSeq =
 
 --This is like 'head' for FirstParsedSeq.
 splitFirstTok::Sequence->FirstParsedSeq
-splitFirstTok (expr@(Link _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
+splitFirstTok (expr@(Link _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (expr@(TextMatch _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (expr@(Character _ _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 --splitFirstTok (expr@(List 0 _):rest) = error "Don't support splitFirstTok for List0"
@@ -143,7 +143,7 @@ prepareForLeftFactor::SequenceMap->Sequence->Sequence
 prepareForLeftFactor sMap [Or sequences] = orify $ expandEStart <$> expandToToken <$> sequences
     where
         expandToToken::Sequence->Sequence
-        expandToToken (Link linkName:rest) 
+        expandToToken (Link _ linkName:rest) 
           | containsMinimalExpansionPoint sMap linkName minimalExpansionPoints =
                 case lookup linkName sMap of
                     Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ linkName)
@@ -179,7 +179,7 @@ containsMinimalExpansionPoint sMap linkName minimalExpansionPoints =
 getFirst::Sequence->Maybe [Expression]
 getFirst [] = Just [EOE]
 getFirst (Or seqs:rest) = concat <$> sequence (getFirst <$> (++ rest) <$> seqs)
-getFirst (expr@(Link _):_) = Just [expr]
+getFirst (expr@(Link _ _):_) = Just [expr]
 getFirst (expr@(TextMatch _ _):_) = Just [expr]
 getFirst (expr@(Character _ _):_) = Just [expr]
 getFirst (SepBy 0 _ _:_) = error "getFirst doesn't handle 'SepBy 0' (yet?)."
@@ -191,7 +191,7 @@ getChainOfFirsts _ [] = error "getChainOfFirsts called with empty sequence"
 getChainOfFirsts sm sq = expr2ChainOfFirsts =<< firsts
     where
         expr2ChainOfFirsts::Expression->[[Expression]]
-        expr2ChainOfFirsts expr@(Link linkName) =
+        expr2ChainOfFirsts expr@(Link Nothing linkName) =
             (++ [expr]) <$> getChainOfFirsts sm (linkName2Seq sm linkName)
         expr2ChainOfFirsts expr = [[expr]]
         firsts = case getFirst sq of

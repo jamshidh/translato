@@ -120,7 +120,7 @@ isBlockClass g cl =
 isLRecursive::String->Rule->Bool
 isLRecursive clName r =
     case r^.rawSequence of
-        (Link linkName:_) -> linkName == r^.name || linkName == clName
+        (Link Nothing linkName:_) -> linkName == r^.name || linkName == clName
         _ -> False
 
 ---------------------
@@ -148,7 +148,7 @@ op2Infix oprtr = InfixTag
 --Tracking this down can be very difficult (....as I have learned).
 operator2SuffixSeq::Grammar->Class->Operator->Sequence
 operator2SuffixSeq g theClass oprtr =
-    oprtr^.symbol ++ [Out [op2Infix oprtr], Or ((:[]) . Link <$> nonRecursiveRuleNames theClass)]
+    oprtr^.symbol ++ [Out [op2Infix oprtr], Or ((:[]) . Link Nothing <$> nonRecursiveRuleNames theClass)]
     where nonRecursiveRuleNames cl' = ((^.name) <$> filter (not . isLRecursive (cl'^.className)) (cl'^.rules))
                                         ++ ((^.className) <$> parents g cl')
 
@@ -168,14 +168,16 @@ rewriteOperatorsAsLeftRecursionInClass cls =
             Rule
                 (o^.priority)
                 (symbol2Name $ o^.symbol)
-                ([Link (cls^.className)] ++ o^.symbol ++ [Link (cls^.className)])
+                ([Link Nothing (cls^.className)] ++ o^.symbol ++ [Link Nothing (cls^.className)])
 
 
 ---------------------
 
+{-
 addEOFToGrammar::Grammar->Grammar
 addEOFToGrammar g =
     classes.mapped.(filtered ((g^.main ==) . (^.className))).rules.mapped.rawSequence %~ (++ [EOF]) $ g
+-}
 
 ---------------------
 
@@ -259,7 +261,7 @@ replaceEQuote g (Option sq) = [Option $ sq >>= replaceEQuote g]
 replaceEQuote _ x = [x]
 
 seq2Separator::Grammar->Sequence->Sequence
-seq2Separator g [Link linkName] = case M.lookup linkName (g^.classes) of
+seq2Separator g [Link _ linkName] = case M.lookup linkName (g^.classes) of
     Nothing -> [] --If linkName isn't a class, then it is a ruleName (or it could also be
                     --a type, but it will be caught elsewhere)
     Just cl -> cl^.separator
@@ -327,7 +329,7 @@ repeatWithSeparator 0 sq sep = [Or [fixedSq ++ [List 0 (sep ++ fixedSq)], [Prior
 repeatWithSeparator minCount sq sep = (replaceSepBy =<< sq) ++ [List (minCount -1) (replaceSepBy =<< sep++sq)]
 
 seq2Left::Grammar->Sequence->Sequence
-seq2Left g [Link linkName] = case M.lookup linkName (g^.classes) of
+seq2Left g [Link _ linkName] = case M.lookup linkName (g^.classes) of
     Nothing -> [] --If linkName isn't a class, then it is a ruleName (or it could also be
                     --a type, but it will be caught elsewhere)
     Just cl -> cl^.left
@@ -337,7 +339,7 @@ seq2Left _ sq | length sq > 1 = []
 seq2Left _ sq = error ("Missing case in seq2Left: " ++ show sq)
 
 seq2Right::Grammar->Sequence->Sequence
-seq2Right g [Link linkName] = case M.lookup linkName (g^.classes) of
+seq2Right g [Link _ linkName] = case M.lookup linkName (g^.classes) of
     Nothing -> []
     Just cl -> cl^.right
 seq2Right _ [Character _ _] = []
@@ -361,7 +363,7 @@ addTabs g = modifySeqsInGrammar addTabsToSeq g
     where
         addTabsToSeq::Sequence->Sequence
         addTabsToSeq [] = []
-        addTabsToSeq (WhiteSpace wsSeq (WSString defltWS):expr@(Link _):rest) =  rebuildIt wsSeq defltWS expr rest
+        addTabsToSeq (WhiteSpace wsSeq (WSString defltWS):expr@(Link _ _):rest) =  rebuildIt wsSeq defltWS expr rest
         addTabsToSeq (WhiteSpace wsSeq (WSString defltWS):expr@(SepBy _ _ _):rest) =  rebuildIt wsSeq defltWS expr rest
         addTabsToSeq (WhiteSpace wsSeq (WSString defltWS):expr@(List _ _):rest) =  rebuildIt wsSeq defltWS expr rest
         addTabsToSeq (expr:rest) = expr:addTabsToSeq rest
@@ -386,16 +388,17 @@ loadGrammarAndSimplifyForParse specName = do
     g <- loadUnsimplifiedGrammar specName
     return (
         adjustPrioritiesByClassHiarchy
-        $ addEOFToGrammar
+        --I am moving the addition of the EOF to the funtion "parseTree", because as of right now, and EOF is needed for all sequences (chooseOne seems to explode otherwise), and since a reparse is using non root production rules as the basis, we need to add them elsewhere (not to mention that now we can use the root rule embedded elsewhere).
+--        $ addEOFToGrammar
         $ classes.mapped.rules.mapped %~ addTagToRule
         $ modifyGrammar rewriteOperators
         -- $ modifyGrammar addInheritedSuffixes 
         $ classes.mapped %~ rewriteLeftRecursion 
         -- $ modifyGrammar addInheritedOperators 
-        $ stripWhitespaceFromGrammar
         $ removeOption
         $ removeSepBy
         $ removeEQuote
+        $ stripWhitespaceFromGrammar
         $ fillInWSSeqs g)
     where
       modifyGrammar::(Grammar->Class->Class)->Grammar->Grammar
@@ -406,10 +409,11 @@ loadGrammarAndSimplifyForGenerate specName = do
     g <- loadUnsimplifiedGrammar specName
     return (
         adjustPrioritiesByClassHiarchy
-        $ addEOFToGrammar
+--        $ addEOFToGrammar
         $ rewriteOperatorsAsLeftRecursion
         -- $ classes.mapped %~ addInheritedOperators g
-        $ stripWhitespaceFromGrammar
         $ removeOption
         $ addTabs
-        $ removeEQuote g)
+        $ removeEQuote
+        $ stripWhitespaceFromGrammar g
+        )

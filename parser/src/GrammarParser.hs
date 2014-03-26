@@ -348,7 +348,7 @@ matchAttribute =
     do
         char '@'
         name<-ident
-        parseType<-option [Link "ident"] matchParen
+        parseType<-option [Link Nothing "ident"] matchParen
         return ([Out [VStart name Nothing]] ++ parseType ++ [Out [VEnd]])
 
 matchParen =
@@ -399,8 +399,9 @@ matchLink =
     do
         char '{'
         val<-ident
+        filter <- option Nothing ( char ':' >> (Just <$> ident) )
         char '}'
-        return (Link val)
+        return (Link filter val)
 
 matchText::Parser String
 matchText =

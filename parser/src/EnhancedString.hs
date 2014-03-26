@@ -63,6 +63,8 @@ data EChar =
     | VAssign String (Maybe String) LS.LString
         --The LString is only added for error reporting, to know the location of the string
         --The Maybe is also for error reporting, value should be a string unless something has gone wrong
+    | ReparseStart String
+    | ReparseEnd
     | TabRight String
     | TabLeft
     | Unknown --used when error occurs before ItemInfo is given
@@ -86,6 +88,8 @@ instance Format EChar where
     format (DelayedWS defltWS) = cyan ("{delayedWS=" ++ show defltWS ++ "}")
     format (WSItem defltWS) = blue ("{wsItem=" ++ show defltWS ++ "}")
     format (EEnd tagName) = cyan ("</" ++ tagName ++ ">")
+    format (ReparseStart reparseName) = yellow ("[[[[" ++ reparseName ++ ":")
+    format ReparseEnd = yellow "]]]]"
     format (NestedItem s) = yellow "<<<" ++ (format =<< s) ++ yellow ">>>"
     format (VOut attrName) = green ("[" ++ attrName ++ "]")
     format (VStart attrName _) = green ("{" ++ attrName ++ "=")
@@ -123,6 +127,8 @@ chs2String (FilledInEStart tagName atts:rest) = cyan ("<" ++ tagName ++ ((" " ++
 chs2String (EEnd tagName:rest) = "</" ++ tagName ++ ">" ++ chs2String rest
 chs2String (NestedItem s:rest) = yellow "<<<" ++ show s ++ yellow ">>>" ++ chs2String rest
 chs2String (VAssign attrName maybeVal _:rest) = green ("assign{" ++ attrName ++ "=" ++ formatMaybe maybeVal ++ "}") ++ chs2String rest
+chs2String (ReparseStart reparseName:rest) = yellow "[[[[" ++ reparseName ++ ":" ++ chs2String rest
+chs2String (ReparseEnd:rest) = yellow "]]]]" ++ chs2String rest
 chs2String (FutureItem _:rest) = blue "<??>" ++ chs2String rest
 chs2String (ItemInfo eString:rest) = blue ("{itemInfo=" ++ show eString ++ "}") ++ chs2String rest
 chs2String (WSItem defltWS:rest) = blue ("{wsItem=" ++ show defltWS ++ "}") ++ chs2String rest
@@ -215,7 +221,7 @@ addLineBreaks (needsBreak:breakRest) (expr@(EEnd _):rest) = --jtrace "EEnd" $
 addLineBreaks [] (EEnd _:_) = e $ red "Error" -- error "shouldn't call addLIneBreaks for EEnd with empty breakStack"
 addLineBreaks breakStack (c:rest) =
     c:addLineBreaks breakStack rest
-addLineBreaks _ [] = [Ch '\n']
+addLineBreaks _ [] = [] -- You can't prettify the output by adding whitespace here!  If you do, it will appear in embedded reparsings (ie- A '\n' would be inserted in the embedded 'onclick=' javascript code).
 
 
 

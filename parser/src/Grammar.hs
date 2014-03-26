@@ -73,7 +73,7 @@ data Expression =
     | SepBy Int Sequence Sequence
     | EQuote Int Sequence
     | Option Sequence
-    | Link String
+    | Link (Maybe String) String
     | Priority Importance
     | Out EString
 --    | Reparse Sequence Sequence
@@ -95,7 +95,8 @@ formatExpression' _ EOF = "EOF"
 formatExpression' _ EOE = "EOE"
 formatExpression' _ (Priority x) = "(Priority:" ++ show x ++ ")"
 formatExpression' level (List minCount expr) = "list" ++ (if (minCount > 0) then show minCount else "") ++ "(" ++ formatSequence' level expr ++ ")"
-formatExpression' _ (Link linkName) = underline $ magenta linkName
+formatExpression' _ (Link Nothing linkName) = underline $ magenta linkName
+formatExpression' _ (Link (Just filterName) linkName) = underline $ magenta (linkName ++ ":" ++ filterName)
 formatExpression' level (Or sequences) =
     case level of
         0 -> "{\n    " ++ intercalate "\n    |\n    " (formatSequence' (level+1) <$> sequences) ++ "\n}"

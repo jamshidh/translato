@@ -1,0 +1,6 @@
+
+browsers: *
+
+dependencies: addEventHandler
+
+libs: details.js, summary.js

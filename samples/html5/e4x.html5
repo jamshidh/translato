@@ -2,19 +2,52 @@
 <html>
   <head>
     <title>e4x Example</title>
+    <style>
+      table {
+        border: solid 1px;
+      }
+      td {
+        border: solid 1px;
+      }
+      tr {
+        border: solid 1px;
+      }
+    </style>
   </head>
   <body>
 
-    <h1>This table was generated automatically</h1>
+    <h1>This list and table were generated automatically</h1>
     <table id="theTable" />
+
+    <ol id="theList">
+      <li>1</li>
+      <li>2</li>
+    </ol>
 
   <script>
 
-    //var aRow = <tr><td>a</td><td>b</td><td>c</td></tr>;
+    var values = ["first", "second", "third", "fourth", "fifth"]
 
-    aRow = document.createElement("tr");
+    for(var i = 0; i < values.length; i++) {
 
+      var anItem = <li>{values[i]}</li>;
+      theList.appendChild(anItem);
+    }
+
+    theTable.appendChild(<tr><td>the first</td><td>banana</td><td>very sweet</td></tr>);
+
+    var aRow = <tr><td>the second</td><td>apple</td><td>sweet</td></tr>;
     theTable.appendChild(aRow);
+
+    var colors = ["red", "green", "yellow", "blue"]
+
+    for(var i = 0; i < colors.length; i++) {
+
+      var aRow = <tr><td>{colors[i]}</td><td style={'background: ' + colors[i]}>{values[i]}</td></tr>;
+      theTable.appendChild(aRow);
+    }
+
+
 
   </script>
   </body>

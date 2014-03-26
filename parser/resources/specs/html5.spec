@@ -135,6 +135,12 @@ label=>
 </label>
 ;
 
+ol=>
+<ol_{attribute}*_>
+  {li}* 
+</ol>
+;
+
 p=>
 <p>{bodyNode}*</p>
 ;
@@ -147,6 +153,12 @@ section=>
 <section_{attribute}*_>
   {bodyNode}*
 </section>
+;
+
+ul=>
+<ul_{attribute}*_>
+  {li}* 
+</ul>
 ;
 
 video=>
@@ -162,6 +174,10 @@ dt=>
 
 dd=>
 <dd>{bodyNode}*</dd>
+;
+
+li=>
+<li>{bodyNode}*</li>
 ;
 
 ====[option]====

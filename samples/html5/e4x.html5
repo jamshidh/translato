@@ -3,13 +3,7 @@
   <head>
     <title>e4x Example</title>
     <style>
-      table {
-        border: solid 1px;
-      }
-      td {
-        border: solid 1px;
-      }
-      tr {
+      table, td, tr {
         border: solid 1px;
       }
     </style>

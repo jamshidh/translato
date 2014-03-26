@@ -62,6 +62,10 @@ separator: '\n'
 
 ====[widget:script]========
 
+audio=>
+<audio_{attribute}*_/>
+;
+
 button=>
 <button_{attribute}*_>{bodyNode}*</button>
 ;
@@ -71,6 +75,12 @@ br=><br_/>;
 
 code=>
 <code>{bodyNode}*</code>
+;
+
+datalist=>
+<datalist_{attribute}*_>
+  {option}*
+</datalist>
 ;
 
 form=>
@@ -119,6 +129,16 @@ h1=>
 <h1_{attribute}*_>{bodyNode}*</h1>
 ;
 
+label=>
+<label_{attribute}*_>
+  {bodyNode}*
+</label>
+;
+
+p=>
+<p>{bodyNode}*</p>
+;
+
 progress=>
 <progress_{attribute}*_>_{bodyNode}*_</progress>
 ;
@@ -127,6 +147,10 @@ section=>
 <section_{attribute}*_>
   {bodyNode}*
 </section>
+;
+
+video=>
+<video_{attribute}*_/>
 ;
 
 separator: '\n'
@@ -140,6 +164,15 @@ dd=>
 <dd>{bodyNode}*</dd>
 ;
 
+====[option]====
+
+option=>
+<option_{attribute}*_/>
+;
+
+separator: '\n'
+
+====[/option]===
 
 tr=>
 <tr>
@@ -181,7 +214,7 @@ jsSQuote=>'[^']*';
 ====[/jsQuote]==============
 
 ====[attribute]===============
-attribute =>@name([a-zA-Z\-]+)(="@value([^"]*)")?;
+attribute =>@name([a-zA-Z\-][a-zA-Z0-9\-]*)(="@value([^"]*)")?;
 
 onclick=>onclick_={jsQuote:jsCommands}*;
 

@@ -9,6 +9,7 @@ import Prelude
 import Data.Char
 import Data.Foldable hiding (concat, maximum)
 import Data.Functor
+import Data.List
 import Data.Tree
 
 import ExpressionMatcher
@@ -165,7 +166,8 @@ treeItem2HumanReadableSummary Node{rootLabel=e@(TextMatch _ _)} =
   "<" ++ formatExpression e ++ ">"
 treeItem2HumanReadableSummary Node{rootLabel=e@(Character _ _)} = 
   "<" ++ formatExpression e ++ ">"
-treeItem2HumanReadableSummary Node{rootLabel=e@(Out _), subForest=[rest]} = treeItem2HumanReadableSummary rest
+treeItem2HumanReadableSummary Node{rootLabel=e@(Out _), subForest=[next]} = treeItem2HumanReadableSummary next
+treeItem2HumanReadableSummary Node{rootLabel=e@(Out _), subForest=rest} = "[" ++ intercalate ", " (treeItem2HumanReadableSummary <$> rest) ++ "]"
 treeItem2HumanReadableSummary Node{rootLabel=e, subForest=rest} = 
   error ("Missing case in treeItem2HumanReadableSummary: " ++ formatExpression e)
   

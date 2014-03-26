@@ -126,21 +126,21 @@ checkForVarConsistency _ [] = []
 fillInVariableAssignments::EString->EString
 fillInVariableAssignments (VStart name Nothing:rest) = error ("fillInVariableAssignments called without LString for '" ++ name ++ "'")
 fillInVariableAssignments (VStart name (Just s):rest) =
-    VAssign name value s:fillInVariableAssignments restWithoutVariableValue
+    VAssign name value s:fillInVariableAssignments (errors ++ restWithoutVariableValue) --I extract the value, and place any errors after the location of the extraction.
     where
-        (value, restWithoutVariableValue) = splitVariableValue rest
-        splitVariableValue::EString->(Maybe String, EString)
-        splitVariableValue (c@VEnd:rest) = (Just "", rest)
+        (value, restWithoutVariableValue, errors) = splitVariableValue rest
+        splitVariableValue::EString->(Maybe String, EString, EString)
+        splitVariableValue (c@VEnd:rest) = (Just "", rest, [])
         splitVariableValue (Ch c:rest) =
             case splitVariableValue rest of
-                (Just value, rest2) -> (Just (c:value), rest2)
-                (Nothing, rest2) -> (Nothing, rest2)
+                (Just value, rest2, errors2) -> (Just (c:value), rest2, errors2)
+                (Nothing, rest2, errors2) -> (Nothing, rest2, errors2)
         splitVariableValue (EStart _ _:rest) = splitVariableValue rest
         splitVariableValue (EEnd _:rest) = splitVariableValue rest
-        splitVariableValue (Fail err:VEnd:rest) = (Just "", Fail err:rest)
-        --I don't think this next case can occur, but if it does, it has to be dealt with.
-        --If an error is not followed immediatly by a VEnd, then we have to find the future VEnd and remove it, else there will one too many.
-        splitVariableValue (Fail err:rest) = error "unexpected internal data....  This is a bug that should be dealt with by a developer."
+        splitVariableValue (Fail err:rest) = 
+          (valueRest, remainder, Fail err:errorsRest)
+          where
+            (valueRest, remainder, errorsRest) = splitVariableValue rest
         splitVariableValue x = error ("Missing case in splitVariableValue: " ++ (format =<< x))
 fillInVariableAssignments (c:rest) = c:fillInVariableAssignments rest
 fillInVariableAssignments [] = []

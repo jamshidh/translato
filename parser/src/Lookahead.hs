@@ -129,6 +129,7 @@ matchOneWrapper s node@Node{rootLabel=x, subForest=rest} =
 ---------------------------------
 
 chooseOne::LS.LString->Forest Expression->Either ParseError (Tree Expression, SeqFP)
+chooseOne s [] = error ("chooseOne called with no options: s=" ++ show s)
 chooseOne s [t] = --This first case is put in as a performance boost, but it isn't *needed*.
   --It is also really nice to isolate this case from nontrivial choices (ie- where you have more than one thing to choose from vs. Soviet style election) when printing debug information in the next case.
   case matchOneWrapper s t of

@@ -25,6 +25,7 @@ import Data.Function
 import Data.List hiding (lookup)
 import Data.Map hiding (map, null, foldl')
 import Data.Maybe
+import qualified Data.Text.Lazy as TL
 
 import EnhancedString
 import Format
@@ -150,7 +151,7 @@ prepareForLeftFactor sMap (Or sequences:rest) =
         expandToToken (Link _ linkName:rest) 
           | containsMinimalExpansionPoint sMap linkName minimalExpansionPoints =
                 case lookup linkName sMap of
-                    Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ linkName)
+                    Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ TL.unpack linkName)
                     Just sq -> expandToToken (sq ++ rest)
         expandToToken (Out eString:rest) = Out eString `prepend` expandToToken rest
         expandToToken (Or seqs:rest) = orify (expandToToken <$> seqs) ++ rest
@@ -167,10 +168,10 @@ prepareForLeftFactor _ sq = sq
 
 
 
-containsMinimalExpansionPoint::SequenceMap->String->[Expression]->Bool
+containsMinimalExpansionPoint::SequenceMap->TL.Text->[Expression]->Bool
 containsMinimalExpansionPoint sMap linkName minimalExpansionPoints =
   case lookup linkName sMap of
-    Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ linkName)
+    Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ TL.unpack linkName)
     Just sq -> or ((`elem` concat (getChainOfFirsts sMap sq)) <$> minimalExpansionPoints)
 
 --Note- The "Maybe" was for the case that an expression ended without expecting any characters.
@@ -203,10 +204,10 @@ getChainOfFirsts sm sq = expr2ChainOfFirsts =<< firsts
             Nothing -> error ("Error calling getFirst (perhaps the grammer has a list of items that can be zero length) with sq = " ++ format sq)
             Just x -> x
 
-linkName2Seq::SequenceMap->String->Sequence
+linkName2Seq::SequenceMap->TL.Text->Sequence
 linkName2Seq sm linkName = case lookup linkName sm of
             Just sq->sq
-            Nothing->error ("Unknown link name in getChainOfFirsts: " ++ linkName)
+            Nothing->error ("Unknown link name in getChainOfFirsts: " ++ TL.unpack linkName)
 
 --I should remove this dead code, but don't want to do so until some time has passed, and I am sure that
 --the new algorithm works well.

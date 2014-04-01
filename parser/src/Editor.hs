@@ -73,7 +73,7 @@ import TreeView
 
 import JDebug
 
-makeGenerator::Grammar->String->String
+makeGenerator::Grammar->TL.Text->String
 makeGenerator g contents = generateFromText g (TL.pack $ createParser g contents)
 
 data IDs = IDs{
@@ -120,7 +120,7 @@ edit g generatorGrammar fileNameString = do
     redBall <- getDataFileName "redBall.png"
     greenBall <- getDataFileName "greenBall.png"
 
-    let doGenerate = generateFromText generatorGrammar . TL.pack . createParser g
+    let doGenerate = (generateFromText generatorGrammar . TL.pack . createParser g) . TL.pack
     let doValidate = do
         ids <- getIDs domR
         validate g (validImage ids) (mainTextView ids) errorStore parseStore (parseTreeView ids)
@@ -332,7 +332,7 @@ validate g validImage textView errorStore parseStore parseView = do
     bufferString <- textBufferGetByteString buff start end False
     redBall <- getDataFileName "redBall.png"
     greenBall <- getDataFileName "greenBall.png"
-    let (res, errorList) = createEParserWithErrors g (toString bufferString)
+    let (res, errorList) = createEParserWithErrors g (TL.pack $ toString bufferString)
     if null errorList
         then imageSetFromFile validImage greenBall
         else imageSetFromFile validImage redBall
@@ -348,8 +348,8 @@ validate g validImage textView errorStore parseStore parseView = do
         result2Forest [] = ([], [])
         result2Forest (E.FilledInEStart tagName attributes:rest) =
             (Node{rootLabel=
-                    "<span background='light blue'>" ++ escape tagName ++ "</span>"
-                    ++ concat ((\(name, value) -> " <span background='light grey'>" ++ escape name ++ "=" ++ escape (E.formatMaybe value) ++ "</span>") <$> attributes), subForest=res}:result2, rest3)
+                    "<span background='light blue'>" ++ escape (TL.unpack tagName) ++ "</span>"
+                    ++ concat ((\(name, value) -> " <span background='light grey'>" ++ escape (TL.unpack name) ++ "=" ++ escape (E.formatMaybe value) ++ "</span>") <$> attributes), subForest=res}:result2, rest3)
                 where
                     (res, rest2) = result2Forest rest
                     (result2, rest3) = result2Forest rest2
@@ -405,8 +405,8 @@ validate g validImage textView errorStore parseStore parseView = do
 
         highlightRange::TextBuffer->TextTag->Range->IO()
         highlightRange buff tag (Position{line=line1, column=column1}, Position{line=line2, column=column2}) = do
-            start <- textBufferGetIterAtLineOffset buff line1 column1
-            end <- textBufferGetIterAtLineOffset buff line2 column2
+            start <- textBufferGetIterAtLineOffset buff (fromIntegral line1) (fromIntegral column1)
+            end <- textBufferGetIterAtLineOffset buff (fromIntegral line2) (fromIntegral column2)
             textBufferApplyTag buff tag start end
 
 saveBuffer::IORef String->FileEditView->IO ()

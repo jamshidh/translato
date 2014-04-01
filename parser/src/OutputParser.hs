@@ -11,6 +11,8 @@ module OutputParser (
 import Control.Monad
 import Data.Functor
 import Data.List
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TL
 import System.FilePath
 import System.IO
 
@@ -33,8 +35,8 @@ pparseMain args = do
 
     input <-
       case inputFileName options of
-        "-" -> getContents
-        theFileName -> hGetContents =<< openFile theFileName ReadMode
+        "-" -> TL.getContents
+        theFileName -> TL.hGetContents =<< openFile theFileName ReadMode
 
     putStrLn =<< prettify <$> parseUsingSpecName theSpecName input
 

@@ -1,4 +1,4 @@
-{-# Language TemplateHaskell #-}
+{-# Language TemplateHaskell, OverloadedStrings #-}
 -- {-# OPTIONS_GHC -Wall #-}
 -----------------------------------------------------------------------------
 --
@@ -31,7 +31,8 @@ import qualified Data.Map as M
 import qualified Data.Set as S
 import Data.String
 import qualified Data.Text as T
-import Data.Text.Lazy.IO as TL hiding (putStrLn, interact)
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TL
 import Text.XML
 import Text.XML.Cursor
 
@@ -51,21 +52,21 @@ import SequenceMap
 
 ------------------------------
 
-name2String::Name->String
-name2String xmlName = T.unpack $ nameLocalName xmlName
+name2String::Name->TL.Text
+name2String xmlName = TL.fromStrict $ nameLocalName xmlName
 
-tagName::Cursor->String
+tagName::Cursor->TL.Text
 --tagName (Cursor (NodeElement element)) = nameLocalName $ elementName element
 tagName c = case node c of
     NodeElement el -> name2String $ elementName el
-    _ -> red ("<<<Not a tag: " ++ showCursor c ++ ">>>>") --error ("Missing case in tagName: " ++ show x)
+    _ -> TL.pack $ red ("<<<Not a tag: " ++ showCursor c ++ ">>>>") --error ("Missing case in tagName: " ++ show x)
 
 showCursor::Cursor->String
 showCursor c = case node c of
     NodeElement el ->
-        "<" ++ tagName c ++ " "
+        "<" ++ TL.unpack (tagName c) ++ " "
             ++ (intercalate " "
-                    (map (\(attrName, text) -> name2String attrName ++ "=\"" ++ T.unpack text ++ "\"")
+                    (map (\(attrName, text) -> TL.unpack (name2String attrName) ++ "=\"" ++ T.unpack text ++ "\"")
                     ((M.toList . elementAttributes) el))) ++ ">"
     NodeContent text -> "Text: " ++ show text
     x -> error ("Missing case in showCursor: " ++ show x)
@@ -81,16 +82,16 @@ getTextContent c = case node c of
     _ -> error ("getTextContent was called on a non text node")
 
 
-cursor2AttNames::Cursor->[String]
+cursor2AttNames::Cursor->[TL.Text]
 cursor2AttNames c = case node c of
     NodeElement el -> name2String <$> fst <$> (M.toList $ elementAttributes el)
     _ -> error "cursor2AttNames called for a non element."
 
-cursor2AttValue::Cursor->String->String
+cursor2AttValue::Cursor->TL.Text->TL.Text
 cursor2AttValue c attrName =
-    case attribute (Name (T.pack attrName) Nothing Nothing) c of
-        [text] -> T.unpack text
-        _ -> error ("Missing attribute '" ++ attrName ++ "' in tag '" ++ tagName c ++ "'.")
+    case attribute (Name (TL.toStrict attrName) Nothing Nothing) c of
+        [text] -> TL.fromStrict text
+        _ -> error ("Missing attribute '" ++ TL.unpack attrName ++ "' in tag '" ++ TL.unpack (tagName c) ++ "'.")
 
 cShow::Cursor->[Cursor]->Expression->String
 cShow c remainingChildren expr = showCursor c ++ " - [" ++(intercalate ", " (map showCursor remainingChildren)) ++ "] - " ++ show expr
@@ -110,22 +111,22 @@ generate::Grammar->Cursor->String
 generate g c = enhancedString2String (cursor2String g sMap c [])
     where sMap = leftFactorSequenceMap False $ sequenceMap g
 
-cursor2String::Grammar->SequenceMap->Cursor->[S.Set String]->EString
+cursor2String::Grammar->SequenceMap->Cursor->[S.Set TL.Text]->EString
 cursor2String g sMap c usedAtts =
     case M.lookup (tagName c) sMap of
         Just sq -> seq2EString g sMap sq (S.empty:usedAtts) c (child c)
-        Nothing -> error ("Link '" ++ tagName c ++ "' doesn't exist in the grammar")
+        Nothing -> error ("Link '" ++ TL.unpack (tagName c) ++ "' doesn't exist in the grammar")
 
 dummyRanges::[Range]
 dummyRanges = [(Position 0 0 "", Position 0 0 "")]
 
-seq2EString::Grammar->SequenceMap->Sequence->[S.Set String]->Cursor->[Cursor]->EString
+seq2EString::Grammar->SequenceMap->Sequence->[S.Set TL.Text]->Cursor->[Cursor]->EString
 --seq2EString _ _ sq usedAtts c children | jtrace ((showCursor =<< children) ++ ", [[[[" ++ format sq ++ "]]]]") $ False = undefined
 
 seq2EString _ _ [] usedAtts   c (firstTag:_) | tagName firstTag == "error" =
         error $ red ("Error in file: " ++ concat (T.unpack <$> (child firstTag >>= content)))
 
-seq2EString g sMap (TextMatch text _:rest) usedAtts c children = e text ++ seq2EString g sMap rest usedAtts c children
+seq2EString g sMap (TextMatch text _:rest) usedAtts c children = e (TL.unpack text) ++ seq2EString g sMap rest usedAtts c children
 
 seq2EString g sMap sq usedAtts c (firstChild:otherChildren) | isWhitespaceTextNode firstChild =
     seq2EString g sMap sq usedAtts c otherChildren
@@ -145,7 +146,7 @@ seq2EString _ _ (c@(Character _ _):_) usedAtts _ _ = error ("expected Character 
 
 seq2EString _ _ [] _ _ [] = []
 seq2EString g sMap (Out [VStart attrName _]:rest) (usedAttsTop:usedAttsRest) c remainingChildren =
-        (e $ cursor2AttValue c attrName) ++ seq2EString g sMap (dropUntilVEnd rest) (S.insert attrName usedAttsTop:usedAttsRest) c remainingChildren
+        (e $ TL.unpack $ cursor2AttValue c attrName) ++ seq2EString g sMap (dropUntilVEnd rest) (S.insert attrName usedAttsTop:usedAttsRest) c remainingChildren
         where
             dropUntilVEnd::Sequence->Sequence
             dropUntilVEnd [] = error "Error in seq2EString: missing VEnd"
@@ -164,10 +165,10 @@ seq2EString g sMap (SepBy 0 [Link (Just reparseName) linkName] sep:rest) usedAtt
         (result1, otherChildren1) = applyTemplates g sMap children reparseName sep usedAtts True
         (result2, otherChildren2) = applyTemplates g sMap [firstPassResult] linkName sep [] True
         firstPassResult::Cursor
-        firstPassResult = fromNode $ NodeElement $ Element (fromString $ getConcreteLink g linkName) M.empty [NodeContent $ T.pack (enhancedString2String result1)]
+        firstPassResult = fromNode $ NodeElement $ Element (fromString $ TL.unpack $ getConcreteLink g linkName) M.empty [NodeContent $ T.pack (enhancedString2String result1)]
         eChar2Char (Ch c) = [c]
         eChar2Char c = error ("error in seq2EString, eChar2Char: " ++ show c)
-        getConcreteLink::Grammar->String->String
+        getConcreteLink::Grammar->TL.Text->TL.Text
         getConcreteLink g theName =
           case M.lookup theName $ g ^. classes of
             Just c -> (head $ (c ^. rules)) ^. Grammar.name
@@ -190,7 +191,7 @@ seq2EString g sMap (Or seqs:rest) usedAtts c children =
   seq2EString g sMap chosenSq usedAtts c children
     where
         cursorFP = cursorFingerprint c children
-        sqFPs::[((S.Set String, [Maybe String]), Sequence)]
+        sqFPs::[((S.Set TL.Text, [Maybe TL.Text]), Sequence)]
         sqFPs = (sequenceFingerprint usedAtts &&& id) <$> (++rest) <$> seqs
         matchingSqFPs = filter (fingerprintMatches g cursorFP . fst) sqFPs
         allBestSeqs::[Sequence] --Why, why did I add this?  I don't remember why, and I don't seem to have a comment telling me why....  And it breaks stuff (even the original reason for FPs= <q/> is expanded to <q> </q>
@@ -201,11 +202,11 @@ seq2EString g sMap (Or seqs:rest) usedAtts c children =
         chosenSq = minimumBy (compare `on` length) (snd <$> matchingSqFPs) --commented out using allBestSeqs....  If this works well, I should just remove it.
 
 seq2EString _ _ (Link _ linkName:_) _ _ [] =
-    [Fail $ Error dummyRanges ("Looking for element with tagname '" ++ linkName ++ "', but there are no more elements")]
+    [Fail $ Error dummyRanges ("Looking for element with tagname '" ++ TL.unpack linkName ++ "', but there are no more elements")]
 seq2EString g sMap (Link _ linkName:rest) usedAtts c (firstChild:otherChildren) | isA g (tagName firstChild) linkName = 
         cursor2String g sMap firstChild usedAtts ++ seq2EString g sMap rest usedAtts c otherChildren
 seq2EString _ _ (Link _ linkName:_) usedAtts _ (firstChild:_) = 
-        [Fail $ Error dummyRanges ("Expecting element with tagname '" ++ linkName ++ "', found " ++ showCursor firstChild)]
+        [Fail $ Error dummyRanges ("Expecting element with tagname '" ++ TL.unpack linkName ++ "', found " ++ showCursor firstChild)]
 
 seq2EString g sMap (WhiteSpace [] defltWS:rest) usedAtts c children = --jtrace (show defltWS) $ 
                                                                       WSItem defltWS:seq2EString g sMap rest usedAtts c children
@@ -220,9 +221,9 @@ seq2EString g sMap (Priority _:rest) usedAtts c children = seq2EString g sMap re
 
 
 seq2EString _ _ [] usedAtts c children =
-        error ("Error in tag '" ++ tagName c ++ "': Sequence is finished, but children remain.\n    children = " ++ intercalate "\n" (showCursor <$> children))
+        error ("Error in tag '" ++ TL.unpack (tagName c) ++ "': Sequence is finished, but children remain.\n    children = " ++ intercalate "\n" (showCursor <$> children))
 seq2EString _ _ sq usedAtts c children =
-        error ("Missing case in seq2EString:\n    tag = " ++ tagName c ++ ",\n    sequence = " ++ format sq  ++ ",\n    children = " ++ intercalate "\n" (showCursor <$> children))
+        error ("Missing case in seq2EString:\n    tag = " ++ TL.unpack (tagName c) ++ ",\n    sequence = " ++ format sq  ++ ",\n    children = " ++ intercalate "\n" (showCursor <$> children))
 
 --
 consumeTextNode::String->Sequence->(String, Sequence)
@@ -241,7 +242,7 @@ consumeTextNode s sq =
     error ("Missing case in consumeTextNode:\n    string=" ++ show s ++ "\n    sequence=" ++ format sq)
 
 --TODO add the separator between elements
-applyTemplates::Grammar->SequenceMap->[Cursor]->String->Sequence->[S.Set String]->Bool->(EString, [Cursor])
+applyTemplates::Grammar->SequenceMap->[Cursor]->TL.Text->Sequence->[S.Set TL.Text]->Bool->(EString, [Cursor])
 --applyTemplates _ _ (xmlNode:_) _ _ | jtrace (tagName xmlNode) $ False = undefined
 applyTemplates g sMap (firstChild:otherChildren) s sep usedAtts isFirst | isWhitespaceTextNode firstChild =
     applyTemplates g sMap otherChildren s sep usedAtts isFirst
@@ -260,7 +261,7 @@ applyTemplates _ _ children _ _ _ _ = ([], children)
 
 sep2String::Sequence->EString
 sep2String [] = []
-sep2String (TextMatch s _:rest) = e s ++ sep2String rest
+sep2String (TextMatch t _:rest) = e (TL.unpack t) ++ sep2String rest
 sep2String (WhiteSpace [] (WSString defltWS):rest) = e defltWS ++ sep2String rest
 sep2String (WhiteSpace [] EmptyWS:rest) = sep2String rest
 sep2String sq = error ("Missing case in sep2String: " ++ format sq)
@@ -272,20 +273,20 @@ sep2String sq = error ("Missing case in sep2String: " ++ format sq)
 --performance reasons (ie- Listing *all* element tags could require that we read the
 --whole file before deciding what to do).  Nevertheless, I will keep the type signature
 --general for now.
-cursorFingerprint::Cursor->[Cursor]->(S.Set String, [String])
+cursorFingerprint::Cursor->[Cursor]->(S.Set TL.Text, [TL.Text])
 cursorFingerprint c (firstChild:_)=(S.fromList $ cursor2AttNames c, [tagName firstChild])
 cursorFingerprint c []=(S.fromList $ cursor2AttNames c, [])
 
-sequenceFingerprint::[S.Set String]->Sequence->(S.Set String, [Maybe String])
+sequenceFingerprint::[S.Set TL.Text]->Sequence->(S.Set TL.Text, [Maybe TL.Text])
 sequenceFingerprint (usedAttsTop:_) sq = (S.union usedAttsTop $ S.fromList $ getAttNames sq, getAllowedFirstLinkNames sq)
 
-getAttNames::Sequence->[String]
+getAttNames::Sequence->[TL.Text]
 getAttNames [] = []
 getAttNames (Out [VStart varName _]:rest) = varName:getAttNames rest
 getAttNames (Or seqs:rest) = (seqs >>= getAttNames) ++ getAttNames rest
 getAttNames (_:rest) = getAttNames rest
 
-getAllowedFirstLinkNames::Sequence->[Maybe String] --Returning a Nothing implies that an empty child list is allowed
+getAllowedFirstLinkNames::Sequence->[Maybe TL.Text] --Returning a Nothing implies that an empty child list is allowed
 getAllowedFirstLinkNames [] = [Nothing]
 getAllowedFirstLinkNames (Out [VStart _ _]:rest) =
     getAllowedFirstLinkNames $ dropWhile (/= Out [VEnd]) rest
@@ -297,7 +298,7 @@ getAllowedFirstLinkNames (SepBy _ [Link _ linkName] _:_) =
     [Just linkName] --Only return the first name for now (possibly forever)
 getAllowedFirstLinkNames (x:rest) = getAllowedFirstLinkNames rest
 
-fingerprintMatches::Grammar->(S.Set String, [String])->(S.Set String, [Maybe String])->Bool
+fingerprintMatches::Grammar->(S.Set TL.Text, [TL.Text])->(S.Set TL.Text, [Maybe TL.Text])->Bool
 fingerprintMatches g (cursorAttNames, cursorTagNames) (seqAttNames, seqLinkNames) =
     (cursorAttNames `S.isSubsetOf` seqAttNames) &&
         case cursorTagNames of

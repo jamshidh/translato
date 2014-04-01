@@ -11,15 +11,17 @@ module ParseError (
 ) where
 
 import Data.Functor
+import Data.Int
 import Data.List
 import Data.Monoid
+import qualified Data.Text.Lazy as TL
 
 import Format
 import qualified LString as LS
 
 -- Position is a location in the input....
 
-data Position = Position { line::Int, column::Int, filename::String }
+data Position = Position { line::Int64, column::Int64, filename::String }
 
 formatPosition::Position->String
 formatPosition p = "(Line: " ++ show (line p + 1) ++ ", Col: " ++ show (column p + 1) ++ ")"
@@ -45,7 +47,7 @@ formatRange (start, end) = formatPosition start ++ "-" ++ formatPosition end
 
 ---------------------
 
-rangeAt::LS.LString->Int->Range
+rangeAt::LS.LString->Int64->Range
 rangeAt s length = (positionAt s, positionAt (LS.drop length s))
 
 singleCharacterRangeAt::LS.LString->Range
@@ -89,14 +91,14 @@ instance Format ParseError where
         ++ if length expected == 0
             then "[Empty list]"
             else intercalate ", " expected
-        ++ "\n    --input = " ++ shortShowString (LS.string actual)
+        ++ "\n    --input = " ++ shortShowText (LS.string actual)
     format (MatchError name ranges firstVal secondVal) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n    --"
         ++ name ++ " didn't match: first=" ++ firstVal ++ ", second=" ++ secondVal
     format (AmbiguityError ranges expected) = "[" ++ intercalate ", " (formatRange <$> ranges) ++ "]\n"
         ++ "    --AmbiguityError\n"
         ++ "    --expected: " ++ intercalate ", " expected ++ "\n"
 
-shortShowString::String->String
-shortShowString s | length s <= 20 = show s
-shortShowString s = show $ take 20 s ++ "...."
+shortShowText::TL.Text->String
+shortShowText s | TL.length s <= 20 = show s
+shortShowText s = (show $ TL.take 20 s) ++ "...."
 

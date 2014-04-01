@@ -1,16 +1,4 @@
------------------------------------------------------------------------------
---
--- Module      :  LString
--- Copyright   :
--- License     :  AllRightsReserved
---
--- Maintainer  :
--- Stability   :
--- Portability :
---
--- |
---
------------------------------------------------------------------------------
+{-# OPTIONS_GHC -Wall #-}
 
 module LString (
     LString (..),
@@ -26,60 +14,91 @@ module LString (
     LString.tail
 ) where
 
+import Data.Int
 import qualified Data.List as DL
+import qualified Data.Text.Lazy as TL
 
 --import JDebug
 
-data LString = LString { string::String, line::Int, col::Int } deriving (Eq, Ord, Show)
+data LString = LString { 
+  previousChar::Maybe Char, 
+  string::TL.Text, 
+  line::Int64, 
+  col::Int64 
+  } deriving (Eq, Ord, Show)
 
-createLString::String->LString
-createLString s = LString { string=s, line=0, col=0 }
+createLString::TL.Text->LString
+createLString s = LString { 
+  previousChar=Nothing, 
+  string=s, 
+  line=0, 
+  col=0 
+  }
 
 empty::LString
-empty = LString { string="", line=0, col=0 }
+empty = LString { 
+  previousChar=Nothing, 
+  string=TL.empty, 
+  line=0, 
+  col=0 
+  }
 
-isPrefixOf::String->LString->Bool
-isPrefixOf string1 (LString {string=string2}) = DL.isPrefixOf string1 string2
+isPrefixOf::TL.Text->LString->Bool
+isPrefixOf string1 (LString {string=string2}) = string1 `TL.isPrefixOf` string2
 
-drop::Int->LString->LString
+drop::Int64->LString->LString
 drop i s =
     s {
-        string=DL.drop i (string s),
+        previousChar=if TL.null takeRes 
+                     then previousChar s
+                     else Just $ TL.last takeRes,
+        string=TL.drop i (string s),
         line=line s+lineDelta,
-        col= if (lineDelta > 0) then length $ last $ lines takeRes
-            else col s + length takeRes
+        col= if (lineDelta > 0) then TL.length $ DL.last $ TL.lines takeRes
+            else col s + TL.length takeRes
         }
-    where (takeRes, dropRes) = DL.splitAt i (string s); lineDelta = length (filter ('\n'==) takeRes)
+    where 
+      (takeRes, dropRes) = TL.splitAt i (string s)
+      lineDelta = TL.length (TL.filter ('\n'==) takeRes)
 
 dropWhile::(Char->Bool)->LString->LString
 dropWhile f s =
     s {
-        string=DL.dropWhile f (string s),
+        previousChar=if TL.null takeRes 
+                     then previousChar s
+                     else Just $ TL.last takeRes,
+        string=TL.dropWhile f (string s),
         line=line s+lineDelta,
-        col= if (lineDelta > 0) then length $ last $ lines takeRes
-            else col s + length takeRes
+        col= if (lineDelta > 0) 
+               then TL.length $ DL.last $ TL.lines takeRes
+               else col s + TL.length takeRes
         }
     where 
-      (takeRes, dropRes) = DL.span f (string s)
-      lineDelta = length (filter ('\n'==) takeRes)
+      (takeRes, dropRes) = TL.span f (string s)
+      lineDelta = TL.length (TL.filter ('\n'==) takeRes)
 
 null::LString->Bool
-null s = DL.null (string s)
+null s = TL.null (string s)
 
-take::Int->LString->LString
-take i s = s{string=DL.take i (string s)}
+take::Int64->LString->LString
+take i s = s{string=TL.take i (string s)}
 
 head::LString->Char
-head s = DL.head (string s)
+head s = TL.head (string s)
 
 tail::LString->LString
-tail LString{string=(first:rest), line=line, col=col} =
-    LString {
-        string=rest,
-        line=line+lineDelta,
-        col=if (lineDelta == 0) then col+1 else 0
-        }
-    where lineDelta = if (first == '\n') then 1 else 0
+tail LString{string=t, line=line, col=col} =
+  case TL.uncons t of
+    Just (first, rest) ->
+      LString {
+           previousChar=Just first,
+           string=rest,
+           line=line+lineDelta,
+           col=if (lineDelta == 0) then col+1 else 0
+           }
+      where
+              lineDelta = if (first == '\n') then 1 else 0
+    Nothing -> error "LString.tail called on empty list"
 
 formatLString s =
     "[(" ++ show (col s) ++ "," ++ show (line s) ++ ")" ++ show (string s) ++ "]"

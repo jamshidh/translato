@@ -9,6 +9,8 @@ module SMShower (
 ) where
 
 import Data.Map as M
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TL
 
 import ArgOpts
 import Format
@@ -34,7 +36,7 @@ showGeneratorSequenceMap simplify args = do
                         else rawSequenceMap
     case ruleName options of
         Nothing->putStrLn $ formatSequenceMap sequenceMap
-        Just ruleName'->case M.lookup ruleName' sequenceMap of
+        Just ruleName'->case M.lookup (TL.pack ruleName') sequenceMap of
                             Just sequence -> putStrLn $ format sequence
                             Nothing -> error ("Error: '" ++ ruleName' ++ "' isn't in the sequenceMap")
 
@@ -48,7 +50,7 @@ showSequenceMap simplify args = do
                         else rawSequenceMap
     case ruleName options of
         Nothing->putStrLn $ formatSequenceMap sequenceMap
-        Just ruleName'->case M.lookup ruleName' sequenceMap of
+        Just ruleName'->case M.lookup (TL.pack ruleName') sequenceMap of
                             --Just sequence -> putStrLn $ format $ removeWSAndOut sequence
                             Just sequence -> putStrLn $ format sequence
                             Nothing -> error ("Error: '" ++ ruleName' ++ "' isn't in the sequenceMap")

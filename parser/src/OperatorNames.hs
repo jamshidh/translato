@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wall #-}
 
 module OperatorNames (
@@ -7,18 +8,19 @@ module OperatorNames (
 
 import Data.Char
 import Data.List
+import qualified Data.Text.Lazy as TL
 
 import Grammar
 
 --import JDebug
 
-symbol2Name::Sequence->String
-symbol2Name (TextMatch text _:rest) = op2Name text ++ symbol2Name rest
+symbol2Name::Sequence->TL.Text
+symbol2Name (TextMatch text _:rest) = op2Name text `TL.append` symbol2Name rest
 symbol2Name (WhiteSpace _ _:rest) = symbol2Name rest
-symbol2Name [] = []
+symbol2Name [] = TL.empty
 
 
-op2Name::String->String
+op2Name::TL.Text->TL.Text
 op2Name "+" = "plus"
 op2Name "-" = "minus"
 op2Name "*" = "times"
@@ -43,5 +45,5 @@ op2Name "<=" = "lessThanOrEquals"
 op2Name ">=" = "greaterThanOrEquals"
 op2Name "<<" = "shiftLeft"
 op2Name ">>" = "shiftRight"
-op2Name x | all isAlpha x = x
-op2Name x = error ("Unknown operator in op2Name: \'" ++ x ++ "'")
+op2Name x | all isAlpha (TL.unpack x) = x
+op2Name x = error ("Unknown operator in op2Name: \'" ++ TL.unpack x ++ "'")

@@ -18,11 +18,12 @@ module ParseElements (
     parseElementsMain
 ) where
 
+import Data.Functor
 import Data.List
 import Data.Map as M hiding (map)
 import Data.Text hiding (map, concat, foldl1, foldl, head, intercalate, tail, length)
-import Data.Text.Lazy as TL (toStrict, fromStrict)
-import Data.Text.Lazy.IO as TL hiding (putStrLn, interact)
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TL
 import Text.XML
 import Text.XML.Cursor
 import System.Console.GetOpt
@@ -87,12 +88,12 @@ input2Output g c | isElement c && tagName c == "parse" =
     case getAttribute "using" c of
         Nothing -> errorElement "<rule> element missing 'using' attribute"
         Just ruleName ->
-            case parseText def (fromStrict $ pack ret) of
+            case parseText def (TL.fromStrict $ pack ret) of
                 Left err -> errorElement (show err)
                 Right doc -> NodeElement $ documentRoot doc
             where
-                textContent = child c >>= content >>= unpack
-                ret = createParserForClass ruleName g textContent
+                textContent = TL.concat $ TL.fromStrict <$> (child c >>= content)
+                ret = createParserForClass (TL.pack ruleName) g textContent
 input2Output sMap c | isElement c = let element = getElement c in
     NodeElement $ Element {
     elementName = fullTagName c,
@@ -116,7 +117,7 @@ parseElementsMain args = do
     grammar <- loadGrammarAndSimplifyForParse (specFileName options)
     contents<-TL.getContents
     let doc=try(parseText def contents)
-    putStrLn (unpack $ toStrict (renderText def (parseElements grammar (fromDocument doc))))
+    putStrLn (unpack $ TL.toStrict (renderText def (parseElements grammar (fromDocument doc))))
 
 
 

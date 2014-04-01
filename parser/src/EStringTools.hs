@@ -27,8 +27,10 @@ import Prelude hiding (lookup)
 
 import Data.Functor
 import Data.List hiding (lookup, insert)
+import Data.Int
 import qualified Data.Map as M
 import Data.Tree
+import qualified Data.Text.Lazy as TL
 
 import EnhancedString
 import Format
@@ -100,7 +102,7 @@ cleanUpAfterError s = cleanUpAfterError' s []
         --cleanUpAfterError' x _ = error ("Missing case in cleanUpAfterError: " ++ show x)
 
 
-checkForVarConsistency::[M.Map String (Maybe String, LS.LString)]->EString->EString
+checkForVarConsistency::[M.Map TL.Text (Maybe TL.Text, LS.LString)]->EString->EString
 checkForVarConsistency vStack (e@(EStart _ _):rest) = e:checkForVarConsistency (M.empty:vStack) rest
 checkForVarConsistency (_:vStackRest) (e@(EEnd _):rest) = e:checkForVarConsistency vStackRest rest
 checkForVarConsistency (vars:vStackRest) (e@(VAssign name val s):rest) =
@@ -110,30 +112,30 @@ checkForVarConsistency (vars:vStackRest) (e@(VAssign name val s):rest) =
             (if val == val2
                 then []
                 else [Fail $ MatchError
-                                name
+                                (TL.unpack name)
                                 [rangeAt s2 (maybeLength val2), rangeAt s (maybeLength val)]
                                 (formatMaybe val2)
                                 (formatMaybe val)
                                 ] ++ checkForVarConsistency (vars:vStackRest) rest)
             ++ checkForVarConsistency (vars:vStackRest) rest
     where
-        maybeLength::Maybe String->Int
-        maybeLength (Just val) = length val
+        maybeLength::Maybe TL.Text->Int64
+        maybeLength (Just val) = TL.length val
         maybeLength Nothing = 0
 checkForVarConsistency vStack (c:rest) = c:checkForVarConsistency vStack rest
 checkForVarConsistency _ [] = []
 
 fillInVariableAssignments::EString->EString
-fillInVariableAssignments (VStart name Nothing:rest) = error ("fillInVariableAssignments called without LString for '" ++ name ++ "'")
+fillInVariableAssignments (VStart name Nothing:rest) = error ("fillInVariableAssignments called without LString for '" ++ TL.unpack name ++ "'")
 fillInVariableAssignments (VStart name (Just s):rest) =
     VAssign name value s:fillInVariableAssignments (errors ++ restWithoutVariableValue) --I extract the value, and place any errors after the location of the extraction.
     where
         (value, restWithoutVariableValue, errors) = splitVariableValue rest
-        splitVariableValue::EString->(Maybe String, EString, EString)
-        splitVariableValue (c@VEnd:rest) = (Just "", rest, [])
+        splitVariableValue::EString->(Maybe TL.Text, EString, EString)
+        splitVariableValue (c@VEnd:rest) = (Just TL.empty, rest, [])
         splitVariableValue (Ch c:rest) =
             case splitVariableValue rest of
-                (Just value, rest2, errors2) -> (Just (c:value), rest2, errors2)
+                (Just value, rest2, errors2) -> (Just (TL.cons c value), rest2, errors2)
                 (Nothing, rest2, errors2) -> (Nothing, rest2, errors2)
         splitVariableValue (EStart _ _:rest) = splitVariableValue rest
         splitVariableValue (EEnd _:rest) = splitVariableValue rest
@@ -151,7 +153,7 @@ fillInAttributes (EStart name atts:rest) =
     where
         (attributesWithValues, restWithoutValues) = splitAtts rest $ M.toList atts
 
-        splitAtts::EString->[(String, Bool)]->([(String, Maybe String)], EString)
+        splitAtts::EString->[(TL.Text, Bool)]->([(TL.Text, Maybe TL.Text)], EString)
         splitAtts (VAssign name value _:rest) neededAtts | name `elem` (fst <$> neededAtts) =
              ((name, value):atts, rest2)
             where (atts, rest2) = splitAtts rest (filter ((/= name) . fst) neededAtts)

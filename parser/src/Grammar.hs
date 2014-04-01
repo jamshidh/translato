@@ -34,6 +34,7 @@ import Data.Functor
 import Data.List hiding (lookup)
 import Data.Map hiding (filter, map, null, union)
 import Data.Maybe
+import qualified Data.Text.Lazy as TL
 import Data.Tree
 
 import CharSet
@@ -53,9 +54,9 @@ type Sequence = [Expression]
 data Importance = Low | Medium | High deriving (Show, Eq, Ord)
 
 data Expression =
-    TextMatch String (Maybe String) --The 'Maybe String' is only used for error reporting
+    TextMatch TL.Text (Maybe TL.Text) --The 'Maybe String' is only used for error reporting
     | WhiteSpace [Sequence] DefaultWS
-    | Character CharSet (Maybe String) --The 'Maybe String' is only used for error reporting
+    | Character CharSet (Maybe TL.Text) --The 'Maybe String' is only used for error reporting
     | EOE
     | EOF
     | Or [Sequence]
@@ -74,7 +75,7 @@ data Expression =
     | SepBy Int Sequence Sequence
     | EQuote Int Sequence
     | Option Sequence
-    | Link (Maybe String) String
+    | Link (Maybe TL.Text) TL.Text --The "Maybe" parameter is for reparsing
     | Priority Importance
     | Out EString
 --    | Reparse Sequence Sequence
@@ -96,8 +97,8 @@ formatExpression' _ EOF = "EOF"
 formatExpression' _ EOE = "EOE"
 formatExpression' _ (Priority x) = "(Priority:" ++ show x ++ ")"
 formatExpression' level (List minCount expr) = "list" ++ (if (minCount > 0) then show minCount else "") ++ "(" ++ formatSequence' level expr ++ ")"
-formatExpression' _ (Link Nothing linkName) = underline $ magenta linkName
-formatExpression' _ (Link (Just filterName) linkName) = underline $ magenta (linkName ++ ":" ++ filterName)
+formatExpression' _ (Link Nothing linkName) = underline $ magenta $ TL.unpack linkName
+formatExpression' _ (Link (Just filterName) linkName) = underline $ magenta (TL.unpack linkName ++ ":" ++ TL.unpack filterName)
 formatExpression' level (Or sequences) =
     case level of
         0 -> "{\n    " ++ intercalate "\n    |\n    " (formatSequence' (level+1) <$> sequences) ++ "\n}"
@@ -133,7 +134,7 @@ type RuleName = String
 
 data Rule = Rule{
     _rulePriority::Int,
-    _name::String,
+    _name::TL.Text,
     _rawSequence::Sequence
     } deriving (Eq, Show)
 $(makeClassy ''Rule)
@@ -141,11 +142,11 @@ $(makeClassy ''Rule)
 
 formatRule::Rule->String
 formatRule r =
-    show (r^.rulePriority) ++ ":" ++ blue (r^.name) ++ " => " ++ format (r^.rawSequence) ++ "\n"
+    show (r^.rulePriority) ++ ":" ++ blue (TL.unpack $ r^.name) ++ " => " ++ format (r^.rawSequence) ++ "\n"
 
-type ClassName=String
+type ClassName=TL.Text
 
-type Name = String
+type Name = TL.Text
 
 type Separator = Sequence
 
@@ -157,14 +158,14 @@ data Class = Class {
     _className::ClassName,
     _left::Sequence,
     _right::Sequence,
-    _parentNames::[String],
+    _parentNames::[ClassName],
     _whiteSpaceSequences::[Sequence]    
     } deriving (Eq, Show)
 $(makeClassy ''Class)
 
 formatClass::Class->String
-formatClass c = "====[" ++ c^.className
-        ++ (if null (c^.parentNames) then "" else ":" ++ intercalate "," (c^.parentNames))
+formatClass c = "====[" ++ (TL.unpack $ c^.className)
+        ++ (if null (c^.parentNames) then "" else ":" ++ intercalate "," (TL.unpack <$> (c^.parentNames)))
         ++ "]====\n  "
         ++ intercalate "  " (formatRule <$> c^.rules)
         ++ (if null (c^.suffixSeqs)
@@ -176,12 +177,12 @@ formatClass c = "====[" ++ c^.className
         ++ (if (length (c^.operators) > 0)
             then "  operators: " ++ intercalate ", " (formatOperator <$> c^.operators) ++ "\n" else "")
         ++ "  whitespace: " ++ intercalate ", " (show <$> (c^.whiteSpaceSequences)) ++ "\n"
-        ++ "====[/" ++ c^.className ++ "]===="
+        ++ "====[/" ++ (TL.unpack $ c^.className) ++ "]===="
 
 
 --classes = 1 --lens _classes (\g v -> g { _classes = v })
 
-data Grammar = Grammar { _main::String
+data Grammar = Grammar { _main::ClassName
                        , _classes::Map ClassName Class
                        } deriving (Show)
 
@@ -189,7 +190,7 @@ $(makeLenses ''Grammar)
 
 mergeGrammar::Grammar->Grammar->Grammar
 mergeGrammar g1 g2 = 
-  classes %~ (unionWithKey (\k _ _ -> error ("repeated classname in grammar: " ++ k)) (g2^.classes)) $ g1
+  classes %~ (unionWithKey (\k _ _ -> error ("repeated classname in grammar: " ++ TL.unpack k)) (g2^.classes)) $ g1
 
 
 
@@ -200,9 +201,9 @@ parents g cl = fromJust <$> (`lookup` (g^.classes)) <$> cl^.parentNames
 
 formatGrammar::Grammar->String
 formatGrammar g =
-        "-----------" ++ replicate (length $ g^.main) '-' ++ "\n"
-        ++ "| main = " ++ g^.main ++ " |\n"
-        ++ "-----------" ++ replicate (length $ g^.main) '-' ++ "\n\n"
+        "-----------" ++ replicate (length $ TL.unpack $ g^.main) '-' ++ "\n"
+        ++ "| main = " ++ TL.unpack (g^.main) ++ " |\n"
+        ++ "-----------" ++ replicate (length $ TL.unpack $ g^.main) '-' ++ "\n\n"
         ++ (intercalate "\n\n" ((formatClass . snd) <$> (toList (g^.classes)))) ++ "\n\n"
 
 data ParseType = Block | Stream deriving (Eq)

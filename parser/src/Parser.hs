@@ -23,6 +23,8 @@ import Data.Char hiding (Space)
 import Data.Functor
 import Data.Graph.Inductive.Query.Monad
 import Data.Maybe
+import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TL
 import Data.Tree
 import qualified Data.Map as M
 import System.FilePath
@@ -48,8 +50,8 @@ import TreeTools
 
 type Attribute = (String, String)
 
-type EParser = String->EString
-type Parser = String->String
+type EParser = TL.Text->EString
+type Parser = TL.Text->String
 
 --err::LString->String->Forest EChar
 --err s msg =
@@ -63,20 +65,20 @@ expectErr s expectation = ExpectationError [singleCharacterRangeAt s] [expectati
 
 -------------------------------
 
-addName::String->Sequence->Sequence
+addName::TL.Text->Sequence->Sequence
 addName _ [] = []
 addName theName (TextMatch text _:rest) = TextMatch text (Just theName):rest
 addName theName (Character charset _:rest) = Character charset (Just theName):rest
 addName theName (c:rest) = c:addName theName rest
 
-addReparserIfNecessary::Maybe String->Sequence->Sequence
+addReparserIfNecessary::Maybe TL.Text->Sequence->Sequence
 addReparserIfNecessary Nothing sq = sq
 addReparserIfNecessary (Just reparseName) sq = [Out [ReparseStart reparseName]] ++ sq ++ [Out [ReparseEnd]]
 
 seq2ParseTree::SequenceMap->Sequence->Forest Expression
 seq2ParseTree sMap (Link reparser theName:rest) =
     case M.lookup theName sMap of
-        Nothing -> error ("The grammar links to a non-existant rule named '" ++ theName ++ "'")
+        Nothing -> error ("The grammar links to a non-existant rule named '" ++ TL.unpack theName ++ "'")
         Just sq -> seq2ParseTree sMap (addName theName (addReparserIfNecessary reparser sq ++ rest))
 seq2ParseTree sMap (List 0 sq:rest) =
     seq2ParseTree sMap [Or [sq ++ [List 0 sq] ++ rest, Priority Low:rest]]
@@ -108,14 +110,14 @@ rawParse items s = case chooseOne s items of
 
 ------------------------
 
-parseTree::Grammar->String->Forest Expression
+parseTree::Grammar->TL.Text->Forest Expression
 parseTree g startRule=seq2ParseTree (cleanSMap g) [Link Nothing startRule, EOF]
   where
         --cleanSMap = leftFactorSequenceMap True . fmap removeWSAndOut . fmap removeDefaultWS . sequenceMap
     --cleanSMap = fillInWSSeqs g . leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
     cleanSMap = leftFactorSequenceMap True . fmap removeDefaultWS . sequenceMap
 
-createEParserForClass::String->Grammar->EParser
+createEParserForClass::TL.Text->Grammar->EParser
 createEParserForClass startRule g = 
     expandOperators
     . reparseIfNeeded g
@@ -127,7 +129,7 @@ createEParserForClass startRule g =
     . rawParse (parseTree g startRule)
     . (createLString $)
 
-createParserForClass::String->Grammar->Parser
+createParserForClass::TL.Text->Grammar->Parser
 createParserForClass startRule g =
         enhancedString2String
         . (>>= eAmpEscape)
@@ -160,7 +162,7 @@ createParser g =
 
 
 
-createEParserWithErrors::Grammar->String->(EString, [ParseError])
+createEParserWithErrors::Grammar->TL.Text->(EString, [ParseError])
 createEParserWithErrors g s = (result, getErrors result)
     where
         result = createEParser g s
@@ -169,10 +171,10 @@ createEParserWithErrors g s = (result, getErrors result)
         getErrors (Fail err:rest) = err:getErrors rest
         getErrors (_:rest) = getErrors rest
 
-createParserWithErrors::Grammar->String->(String, [ParseError])
+createParserWithErrors::Grammar->TL.Text->(String, [ParseError])
 createParserWithErrors g s = mapFst enhancedString2String (createEParserWithErrors g s)
 
-parseUsingSpecName::SpecName->String->IO String
+parseUsingSpecName::SpecName->TL.Text->IO String
 parseUsingSpecName theSpecName input = do
     grammar<-loadGrammarAndSimplifyForParse theSpecName
     return $ createParser grammar input
@@ -191,9 +193,9 @@ reparseIfNeeded _ (ReparseStart reparseName:e:rest) = error ("reparseIfNeeded: S
 reparseIfNeeded _ (ReparseEnd:rest) = error "reparseIfNeeded: Shouldn't be here"
 reparseIfNeeded g (c:rest) = c:reparseIfNeeded g rest
 
-splitReparseString::String->EString->(String, EString)
+splitReparseString::TL.Text->EString->(TL.Text, EString)
 splitReparseString reparseName (EEnd _:ReparseEnd:rest) = ("", rest)
-splitReparseString reparseName (Ch c:rest) = (c:out, rest')
+splitReparseString reparseName (Ch c:rest) = (TL.cons c out, rest')
   where (out, rest') = splitReparseString reparseName rest
 
 
@@ -231,8 +233,8 @@ parseMain args = do
 
     input <-
       case inputFileName options of
-        "-" -> getContents
-        theFileName -> hGetContents =<< openFile theFileName ReadMode
+        "-" -> TL.getContents
+        theFileName -> TL.hGetContents =<< openFile theFileName ReadMode
 
     putStrLn =<< parseUsingSpecName theSpecName input
 

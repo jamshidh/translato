@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 -- {-# OPTIONS_GHC -Wall #-}
 
 module GrammarParser (
@@ -15,6 +16,7 @@ import Data.List
 import Data.Map as M hiding (filter, map, foldl)
 import Data.Maybe
 import qualified Data.Set as S
+import qualified Data.Text.Lazy as TL
 import System.FilePath
 import Text.ParserCombinators.Parsec
 import Text.ParserCombinators.Parsec.Expr hiding (Operator)
@@ -93,7 +95,7 @@ parseGrammarAndSubGrammarNames =
             Grammar
               mainClassName
               (M.fromListWithKey
-                  (const . const . error . ("The grammar has a repeat element: " ++))
+                  (const . const . error . ("The grammar has a repeat element: " ++) . TL.unpack)
                   (((^.className)&&&id) <$> (whiteSpaceSequences .~ wsDefList) <$> classList)),
             concat [subGrammars|SomeSubGrammars subGrammars<-rootItems]
           )
@@ -167,7 +169,7 @@ parseFullClass =
         _ <- string name
         char ']'
         many (char '=')
-        return (classWithPriorities items name parents)
+        return (classWithPriorities items (TL.pack name) (TL.pack <$> parents))
         where
             classWithPriorities items name parents =
                 (Class
@@ -218,7 +220,7 @@ parseRule =
         string ";"
         many (char '-')
         spaces
-        return (RuleItem (Rule 0 name sequence)) -- I will reset the rulePriority using the order of rules later
+        return (RuleItem (Rule 0 (TL.pack name) sequence)) -- I will reset the rulePriority using the order of rules later
 
 
 --TODO clean this if you can
@@ -289,7 +291,7 @@ string2Sequence ('_':rest) = WhiteSpace [] EmptyWS:string2Sequence rest
 -- doesn't even treat the _ properly.  This is a minor problem, I won't fix it now.
 string2Sequence s | isSpace (head s) = WhiteSpace [] (WSString first):string2Sequence rest
     where (first, rest) = break (not . isSpaceOrUnderscore) s
-string2Sequence s = TextMatch first Nothing:string2Sequence rest
+string2Sequence s = TextMatch (TL.pack first) Nothing:string2Sequence rest
     where (first, rest) = break isSpaceOrUnderscore s
 
 isSpaceOrUnderscore::Char->Bool
@@ -328,13 +330,13 @@ matchSequenceItem =
             ("", TextItem text) -> string2Sequence text
             ("*", ExpressionItem exp) -> [EQuote 0 [exp]]
             ("*", SequenceItem seq) -> [EQuote 0 seq]
-            ("*", TextItem text) -> string2Sequence (init text) ++ [EQuote 0 [TextMatch [last text] Nothing]]
+            ("*", TextItem text) -> string2Sequence (init text) ++ [EQuote 0 [TextMatch (TL.singleton $ last text) Nothing]]
             ("+", ExpressionItem exp) -> [EQuote 1 [exp]]
             ("+", SequenceItem seq) -> [EQuote 1 seq]
-            ("+", TextItem text) -> string2Sequence (init text) ++ [EQuote 1 [TextMatch [last text] Nothing]]
+            ("+", TextItem text) -> string2Sequence (init text) ++ [EQuote 1 [TextMatch (TL.singleton $ last text) Nothing]]
             ("?", ExpressionItem exp) -> [Option [exp]]
             ("?", SequenceItem seq) -> [Option seq]
-            ("?", TextItem text) -> string2Sequence (init text) ++ [Option [TextMatch [last text] Nothing]])
+            ("?", TextItem text) -> string2Sequence (init text) ++ [Option [TextMatch (TL.singleton $ last text) Nothing]])
 
 
 
@@ -349,7 +351,7 @@ matchAttribute =
         char '@'
         name<-ident
         parseType<-option [Link Nothing "ident"] matchParen
-        return ([Out [VStart name Nothing]] ++ parseType ++ [Out [VEnd]])
+        return ([Out [VStart (TL.pack name) Nothing]] ++ parseType ++ [Out [VEnd]])
 
 matchParen =
     do
@@ -401,7 +403,7 @@ matchLink =
         val<-ident
         filter <- option Nothing ( char ':' >> (Just <$> ident) )
         char '}'
-        return (Link filter val)
+        return (Link (TL.pack <$> filter) (TL.pack val))
 
 matchText::Parser String
 matchText =

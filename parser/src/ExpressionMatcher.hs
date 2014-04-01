@@ -12,6 +12,7 @@ import Data.Char
 import Data.Functor
 import Data.List
 import Data.Maybe
+import qualified Data.Text.Lazy as TL
 import Data.Tree
 
 import CharSet
@@ -69,8 +70,8 @@ miniParse (exp:rest) s =
 dropWhiteSpace::[Sequence]->LString->Either ParseError LString
 dropWhiteSpace [] s = Right $ LS.dropWhile isSpace s
 dropWhiteSpace wsSeqs s = 
-  case LS.string s of
-    (c:_) | isSpace c -> dropWhiteSpace wsSeqs $ LS.dropWhile isSpace s --For now I will hardcode isSpace as whitespace....  I will probably remove this later and make it just another sequence.
+  case TL.uncons $ LS.string s of
+    Just (c, rest) | isSpace c -> dropWhiteSpace wsSeqs $ LS.dropWhile isSpace s --For now I will hardcode isSpace as whitespace....  I will probably remove this later and make it just another sequence.
     _ -> dropFirstMatchingWS wsSeqs s
   where
     succeeds (Right _) = True
@@ -85,25 +86,26 @@ dropWhiteSpace wsSeqs s =
 
 matchOne::Expression->LString->Either ParseError (EString, LString)
 
-matchOne EOF s | null $ LS.string s = Right ([], s)
+matchOne EOF s | TL.null $ LS.string s = Right ([], s)
 matchOne EOF s = Left $ expectErr s "EOF"
 
-matchOne (TextMatch matchString _) s | LS.isPrefixOf matchString s = Right ([], LS.drop (length matchString) s)
-matchOne (TextMatch matchString maybeName) s = Left $ expectErr s $ fromMaybe matchString maybeName
+matchOne (TextMatch matchString _) s | LS.isPrefixOf matchString s = Right ([], LS.drop (TL.length matchString) s)
+matchOne (TextMatch matchString maybeName) s = Left $ expectErr s $ TL.unpack $ fromMaybe matchString maybeName
 
 matchOne (Out outString) s = Right (outString, s)
 
 matchOne (Priority Low) s = Right ([], s)
 
+matchOne (WhiteSpace _ _) s@LS.LString{LS.previousChar=Just prev} | isAlpha prev && isAlpha (LS.head s) = Left $ expectErr s "whitespace"
 matchOne (WhiteSpace wsSeqs _) s = 
   case dropWhiteSpace wsSeqs s of
     Left err -> Left err
     Right x -> Right ([], x)
 matchOne (Character charset theName) s | LS.null s = Left $
-    expectErr s (case theName of Nothing->formatCharSet charset; Just n->n)
+    expectErr s (case theName of Nothing->formatCharSet charset; Just n->TL.unpack n)
 matchOne (Character charset _) s | LS.head s `isIn` charset = Right ([Ch (LS.head s)], LS.tail s)
 matchOne (Character charset theName) s = Left $
-    expectErr s (case theName of Nothing->formatCharSet charset; Just n->n)
+    expectErr s (case theName of Nothing->formatCharSet charset; Just n->TL.unpack n)
 
 matchOne x _ = error ("Missing case in matchOne: " ++ show x)
 

@@ -16,6 +16,7 @@ module GrammarTools (
 import Control.Arrow hiding (left, right, (+++))
 import Control.Lens
 import Data.Functor
+import qualified Data.Text.Lazy as TL
 import qualified Data.Map as M hiding (filter, null, map, (\\))
 import Text.Regex.Posix
 
@@ -28,7 +29,7 @@ import SequenceTools
 
 --import JDebug
 
-isA::Grammar->String->String->Bool
+isA::Grammar->ClassName->ClassName->Bool
 isA _ className1 className2 | className1 == className2 = True
 isA g _ tagName | not (tagName `elem` (M.keys $ g^.classes)) = False -- If name2 doesn't refer to a class, then they must match exactly
 isA g className1 className2
@@ -36,24 +37,24 @@ isA g className1 className2
 --isA g className1 className2 | className1 `elem` (symbol2Name <$> symbol <$> (operators $ className2Class g className2)) = True
 isA g className1 className2 = or (isA g className1 <$> className2ParentNames g className2)
 
-className2ParentNames::Grammar->String->[String]
+className2ParentNames::Grammar->ClassName->[ClassName]
 className2ParentNames g tagName =
     case M.lookup tagName (g^.classes) of
         Just cl -> cl^.parentNames
         Nothing ->
             case Prelude.lookup tagName ruleName2ClassName of
                 Just clsName -> [clsName]
-                Nothing -> error ("'" ++ tagName ++ "' is not a className or ruleName.")
+                Nothing -> error ("'" ++ TL.unpack tagName ++ "' is not a className or ruleName.")
     where
-        ruleName2ClassName::[(String, String)]
+        ruleName2ClassName::[(Name, ClassName)]
         ruleName2ClassName = --TODO Shrink this if you can
             (\cl -> ((^.name)&&&const (cl^.className)) <$> cl^.rules) =<< M.elems (g^.classes)
 
-className2Class::Grammar->String->Class
+className2Class::Grammar->ClassName->Class
 className2Class g clsName =
     case M.lookup clsName (g^.classes) of
         Just cl -> cl
-        Nothing -> error ("ClassName '" ++ clsName ++ "' doesn't exist.")
+        Nothing -> error ("ClassName '" ++ TL.unpack clsName ++ "' doesn't exist.")
 
 stripWhitespaceFromGrammar::Grammar->Grammar
 stripWhitespaceFromGrammar g =
@@ -117,7 +118,7 @@ isBlockClass g cl =
         || (not $ null $ cl^.suffixSeqs)
         || or (isBlockClass g <$> parents g cl)
 
-isLRecursive::String->Rule->Bool
+isLRecursive::ClassName->Rule->Bool
 isLRecursive clName r =
     case r^.rawSequence of
         (Link Nothing linkName:_) -> linkName == r^.name || linkName == clName
@@ -231,7 +232,7 @@ addTagToRule r = (rawSequence %~ addTagToSequence (r^.name)) r
         seq2AttInfoMap (_:rest) = seq2AttInfoMap rest
 
 
-        addTagToSequence::String->Sequence->Sequence
+        addTagToSequence::TL.Text->Sequence->Sequence
         addTagToSequence tagName sq =
             Out [EStart tagName (seq2AttInfoMap sq)] `prepend` sq ++ [Out [EEnd tagName]]
 
@@ -286,7 +287,7 @@ fillInWSSeqsInClass g c =
       wsMap::M.Map Name [Sequence]
       wsMap = (map (eModify normalizeWSExp =<<)) <$> (M.fromList $ class2wsTuples =<< (M.elems $ g^.classes))
 
-      class2wsTuples::Class->[(String, [Sequence])]
+      class2wsTuples::Class->[(ClassName, [Sequence])]
       class2wsTuples cl = ((\n -> (n, cl^.whiteSpaceSequences)) <$> (^.name) <$> cl^.rules)
                                  ++ [(cl^.className, cl^.whiteSpaceSequences)]
 
@@ -316,10 +317,10 @@ fillWSSeqsInSeq wsSeqMap className (EQuote minCount sq:rest) = EQuote minCount (
 fillWSSeqsInSeq wsSeqMap className (Option sq:rest) = Option (fillWSSeqsInSeq wsSeqMap className sq):fillWSSeqsInSeq wsSeqMap className rest
 fillWSSeqsInSeq wsSeqMap className (e:rest) = e:fillWSSeqsInSeq wsSeqMap className rest
 
-getWSSeq::String->M.Map String [Sequence]->[Sequence]
+getWSSeq::ClassName->M.Map ClassName [Sequence]->[Sequence]
 getWSSeq name theMap =
       case M.lookup name theMap of
-        Nothing -> error ("Error in fillWSSeqsInSeq: Missing name in wsSeqMap: " ++ name)
+        Nothing -> error ("Error in fillWSSeqsInSeq: Missing name in wsSeqMap: " ++ TL.unpack name)
         Just x -> x
 
 

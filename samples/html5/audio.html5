@@ -7,7 +7,9 @@
 
   <body>  
 
-    <audio mp3="resources/tail toddle.mp3" />
+    <audio controls>
+      <source src="media/breadChipsDips.mp3" type="audio/mpeg" />
+    </audio>
     
   </body>
   

@@ -25,7 +25,7 @@ library
     hs-source-dirs: src
     other-modules: WidgetParser WidgetFormatter ShimConfig MergerMain
                    Widget WidgetJSLibrary Format WidgetMerger Paths_translato
-                   Reorganizer Shims WidgetLibGenerator Libs
+                   Reorganizer Shims WidgetLibGenerator Libs BrowserTools
  
 executable testTranslato
     build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,

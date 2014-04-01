@@ -10,6 +10,7 @@ import Data.Char
 import Data.Foldable hiding (concat, maximum)
 import Data.Functor
 import Data.List
+import Data.Maybe
 import Data.Tree
 
 import ExpressionMatcher
@@ -48,20 +49,38 @@ instance Ord MatchType where
 --Of course the algorithm to match to the input must
 --change also....  See the next function.
 getFullTextMatch::Tree Expression->String
+--getFullTextMatch node | jtrace ("getFullTextMatch: " ++ safeDrawETree node) False = undefined
 getFullTextMatch 
     Node{rootLabel=TextMatch text1 _,
-        subForest=[Node{rootLabel=WhiteSpace _ _,
+        subForest=[Node{rootLabel=WhiteSpace [] _,
             subForest=[Node{rootLabel=TextMatch text2 _}]}]} =
         text1++" "++text2
+{-getFullTextMatch 
+    Node{rootLabel=TextMatch text1 _,
+        subForest=[Node{rootLabel=WhiteSpace _ _}]} =
+        text1++" "-}
+getFullTextMatch Node{rootLabel=TextMatch text1 _, subForest=[next]} 
+  | isWhiteSpaceNext next =
+        text1++" "
+  where
+    isWhiteSpaceNext::Tree Expression->Bool
+    isWhiteSpaceNext Node{rootLabel=WhiteSpace _ _} = True
+    isWhiteSpaceNext Node{rootLabel=Out _, subForest=[next]} = isWhiteSpaceNext next
+    isWhiteSpaceNext x = False
+    
+        
 getFullTextMatch     Node{rootLabel=TextMatch text1 _} = text1
 getFullTextMatch _ = error "getFullTextMatch should only be called with rootLabel=TextMatch"
 
 --This function matches input to normalized TextMatch text.
 --It works almost like "isPrefixOf", except one space in the normalized TextMatch text
 --can correspond to 0 or more spaces in the input.
+--TODO- extend the definition of "isSpace" to include WSSeqs
 isPrefixTextMatch::String->String->Bool
+--isPrefixTextMatch s1 s2 | jtrace ("isPrefixTextMatch: [" ++ s1 ++ "], [" ++ s2 ++ "]") $ False = undefined
 isPrefixTextMatch (' ':rest1) (c:rest2) | isSpace c = isPrefixTextMatch (' ':rest1) rest2
 isPrefixTextMatch (' ':rest1) (c2:rest2) = isPrefixTextMatch rest1 (c2:rest2)
+isPrefixTextMatch (c1:' ':rest1) (c2:c3:rest2) | c1 == c2 && isAlphaNum c2 && isAlphaNum c3 = False
 isPrefixTextMatch (c1:rest1) (c2:rest2) | c1 == c2 = isPrefixTextMatch rest1 rest2
 isPrefixTextMatch "" "" = True
 isPrefixTextMatch _ "" = False
@@ -99,6 +118,9 @@ exp2Type::Tree Expression->MatchType
 exp2Type node@Node{rootLabel=TextMatch _ _} = TextMatched $ length $ getFullTextMatch node
 exp2Type _ = RegularMatch
 
+expectErr::LS.LString->String->ParseError
+expectErr s expectation = ExpectationError [singleCharacterRangeAt s] [expectation] s
+
 
 --Lookahead needs a "matchOne" function, much like the one in ExpressionMatcher.hs, but
 --the functionality and return values are just a bit different.  The code is similar enough
@@ -115,6 +137,19 @@ matchOneWrapper s Node{rootLabel=Priority p, subForest=rest} =
 --matchOneWrapper s Node{rootLabel=WhiteSpace _ _, subForest=rest} = 
 --  (\fp -> fp{doesNotAllowWS=True}) <$> snd <$> chooseOne s rest
 --  (\fp -> fp{doesNotAllowWS=False}) <$> snd <$> chooseOne s rest
+
+matchOneWrapper s node@Node{rootLabel=TextMatch matchString _, subForest=rest} 
+  | getFullTextMatch node `isPrefixTextMatch` LS.string s = 
+--  jtrace ("matchOneWrapper: [" ++ fullTextMatch ++ "]") $
+  Right $
+    SeqFP {
+      doesNotAllowWS = True,
+      matchType = exp2Type node,
+      importance = Medium
+      }
+matchOneWrapper s node@Node{rootLabel=TextMatch matchString maybeName, subForest=rest} = 
+  Left $ expectErr s $ fromMaybe matchString maybeName
+
 matchOneWrapper s node@Node{rootLabel=x, subForest=rest} = 
   case matchOne x s of
     Right (_, remainingInput) -> 

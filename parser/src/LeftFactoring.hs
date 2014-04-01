@@ -35,7 +35,9 @@ import SequenceMap
 --import JDebug
 
 leftFactor::Bool->SequenceMap->Sequence->Sequence
-leftFactor shouldExpandLinks sm sq = --jtrace ("\n================\n" ++ (show $ prepareForLeftFactor sm sq) ++ "\n---------------------\n") $
+leftFactor shouldExpandLinks sm sq = 
+  --jtrace (show shouldExpandLinks) $
+  --jtrace ("\n================\n" ++ (show $ prepareForLeftFactor sm sq) ++ "\n---------------------\n") $
   leftFactor' shouldExpandLinks sm $ (prepareForLeftFactor sm ? shouldExpandLinks) sq
 --leftFactor shouldExpandLinks sm = leftFactor' shouldExpandLinks sm . (prepareForLeftFactor sm ? shouldExpandLinks)
     where
@@ -72,7 +74,7 @@ data FirstParsedSeq =
     FirstParsedSeq{
         firstTok::Maybe Expression,
         outValue::EString,
-        defltWSValue::Maybe DefaultWS,
+        defltWSValue::Maybe ([Sequence], DefaultWS),
         theRemainder::Sequence
     } deriving (Eq, Show)
 
@@ -88,7 +90,7 @@ splitFirstTok (expr@(Or _):rest) = FirstParsedSeq (Just expr) (e "") Nothing res
 splitFirstTok (expr@(Priority _):rest) = FirstParsedSeq (Just expr) (e "") Nothing rest
 splitFirstTok (Out eString:rest) = fp{outValue=eString ++ outValue fp}
     where fp = splitFirstTok rest
-splitFirstTok (WhiteSpace wsSeqs defltWS:rest) = FirstParsedSeq (Just $ WhiteSpace wsSeqs FutureWS) (e "") (Just defltWS) rest
+splitFirstTok (WhiteSpace wsSeqs defltWS:rest) = FirstParsedSeq (Just $ WhiteSpace wsSeqs FutureWS) (e "") (Just (wsSeqs, defltWS)) rest
 splitFirstTok [] = FirstParsedSeq{
         firstTok = Nothing,
         outValue = e "",
@@ -105,16 +107,16 @@ recombine shouldExpandLinks sm fps =
     case (uniqueFirstTok, defltWSs, outs) of
         (Nothing, _, _) -> --If there is no firstTok, the remainder of the sequence is just ws and outs....  This is only allowed if all seqs are identical, else the choice is ambiguous.  This is needed if an option appears at the end of two similar production rules (ie- x=>A B?; x=> A C?;, which expands to x=>A Or[B,[]]; x=>A Or[C,[]];, or x=>A Or[B,C,[],[]] after left factoring.... notice the repeat idenitcal []'s).
           case nub fps of
-            [uniqueFirstParsedSeq] -> (outify =<< outs) ++ (wsify =<< defltWSs) ++ theRemainder uniqueFirstParsedSeq
+            [uniqueFirstParsedSeq] -> (outify =<< outs) ++ (wsify =<< (map (snd <$>) defltWSs)) ++ theRemainder uniqueFirstParsedSeq
             _ -> error ("ambiguity in recombine: " ++ show fps)
-        (_, [Just defltWS], [outVal]) -> outify outVal ++ [WhiteSpace [] defltWS]
+        (_, [Just (wsSeqs, defltWS)], [outVal]) -> outify outVal ++ [WhiteSpace wsSeqs defltWS]
             ++ leftFactor shouldExpandLinks sm (orify (theRemainder <$> fps))
-        (_, [Just defltWS], _) -> [Out [FutureItem Nothing], WhiteSpace [] defltWS]
+        (_, [Just (wsSeqs, defltWS)], _) -> [Out [FutureItem Nothing], WhiteSpace wsSeqs defltWS]
             ++ leftFactor shouldExpandLinks sm (orify ((\fp -> Out [ItemInfo (outValue fp)]:theRemainder fp) <$> fps))
         (_, _, [outVal]) -> outify outVal ++ maybeToList uniqueFirstTok
-            ++ leftFactor shouldExpandLinks sm (orify ((\fp -> outify (DelayedWS <$> (maybeToList $ defltWSValue fp)) ++ theRemainder fp) <$> fps))
+            ++ leftFactor shouldExpandLinks sm (orify ((\fp -> outify (DelayedWS <$> (snd <$> (maybeToList $ defltWSValue fp))) ++ theRemainder fp) <$> fps))
         (_, _, _) -> [Out [FutureItem Nothing]] ++ maybeToList uniqueFirstTok
-            ++ leftFactor shouldExpandLinks sm (orify ((\fp -> Out ([ItemInfo (outValue fp)] ++ (DelayedWS <$> (maybeToList $ defltWSValue fp))):theRemainder fp) <$> fps))
+            ++ leftFactor shouldExpandLinks sm (orify ((\fp -> Out ([ItemInfo (outValue fp)] ++ (DelayedWS <$> snd <$> (maybeToList $ defltWSValue fp))):theRemainder fp) <$> fps))
     where
         defltWSs = nub (defltWSValue <$> fps)
         outs = nub (outValue <$> fps)
@@ -140,9 +142,11 @@ leftFactorSequenceMap shouldExpandLinks sm = leftFactor shouldExpandLinks sm <$>
 
 
 prepareForLeftFactor::SequenceMap->Sequence->Sequence
-prepareForLeftFactor sMap [Or sequences] = orify $ expandEStart <$> expandToToken <$> sequences
-    where
+--prepareForLeftFactor _ x | jtrace (show x) $ False = undefined
+prepareForLeftFactor sMap (Or sequences:rest) = 
+  (orify $ expandEStart <$> expandToToken <$> sequences) ++ rest    where
         expandToToken::Sequence->Sequence
+        --expandToToken sq | jtrace (show sq) $ False = undefined
         expandToToken (Link _ linkName:rest) 
           | containsMinimalExpansionPoint sMap linkName minimalExpansionPoints =
                 case lookup linkName sMap of
@@ -158,6 +162,7 @@ prepareForLeftFactor sMap [Or sequences] = orify $ expandEStart <$> expandToToke
         expandEStart x = x
 
         minimalExpansionPoints = getMinimalExpansionPoints (getChainOfFirsts sMap =<< sequences)
+prepareForLeftFactor sMap (Out x:rest) = Out x:prepareForLeftFactor sMap rest
 prepareForLeftFactor _ sq = sq
 
 

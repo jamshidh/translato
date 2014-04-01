@@ -273,34 +273,55 @@ seq2Separator _ sq = error ("Missing case in seq2Separator: " ++ format sq)
 -------------------------------
 
 fillInWSSeqs::Grammar->Grammar
-fillInWSSeqs g = (classes.mapped %~ fillInWSSeqsInClass) g
+fillInWSSeqs g = (classes.mapped %~ fillInWSSeqsInClass g) g
 
-fillInWSSeqsInClass::Class->Class
-fillInWSSeqsInClass c =
-    ((separator %~ fillWSSeqsInSeq (c ^. whiteSpaceSequences))
-        . (left %~ fillWSSeqsInSeq (c ^. whiteSpaceSequences))
-        . (right %~ fillWSSeqsInSeq (c ^. whiteSpaceSequences))
-        . (rules.mapped.rawSequence %~ fillWSSeqsInSeq (c ^. whiteSpaceSequences))
-        . (suffixSeqs.mapped  %~ fillWSSeqsInSeq (c ^. whiteSpaceSequences))) c
+fillInWSSeqsInClass::Grammar->Class->Class
+fillInWSSeqsInClass g c =
+    ((separator %~ fillWSSeqsInSeq wsMap (c ^. className))
+        . (left %~ fillWSSeqsInSeq wsMap (c ^. className))
+        . (right %~ fillWSSeqsInSeq wsMap (c ^. className))
+        . (rules.mapped.rawSequence %~ fillWSSeqsInSeq wsMap (c ^. className))
+        . (suffixSeqs.mapped  %~ fillWSSeqsInSeq wsMap (c ^. className))) c
+    where
+      wsMap::M.Map Name [Sequence]
+      wsMap = (map (eModify normalizeWSExp =<<)) <$> (M.fromList $ class2wsTuples =<< (M.elems $ g^.classes))
+
+      class2wsTuples::Class->[(String, [Sequence])]
+      class2wsTuples cl = ((\n -> (n, cl^.whiteSpaceSequences)) <$> (^.name) <$> cl^.rules)
+                                 ++ [(cl^.className, cl^.whiteSpaceSequences)]
+
+      normalizeWSExp::Expression->Sequence 
+      normalizeWSExp (EQuote count sq) = [List count sq] --Under the assumptions of simplicity, EQuote=SepBy=List
+      normalizeWSExp x = [x]
+
 
 --I will assume that the sequences inputted for whitespace are simple....  They should only contain Character, TextMatch, and Lists (which at this point could include EQuote)
 --Note that I don't have any checks (yet) to enforce this, so the user could break us by adding something more complicated.
 --If after time I am convinced that this restriction is OK, I will probably add those checks.
-fillWSSeqsInSeq
-  ::[Sequence]->Sequence->Sequence
-fillWSSeqsInSeq
- wsSeqs = (>>= eModify (addWSSeq wsSeqs))
-  where
-    addWSSeq::[Sequence]->Expression->Sequence
-    addWSSeq wsSeqs (WhiteSpace _ dfltWS) = [WhiteSpace ((>>= eModify normalizeWSExp) <$> wsSeqs) dfltWS]
-    addWSSeq _ x = [x]
+fillWSSeqsInSeq::M.Map ClassName [Sequence]->ClassName->Sequence->Sequence
+fillWSSeqsInSeq wsSeqMap className [] = []
+-- Any whitespace surrounding a "Link" inherits the wsSeqs from that link, not the surrounding tag.
+-- Note, this includes "Link"s inside EQuotes.
+fillWSSeqsInSeq wsSeqMap className (WhiteSpace _ dfltWS:e@(Link _ linkName):rest) = WhiteSpace (getWSSeq linkName wsSeqMap) dfltWS:fillWSSeqsInSeq wsSeqMap className (e:rest)
+fillWSSeqsInSeq wsSeqMap className (WhiteSpace _ dfltWS:e@(EQuote _ [Link _ linkName]):rest) = WhiteSpace (getWSSeq linkName wsSeqMap) dfltWS:fillWSSeqsInSeq wsSeqMap className (e:rest)
+fillWSSeqsInSeq wsSeqMap className (e@(Link _ linkName):WhiteSpace _ dfltWS:rest) = e:WhiteSpace (getWSSeq linkName wsSeqMap) dfltWS:fillWSSeqsInSeq wsSeqMap className rest
+fillWSSeqsInSeq wsSeqMap className (e@(EQuote _ [Link _ linkName]):WhiteSpace _ dfltWS:rest) = e:WhiteSpace (getWSSeq linkName wsSeqMap) dfltWS:fillWSSeqsInSeq wsSeqMap className rest
+-- All other whitespaces get their wsSeqs from the surrounding tag.
+fillWSSeqsInSeq wsSeqMap className (WhiteSpace _ dfltWS:rest) = WhiteSpace (getWSSeq className wsSeqMap) dfltWS:fillWSSeqsInSeq wsSeqMap className rest
 
-    class2wsTuples::Class->[(String, [Sequence])]
-    class2wsTuples cl = ((\n -> (n, cl^.whiteSpaceSequences)) <$> (^.name) <$> cl^.rules)
-                                 ++ [(cl^.className, cl^.whiteSpaceSequences)]
-    normalizeWSExp::Expression->Sequence 
-    normalizeWSExp (EQuote count sq) = [List count sq] --Under the assumptions of simplicity, EQuote=SepBy=List
-    normalizeWSExp x = [x]
+fillWSSeqsInSeq wsSeqMap className (Or seqs:rest) = Or (fillWSSeqsInSeq wsSeqMap className <$> seqs):fillWSSeqsInSeq wsSeqMap className rest
+fillWSSeqsInSeq wsSeqMap className (List minCount sq:rest) = List minCount (fillWSSeqsInSeq wsSeqMap className sq):fillWSSeqsInSeq wsSeqMap className rest
+fillWSSeqsInSeq wsSeqMap className (SepBy minCount sq sep:rest) = SepBy minCount (fillWSSeqsInSeq wsSeqMap className sq) (fillWSSeqsInSeq wsSeqMap className sep):fillWSSeqsInSeq wsSeqMap className rest
+fillWSSeqsInSeq wsSeqMap className (EQuote minCount sq:rest) = EQuote minCount (fillWSSeqsInSeq wsSeqMap className sq):fillWSSeqsInSeq wsSeqMap className rest
+fillWSSeqsInSeq wsSeqMap className (Option sq:rest) = Option (fillWSSeqsInSeq wsSeqMap className sq):fillWSSeqsInSeq wsSeqMap className rest
+fillWSSeqsInSeq wsSeqMap className (e:rest) = e:fillWSSeqsInSeq wsSeqMap className rest
+
+getWSSeq::String->M.Map String [Sequence]->[Sequence]
+getWSSeq name theMap =
+      case M.lookup name theMap of
+        Nothing -> error ("Error in fillWSSeqsInSeq: Missing name in wsSeqMap: " ++ name)
+        Just x -> x
+
 
 
 
@@ -387,14 +408,14 @@ loadGrammarAndSimplifyForParse::SpecName->IO Grammar
 loadGrammarAndSimplifyForParse specName = do
     g <- loadUnsimplifiedGrammar specName
     return (
-        adjustPrioritiesByClassHiarchy
         --I am moving the addition of the EOF to the funtion "parseTree", because as of right now, and EOF is needed for all sequences (chooseOne seems to explode otherwise), and since a reparse is using non root production rules as the basis, we need to add them elsewhere (not to mention that now we can use the root rule embedded elsewhere).
 --        $ addEOFToGrammar
-        $ classes.mapped.rules.mapped %~ addTagToRule
+        classes.mapped.rules.mapped %~ addTagToRule
         $ modifyGrammar rewriteOperators
         -- $ modifyGrammar addInheritedSuffixes 
         $ classes.mapped %~ rewriteLeftRecursion 
         -- $ modifyGrammar addInheritedOperators 
+        $ adjustPrioritiesByClassHiarchy --This has to happen before rewriteOperators and rewriteLeftRecursion or else Infix operators won't have the correct priorities
         $ removeOption
         $ removeSepBy
         $ removeEQuote

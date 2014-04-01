@@ -266,6 +266,11 @@ simplifyOpPair left op1@InfixOp{opName=name,opPriority=p1} right op2 rest
     expandOperatorsInBlock
         (left ++ [InfixTag op1] ++ expandOperatorsInBlock (NestedItem right:InfixTag op2:rest))
 
+simplifyOpPair _ op1 _ op2 _ | opPriority op1 == opPriority op2 = error ("Error in simplifyOpPair: Ops have same priority: " ++ show op1 ++ " and " ++ show op2)
+
+simplifyOpPair left op1 right op2 _ = error ("Missing case in simplifyOpPair: " ++ show op1 ++ ", " ++ show op2)
+
+
 splitByEndCap::EString->(EString, EString)
 splitByEndCap [] = ([], []) --This is a hack to get things working in a case where an error has gutten the output.
 splitByEndCap (EndCap name:rest) = ([], rest)

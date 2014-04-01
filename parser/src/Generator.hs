@@ -120,7 +120,7 @@ dummyRanges::[Range]
 dummyRanges = [(Position 0 0 "", Position 0 0 "")]
 
 seq2EString::Grammar->SequenceMap->Sequence->[S.Set String]->Cursor->[Cursor]->EString
---seq2EString _ _ sq usedAtts c children | jtrace ((showCursor =<< children) ++ ", [[[[" ++ formatSequence sq ++ "]]]]") $ False = undefined
+--seq2EString _ _ sq usedAtts c children | jtrace ((showCursor =<< children) ++ ", [[[[" ++ format sq ++ "]]]]") $ False = undefined
 
 seq2EString _ _ [] usedAtts   c (firstTag:_) | tagName firstTag == "error" =
         error $ red ("Error in file: " ++ concat (T.unpack <$> (child firstTag >>= content)))
@@ -153,7 +153,7 @@ seq2EString g sMap (Out [VStart attrName _]:rest) (usedAttsTop:usedAttsRest) c r
             dropUntilVEnd (Out [VEnd]:rest) = rest
             dropUntilVEnd (x:rest) = dropUntilVEnd rest
             
-seq2EString g sMap (SepBy 0 [Link Nothing linkName] sep:rest) usedAtts c children =
+seq2EString g sMap (SepBy 0 [Link Nothing linkName] sep:rest) usedAtts c children = 
     result ++ seq2EString g sMap rest usedAtts c otherChildren
     where
         (result, otherChildren) = applyTemplates g sMap children linkName sep usedAtts True
@@ -174,7 +174,7 @@ seq2EString g sMap (SepBy 0 [Link (Just reparseName) linkName] sep:rest) usedAtt
             Nothing -> theName
 
 
-seq2EString g sMap (SepBy 0 sq sep:rest) usedAtts c children =
+seq2EString g sMap (SepBy 0 sq sep:rest) usedAtts c children = 
     seq2EString g sMap [Or [sq++(SepBy 0 sq sep:rest), rest]] usedAtts c children
 
 seq2EString g sMap (SepBy minCount sq sep:rest) usedAtts c remainingChildren =
@@ -182,6 +182,7 @@ seq2EString g sMap (SepBy minCount sq sep:rest) usedAtts c remainingChildren =
 
 seq2EString _ _ (Or []:_) _ _ _ = error "No matching alternative in seq2EString Or case"
 seq2EString g sMap (Or seqs:rest) usedAtts c children =
+  --jtrace (show seqs) $
   --jtrace ("cursorFP: " ++ show cursorFP) $
   --jtrace ("seqFPs: \n" ++ ((++ "\n") <$> ("--------" ++) =<< (\x -> show (fst x) ++ "\n" ++ format (snd x)) <$> sqFPs)) $
   --jtrace ("matchingSqFPs: " ++ show matchingSqFPs) $
@@ -201,9 +202,9 @@ seq2EString g sMap (Or seqs:rest) usedAtts c children =
 
 seq2EString _ _ (Link _ linkName:_) _ _ [] =
     [Fail $ Error dummyRanges ("Looking for element with tagname '" ++ linkName ++ "', but there are no more elements")]
-seq2EString g sMap (Link _ linkName:rest) usedAtts c (firstChild:otherChildren) | isA g (tagName firstChild) linkName =
+seq2EString g sMap (Link _ linkName:rest) usedAtts c (firstChild:otherChildren) | isA g (tagName firstChild) linkName = 
         cursor2String g sMap firstChild usedAtts ++ seq2EString g sMap rest usedAtts c otherChildren
-seq2EString _ _ (Link _ linkName:_) usedAtts _ (firstChild:_) =
+seq2EString _ _ (Link _ linkName:_) usedAtts _ (firstChild:_) = 
         [Fail $ Error dummyRanges ("Expecting element with tagname '" ++ linkName ++ "', found " ++ showCursor firstChild)]
 
 seq2EString g sMap (WhiteSpace [] defltWS:rest) usedAtts c children = --jtrace (show defltWS) $ 

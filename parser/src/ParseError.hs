@@ -69,6 +69,7 @@ instance Monoid ParseError where
   mappend (ExpectationError r1 expected1 actual1) (ExpectationError r2 expected2 actual2) = ExpectationError (r1++r2) (expected1++expected2) actual1
   mappend (NullError []) e = e
   mappend e (NullError []) = e
+  mappend x y = error ("Internal Error: unknown case in ParseError mappend\n--------\n" ++ format x ++ "\n--------\n" ++ format y)
   
 message::ParseError->String
 message Error{description=description} = description

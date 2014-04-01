@@ -10,6 +10,7 @@ module Grammar (
     Class(Class),
     HasClass(..),
     parents,
+    ClassName,
     RuleName,
     Name,
     Rule(Rule),
@@ -107,8 +108,8 @@ formatExpression' level (EQuote minCount expr) = "EQuote" ++ (if (minCount > 0) 
 formatExpression' level (Option expr) = "Option" ++ "(" ++ formatSequence' level expr ++ ")"
 formatExpression' _ (TextMatch text _) = show text
 formatExpression' _ (WhiteSpace _ FutureWS) = "_??_"
-formatExpression' _ (WhiteSpace _ (WSString defltWS)) = "__" ++ show defltWS ++ "__" --"_"
-formatExpression' _ (WhiteSpace _ defltWS) = show defltWS --"_"
+formatExpression' _ (WhiteSpace wsSeq (WSString defltWS)) = "__" ++ show defltWS ++ show (length wsSeq) ++ "__" --"_"
+formatExpression' _ (WhiteSpace wsSeq defltWS) = show defltWS ++ show (length wsSeq)
 
 safeDrawETree::Tree Expression->String
 safeDrawETree = safeDrawTree . (fmap formatExpression)

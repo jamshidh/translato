@@ -1,0 +1,114 @@
+
+<html>
+  <head>
+    <title>e4x Example</title>
+    <style>
+      table, td, tr {
+        border: solid 1px;
+      }
+      table {
+        display: inline;
+        margin-right: 100px;
+      }
+    </style>
+  </head>
+  <body>
+
+    <h1>Browser Support</h1>
+    <div>
+      <div style="float: left;">
+	<h2>Before</h2>
+	<table id="beforeTable">
+	  <thead>
+	    <tr>
+	      <th>Browser</th>
+	      <th>IE8</th>
+	      <th>Firefox</th>
+	      <th>Chrome</th>
+	    </tr>
+	  </thead>
+	</table>
+      </div>
+      <div style="float: left;">
+	<h2>After</h2>
+	<table id="afterTable">
+	  <thead>
+	    <tr>
+	      <th>Browser</th>
+	      <th>IE8</th>
+	      <th>Firefox</th>
+	      <th>Chrome</th>
+	    </tr>
+	  </thead>
+	</table>
+      </div>
+    </div>
+
+  <script>
+
+    function status2Color(status) {
+      if (status == "works") return "green";
+      if (status == "partial") return "yellow";
+      if (status == "broken") return "red";
+      return "grey";
+    }
+
+    var supportBefore = {
+      "addEventListener": ["broken", "works", "works"],
+      "datalist": ["broken", "works", "works"],
+      "detailssummary": ["broken", "broken", "works"],
+      "progressbar": ["broken", "works", "works"],
+      "telephoneinput": ["broken", "broken", "broken"],
+      "audio": ["broken", "works", "works"],
+      "dataset": ["broken", "works", "works"],
+      "e4x": ["broken", "broken", "works"],
+      "time": ["broken", "broken", "partial"],
+      "date": ["broken", "broken", "partial"],
+      "rangeinput": ["broken", "works", "works"],
+      "validation": ["broken", "works", "works"],
+      "colorpicker": ["broken", "broken", "works"],
+      "datetime": ["broken", "broken", "broken"],
+      "placeholder": ["broken", "works", "works"],
+      "sample1": ["broken", "-", "-"],
+      "video": ["-", "-", "-"]
+    }
+
+    var supportAfter = {
+      "addEventListener": ["broken", "works", "works"],
+      "datalist": ["broken", "works", "works"],
+      "detailssummary": ["works", "works", "works"],
+      "progressbar": ["works", "works", "works"],
+      "telephoneinput": ["broken", "broken", "broken"],
+      "audio": ["broken", "works", "works"],
+      "dataset": ["broken", "works", "works"],
+      "e4x": ["broken", "broken", "works"],
+      "time": ["broken", "broken", "partial"],
+      "date": ["broken", "broken", "partial"],
+      "rangeinput": ["broken", "works", "works"],
+      "validation": ["broken", "works", "works"],
+      "colorpicker": ["broken", "broken", "works"],
+      "datetime": ["broken", "broken", "broken"],
+      "placeholder": ["broken", "works", "works"],
+      "sample1": ["broken", "-", "-"],
+      "video": ["-", "-", "-"]
+    }
+
+    function populateTable(theTable, support) {
+      for(featureName in support) {
+        var feature = support[featureName];
+        var anItem = <tr>
+                       <td>{featureName}</td>
+                       <td style={'background: ' + status2Color(feature[0])}>{feature[0]}</td>
+                       <td style={'background: ' + status2Color(feature[1])}>{feature[1]}</td>
+                       <td style={'background: ' + status2Color(feature[2])}>{feature[2]}</td>
+                     </tr>;
+        theTable.appendChild(anItem);
+      }
+    }
+
+    populateTable(beforeTable, supportBefore);
+    populateTable(afterTable, supportAfter);
+
+  </script>
+  </body>
+</html>

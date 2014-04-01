@@ -3,12 +3,12 @@
   <head>
     <script>
       function changeRounded() {
-      var el = document.getElementById('rounded-example');
+      var el = document.getElementById('rounded-border');
       
       var borderVal = document.getElementById('rounded-border').value;
       
       /* This is no need but its cool to see how much we slide */
-      document.getElementById('rounded-border-value').innerHTML = borderVal;
+      document.getElementById('rounded-border').innerHTML = borderVal;
       
       el.style.borderRadius = borderVal + 'px';
       }

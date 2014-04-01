@@ -63,7 +63,9 @@ separator: '\n'
 ====[widget:script]========
 
 audio=>
-<audio_{attribute}*_/>
+<audio_{attribute}*_>
+  {source}*
+</audio>
 ;
 
 button=>
@@ -83,11 +85,20 @@ datalist=>
 </datalist>
 ;
 
+div=>
+<div_{attribute}*_>
+  {bodyNode}*
+</div>
+;
+
 form=>
 <form_{attribute}*_>
   {bodyNode}*
 </form>
 ;
+
+hr=><hr_>;
+hr=><hr_/>;
 
 img=>
 <img_{attribute}*_/>
@@ -108,11 +119,12 @@ details=>
 </details>
 ;
 
-table=>
-<table_{attribute}*_/>;
+#table=>
+#<table_{attribute}*_/>;
 
 table=>
 <table_{attribute}*_>
+  {thead}?
   {tr}*
 </table>
 ;
@@ -127,6 +139,26 @@ dl=>
 
 h1=>
 <h1_{attribute}*_>{bodyNode}*</h1>
+;
+
+h2=>
+<h2_{attribute}*_>{bodyNode}*</h2>
+;
+
+h3=>
+<h3_{attribute}*_>{bodyNode}*</h3>
+;
+
+h4=>
+<h4_{attribute}*_>{bodyNode}*</h4>
+;
+
+h5=>
+<h5_{attribute}*_>{bodyNode}*</h5>
+;
+
+h6=>
+<h6_{attribute}*_>{bodyNode}*</h6>
 ;
 
 label=>
@@ -190,6 +222,20 @@ separator: '\n'
 
 ====[/option]===
 
+thead=>
+<thead>
+  <tr>
+    {th}*
+  </tr>
+</thead>
+;
+
+th=>
+<th_{attribute}*_>
+  {bodyNode}*
+</th>
+;
+
 tr=>
 <tr>
   {td}*
@@ -201,6 +247,8 @@ td=>
   {bodyNode}*
 </td>
 ;
+
+source=><source_{attribute}*_/>;
 
 summary=>
 <summary_{attribute}*_>
@@ -242,7 +290,9 @@ separator: ' '
 
 ====[script]======================
 
-script =><script_>{command}*</script_>;
+script =><script_>
+  {command}*
+</script_>;
 
 script =><script src="@src([^"]*)">_</script>;
 

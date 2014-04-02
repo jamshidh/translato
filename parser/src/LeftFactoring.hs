@@ -1,3 +1,4 @@
+{-# LANGUAGE OverloadedStrings #-}
 {-# OPTIONS_GHC -Wall #-}
 -----------------------------------------------------------------------------
 --
@@ -22,8 +23,8 @@ import Prelude hiding (lookup)
 
 import Data.Functor
 import Data.Function
-import Data.List hiding (lookup)
-import Data.Map hiding (map, null, foldl')
+import Data.List
+import qualified Data.Map as M
 import Data.Maybe
 import qualified Data.Text.Lazy as TL
 
@@ -32,6 +33,7 @@ import Format
 import Grammar
 import GrammarTools
 import SequenceMap
+import SequenceTools
 
 --import JDebug
 
@@ -49,6 +51,9 @@ leftFactor'::Bool->SequenceMap->Sequence->Sequence
 leftFactor' shouldExpandLinks sm (Or []:rest) = leftFactor' shouldExpandLinks sm rest
 leftFactor' shouldExpandLinks sm (Or [sq]:rest) = leftFactor' shouldExpandLinks sm (sq ++ rest)
 leftFactor' shouldExpandLinks sm (Or items:rest) =
+  --if length (filter canBeBlank items) > 1
+  --then error ("Grammar error: Left Factor called on sequence where more than one option can be blank:\n    " ++ intercalate "\n    " (format <$> items))
+  --else 
     orify (recombine shouldExpandLinks sm <$> sortAndGroupUsing factorClass (splitFirstTok <$> items)) ++ leftFactor' shouldExpandLinks sm rest
     where
         factorClass fp = firstTok fp  -- Used to fingerprint the token
@@ -93,7 +98,7 @@ splitFirstTok (Out eString:rest) = fp{outValue=eString ++ outValue fp}
     where fp = splitFirstTok rest
 splitFirstTok (WhiteSpace wsSeqs defltWS:rest) = FirstParsedSeq (Just $ WhiteSpace wsSeqs FutureWS) (e "") (Just (wsSeqs, defltWS)) rest
 splitFirstTok [] = FirstParsedSeq{
-        firstTok = Nothing,
+        firstTok = Nothing, -- Just $ TextMatch "dog" Nothing,
         outValue = e "",
         defltWSValue = Nothing,
         theRemainder = []
@@ -103,13 +108,16 @@ splitFirstTok sq = error ("Missing case in splitFirstTok: " ++ format sq)
 
 
 recombine::Bool->SequenceMap->[FirstParsedSeq]->Sequence
+--recombine shouldExpandLinks sm fps | jtrace ("\n----recombine:\n" ++ (intercalate "\n" $ ("    " ++) <$> show <$> fps)) False = undefined
 recombine _ _ [] = error "Huh, shouldn't be here"
+--recombine shouldExpandLinks sm (FirstParsedSeq{firstTok=Nothing}:_) = error "qqqq"
 recombine shouldExpandLinks sm fps =
     case (uniqueFirstTok, defltWSs, outs) of
         (Nothing, _, _) -> --If there is no firstTok, the remainder of the sequence is just ws and outs....  This is only allowed if all seqs are identical, else the choice is ambiguous.  This is needed if an option appears at the end of two similar production rules (ie- x=>A B?; x=> A C?;, which expands to x=>A Or[B,[]]; x=>A Or[C,[]];, or x=>A Or[B,C,[],[]] after left factoring.... notice the repeat idenitcal []'s).
           case nub fps of
+            [] -> error "huh"
             [uniqueFirstParsedSeq] -> (outify =<< outs) ++ (wsify =<< (map (snd <$>) defltWSs)) ++ theRemainder uniqueFirstParsedSeq
-            _ -> error ("ambiguity in recombine: " ++ show fps)
+            _ -> error ("Error in left factor: More than one choice in an Or is blank (ie- can match nothing):\n--------\n" ++ (intercalate "\n--------\n" $ show <$> recombine shouldExpandLinks sm <$> (:[]) <$> fps) ++ "\n----------")
         (_, [Just (wsSeqs, defltWS)], [outVal]) -> outify outVal ++ [WhiteSpace wsSeqs defltWS]
             ++ leftFactor shouldExpandLinks sm (orify (theRemainder <$> fps))
         (_, [Just (wsSeqs, defltWS)], _) -> [Out [FutureItem Nothing], WhiteSpace wsSeqs defltWS]
@@ -137,7 +145,7 @@ leftFactorSequenceMap shouldExpandLinks sm = leftFactor shouldExpandLinks sm <$>
 
 -----------------------------------------------
 
---This last section is tools to expand as many "Link"s as needed to compare the beginnings of
+--This last section is 1tools to expand as many "Link"s as needed to compare the beginnings of
 --sequences in an Or, and factor them out.
 
 
@@ -150,7 +158,7 @@ prepareForLeftFactor sMap (Or sequences:rest) =
         --expandToToken sq | jtrace (show sq) $ False = undefined
         expandToToken (Link _ linkName:rest) 
           | containsMinimalExpansionPoint sMap linkName minimalExpansionPoints =
-                case lookup linkName sMap of
+                case M.lookup linkName sMap of
                     Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ TL.unpack linkName)
                     Just sq -> expandToToken (sq ++ rest)
         expandToToken (Out eString:rest) = Out eString `prepend` expandToToken rest
@@ -170,7 +178,7 @@ prepareForLeftFactor _ sq = sq
 
 containsMinimalExpansionPoint::SequenceMap->TL.Text->[Expression]->Bool
 containsMinimalExpansionPoint sMap linkName minimalExpansionPoints =
-  case lookup linkName sMap of
+  case M.lookup linkName sMap of
     Nothing -> error ("Unknown link name in prepareForLeftFactor: " ++ TL.unpack linkName)
     Just sq -> or ((`elem` concat (getChainOfFirsts sMap sq)) <$> minimalExpansionPoints)
 
@@ -205,7 +213,7 @@ getChainOfFirsts sm sq = expr2ChainOfFirsts =<< firsts
             Just x -> x
 
 linkName2Seq::SequenceMap->TL.Text->Sequence
-linkName2Seq sm linkName = case lookup linkName sm of
+linkName2Seq sm linkName = case M.lookup linkName sm of
             Just sq->sq
             Nothing->error ("Unknown link name in getChainOfFirsts: " ++ TL.unpack linkName)
 

@@ -154,7 +154,7 @@ seq2EString g sMap (Out [VStart attrName _]:rest) (usedAttsTop:usedAttsRest) c r
             dropUntilVEnd (Out [VEnd]:rest) = rest
             dropUntilVEnd (x:rest) = dropUntilVEnd rest
             
-seq2EString g sMap (SepBy 0 [Link Nothing linkName] sep:rest) usedAtts c children = 
+seq2EString g sMap (SepBy _ [Link Nothing linkName] sep:rest) usedAtts c children = 
     result ++ seq2EString g sMap rest usedAtts c otherChildren
     where
         (result, otherChildren) = applyTemplates g sMap children linkName sep usedAtts True
@@ -175,8 +175,8 @@ seq2EString g sMap (SepBy 0 [Link (Just reparseName) linkName] sep:rest) usedAtt
             Nothing -> theName
 
 
-seq2EString g sMap (SepBy 0 sq sep:rest) usedAtts c children = 
-    seq2EString g sMap [Or [sq++(SepBy 0 sq sep:rest), rest]] usedAtts c children
+--seq2EString g sMap (SepBy 0 sq sep:rest) usedAtts c children = 
+--    seq2EString g sMap [Or [sq++(SepBy 0 sq sep:rest), rest]] usedAtts c children
 
 seq2EString g sMap (SepBy minCount sq sep:rest) usedAtts c remainingChildren =
     seq2EString g sMap (sq ++ sep ++ (SepBy (minCount - 1) sq sep:rest)) usedAtts c remainingChildren

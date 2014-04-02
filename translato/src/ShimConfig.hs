@@ -21,6 +21,7 @@ import Data.List
 import Data.Maybe
 import qualified Data.Text as T
 import qualified Data.Text.Lazy as TL
+import qualified Data.Text.Lazy.IO as TL
 import System.Directory
 import System.FilePath
 import Text.XML.Stream.Parse
@@ -161,7 +162,7 @@ getShimConfig::FilePath->ShimName->IO ShimConfig
 getShimConfig shimDir shimName = do
     grammar <- loadGrammarAndSimplifyForParse =<< getDataFileName "config.spec"
     let filename = getShimFile shimDir shimName "config"
-    parserOutput <- TL.pack <$> createParser grammar <$> readFile filename
+    parserOutput <- TL.pack <$> createParser grammar <$> TL.readFile filename
     case XML.parseText XML.def parserOutput of
         Right doc -> do
             let doc' = B.pack $ TL.unpack $ XML.renderText XML.def doc

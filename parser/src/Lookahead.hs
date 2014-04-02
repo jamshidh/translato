@@ -7,6 +7,7 @@ module Lookahead (
 
 import Prelude
 
+import Control.Arrow
 import Data.Char
 import Data.Foldable hiding (concat, maximum)
 import Data.Functor
@@ -81,7 +82,7 @@ getFullTextMatch _ = error "getFullTextMatch should only be called with rootLabe
 isPrefixTextMatch::String->String->Bool
 --isPrefixTextMatch s1 s2 | jtrace ("isPrefixTextMatch: [" ++ s1 ++ "], [" ++ s2 ++ "]") $ False = undefined
 isPrefixTextMatch (' ':rest1) (c:rest2) | isSpace c = isPrefixTextMatch (' ':rest1) rest2
-isPrefixTextMatch (' ':rest1) (c2:rest2) = isPrefixTextMatch rest1 (c2:rest2)
+isPrefixTextMatch (' ':rest1) s = isPrefixTextMatch rest1 s
 isPrefixTextMatch (c1:' ':rest1) (c2:c3:rest2) | c1 == c2 && isAlphaNum c2 && isAlphaNum c3 = False
 isPrefixTextMatch (c1:rest1) (c2:rest2) | c1 == c2 = isPrefixTextMatch rest1 rest2
 isPrefixTextMatch "" "" = True
@@ -106,7 +107,7 @@ isPrefixTextMatch [] (_:_) = True
 data SeqFP = 
   SeqFP 
   {
-    doesNotAllowWS::Bool,
+--    doesNotAllowWS::Bool,
     matchType::MatchType,
     importance::Importance
   } deriving (Show, Eq, Ord)
@@ -117,7 +118,7 @@ shouldParseMore (Out _) = True
 shouldParseMore _ = False
 
 exp2Type::Tree Expression->MatchType
-exp2Type node@Node{rootLabel=TextMatch _ _} = TextMatched $ length $ TL.unpack $ getFullTextMatch node
+exp2Type node@Node{rootLabel=TextMatch _ _} = TextMatched $ length $ filter (not . isSpace) $ TL.unpack $ getFullTextMatch node
 exp2Type _ = RegularMatch
 
 expectErr::LS.LString->String->ParseError
@@ -145,24 +146,19 @@ matchOneWrapper s node@Node{rootLabel=TextMatch matchString _, subForest=rest}
 --  jtrace ("matchOneWrapper: [" ++ fullTextMatch ++ "]") $
   Right $
     SeqFP {
-      doesNotAllowWS = True,
       matchType = exp2Type node,
       importance = Medium
       }
-matchOneWrapper s node@Node{rootLabel=TextMatch matchString maybeName, subForest=rest} = 
+matchOneWrapper s node@Node{rootLabel=TextMatch matchString maybeName, subForest=rest} = --jtrace ("textMatch " ++ TL.unpack matchString ++ " " ++ show maybeName) $
   Left $ expectErr s $ TL.unpack $ fromMaybe matchString maybeName
 
 matchOneWrapper s node@Node{rootLabel=x, subForest=rest} = 
   case matchOne x s of
     Right (_, remainingInput) -> 
       case shouldParseMore x of
-           True -> (\fp -> if isWS x then fp{doesNotAllowWS=False} else fp) <$> snd <$> chooseOne remainingInput rest
-           False -> Right SeqFP{doesNotAllowWS=True, matchType=exp2Type node, importance=Medium}
+           True -> snd <$> chooseOne remainingInput rest
+           False -> Right SeqFP{matchType=exp2Type node, importance=Medium}
     Left err -> Left err
-  where
-    isWS::Expression->Bool
-    isWS (WhiteSpace _ _) = True
-    isWS _ = False
 
 ---------------------------------
 
@@ -174,8 +170,9 @@ chooseOne s [t] = --This first case is put in as a performance boost, but it isn
     Right x -> Right (t, x)
     Left err -> Left err
 chooseOne s forest = 
-  --jtrace ("chooseOne: " ++ show (LS.string s)) $
-  --jtrace (concat $ (++ "\n") <$> ("------" ++) <$> safeDrawETree <$> forest) $ 
+--  jtrace ("chooseOne: " ++ show (LS.string s)) $
+--  jtrace (concat $ (++ "\n") <$> ("------" ++) <$> safeDrawETree <$> forest) $ 
+--  jtrace ("matchResults = " ++ show (snd <$> matchResults)) $
   case maximumsBy snd [(t, x)|(t, Right x) <- matchResults] of
     [] -> --Nothing matched, so why not just return an error?  Because the error might not have occurred at this branch point.
       --Remember, we need to go into the sequences until we hit a first match.  This might not happen until we have crossed other options.
@@ -189,22 +186,28 @@ chooseOne s forest =
       --This was before I put in "/* */" style comments, so the "/*" was unexpected, but the error message was that either [\w], ",", or ")" were expected.
       --And because the ParseError fold failed, I didn't even get to see this message.
       case maximumsBy (maximum . fmap fst . ranges . snd) [(t, err)|(t, Left err) <- matchResults] of
-        [(t, _)] -> Right (t, SeqFP{doesNotAllowWS=True, matchType=RegularMatch, importance=Medium}) --TODO- Should the "isWhitespace bool" be set to something more accurate?
+        [(t, _)] -> Right (t, SeqFP{matchType=RegularMatch, importance=Medium}) --TODO- Should the "isWhitespace bool" be set to something more accurate?
         x -> Left $ fold (snd <$> x)
     [x] -> Right x
-    items -> Left $ AmbiguityError [singleCharacterRangeAt s] (treeItem2HumanReadableSummary <$> fst <$> items)
+    items -> --jtrace (intercalate "\n----\n" $ safeDrawETree <$> fst <$> items) $ 
+             Left $ AmbiguityError [singleCharacterRangeAt s] (treeItem2HumanReadableSummary <$> fst <$> items)
   where
     matchResults::[(Tree Expression, Either ParseError SeqFP)]
-    matchResults = (\t -> (t, matchOneWrapper s t)) <$> forest
+    matchResults = (id &&& matchOneWrapper s) <$> forest
 
 
 treeItem2HumanReadableSummary::Tree Expression->String
 treeItem2HumanReadableSummary Node{rootLabel=e@(TextMatch _ _)} = 
   "<" ++ formatExpression e ++ ">"
+treeItem2HumanReadableSummary Node{rootLabel=e@EOF} = 
+  "EOF"
 treeItem2HumanReadableSummary Node{rootLabel=e@(Character _ _)} = 
   "<" ++ formatExpression e ++ ">"
+--treeItem2HumanReadableSummary Node{rootLabel=WhiteSpace _ _, subForest=[next]} = "WS " ++ treeItem2HumanReadableSummary next
+treeItem2HumanReadableSummary Node{rootLabel=WhiteSpace _ _, subForest=rest} = intercalate ", " $ ("WS " ++) <$> treeItem2HumanReadableSummary <$> rest
 treeItem2HumanReadableSummary Node{rootLabel=e@(Out _), subForest=[next]} = treeItem2HumanReadableSummary next
 treeItem2HumanReadableSummary Node{rootLabel=e@(Out _), subForest=rest} = "[" ++ intercalate ", " (treeItem2HumanReadableSummary <$> rest) ++ "]"
+treeItem2HumanReadableSummary Node{rootLabel=Priority _, subForest=rest} = "[" ++ intercalate ", " (treeItem2HumanReadableSummary <$> rest) ++ "]"
 treeItem2HumanReadableSummary Node{rootLabel=e, subForest=rest} = 
   error ("Missing case in treeItem2HumanReadableSummary: " ++ formatExpression e)
   

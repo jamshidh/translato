@@ -131,11 +131,11 @@ rewriteOperators g cl =
   (operators .~ [])
   $ (suffixSeqs %~ (++ (operator2SuffixSeq g cl <$> cl^.operators))) cl
 
-op2Infix::Operator->EChar
-op2Infix oprtr = InfixTag
+op2Infix::ClassName->Operator->EChar
+op2Infix className oprtr = InfixTag
     InfixOp{
         opPriority=oprtr^.priority,
-        opName=symbol2Name (oprtr^.symbol),
+        opName=className `TL.append` symbol2Name (oprtr^.symbol),
         opAssociativity=oprtr^.associativity
     }
 
@@ -149,7 +149,7 @@ op2Infix oprtr = InfixTag
 --Tracking this down can be very difficult (....as I have learned).
 operator2SuffixSeq::Grammar->Class->Operator->Sequence
 operator2SuffixSeq g theClass oprtr =
-    oprtr^.symbol ++ [Out [op2Infix oprtr], Or ((:[]) . Link Nothing <$> nonRecursiveRuleNames theClass)]
+    oprtr^.symbol ++ [Out [op2Infix (theClass^.className) oprtr], Or ((:[]) . Link Nothing <$> nonRecursiveRuleNames theClass)]
     where nonRecursiveRuleNames cl' = ((^.name) <$> filter (not . isLRecursive (cl'^.className)) (cl'^.rules))
                                         ++ ((^.className) <$> parents g cl')
 
@@ -168,7 +168,7 @@ rewriteOperatorsAsLeftRecursionInClass cls =
         operator2LeftRecursiveRule o =
             Rule
                 (o^.priority)
-                (symbol2Name $ o^.symbol)
+                ((cls^.className) `TL.append` (symbol2Name $ o^.symbol))
                 ([Link Nothing (cls^.className)] ++ o^.symbol ++ [Link Nothing (cls^.className)])
 
 

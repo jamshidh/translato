@@ -20,16 +20,6 @@
 
     "use strict";
 
-    // Cross-browser DOM event binding
-    function addEventListener(elem, event, fn) {
-        if (elem.addEventListener) {
-            return elem.addEventListener(event, fn, false);
-        }
-        if (elem.attachEvent) {
-            return elem.attachEvent("on" + event, fn);
-        }
-    }
-
     // Check whether an item is in an array (we don't use Array.prototype.indexOf so we don't clobber any existing polyfills - this is a really simple alternative)
     function inArray(arr, item) {
         var i, len;
@@ -68,7 +58,6 @@
     // Expose public methods
     global.Placeholders = {
         Utils: {
-            addEventListener: addEventListener,
             inArray: inArray,
             moveCaret: moveCaret,
             changeType: changeType
@@ -329,20 +318,20 @@
 
             // Set a flag on the form so we know it's been handled (forms can contain multiple inputs)
             if (!form.getAttribute(ATTR_FORM_HANDLED)) {
-                Utils.addEventListener(form, "submit", makeSubmitHandler(form));
+                form.addEventListener("submit", makeSubmitHandler(form));
                 form.setAttribute(ATTR_FORM_HANDLED, "true");
             }
         }
 
         // Bind event handlers to the element so we can hide/show the placeholder as appropriate
-        Utils.addEventListener(elem, "focus", makeFocusHandler(elem));
-        Utils.addEventListener(elem, "blur", makeBlurHandler(elem));
+        elem.addEventListener("focus", makeFocusHandler(elem));
+        elem.addEventListener("blur", makeBlurHandler(elem));
 
         // If the placeholder should hide on input rather than on focus we need additional event handlers
         if (hideOnInput) {
-            Utils.addEventListener(elem, "keydown", makeKeydownHandler(elem));
-            Utils.addEventListener(elem, "keyup", makeKeyupHandler(elem));
-            Utils.addEventListener(elem, "click", makeClickHandler(elem));
+            elem.addEventListener("keydown", makeKeydownHandler(elem));
+            elem.addEventListener("keyup", makeKeyupHandler(elem));
+            elem.addEventListener("click", makeClickHandler(elem));
         }
 
         // Remember that we've bound event handlers to this element
@@ -448,7 +437,7 @@
         }, 100);
     }
 
-    Utils.addEventListener(global, "beforeunload", function () {
+    global.addEventListener("beforeunload", function () {
         Placeholders.disable();
     });
 

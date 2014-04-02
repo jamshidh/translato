@@ -45,5 +45,6 @@ op2Name "<=" = "lessThanOrEquals"
 op2Name ">=" = "greaterThanOrEquals"
 op2Name "<<" = "shiftLeft"
 op2Name ">>" = "shiftRight"
+op2Name "," = "comma"
 op2Name x | all isAlpha (TL.unpack x) = x
 op2Name x = error ("Unknown operator in op2Name: \'" ++ TL.unpack x ++ "'")

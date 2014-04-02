@@ -18,10 +18,10 @@
   <!--This only works on objects created empty-->
   <xsl:template match="object[count(*) = 0]">
     <function>
-      <dot>
+      <lvaluedot>
 	<variable name="document" />
 	<variable name="createElement" />
-      </dot>
+      </lvaluedot>
       <string value="div"/>
     </function>
   </xsl:template>

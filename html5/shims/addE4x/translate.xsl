@@ -20,10 +20,10 @@
 	  <varDeclarationExpression>
 	    <varDeclaration name="el">
 	      <function>
-		<dot>
+		<lvaluedot>
 		  <variable name="document" />
 		  <variable name="createElement" />
-		</dot>
+		</lvaluedot>
 		<string value="{@e4xTagName}" />
 	      </function>
 	    </varDeclaration>
@@ -31,10 +31,10 @@
 	  <xsl:for-each select="e4xExprAttr">
 	    <expressionCommand>
 	      <function>
-		<dot>
+		<lvaluedot>
 		  <variable name="el" />
 		  <variable name="setAttribute" />
-		</dot>
+		</lvaluedot>
 		<string value="{@name}" />
 		<xsl:copy-of select="*" />
 	      </function>
@@ -43,10 +43,10 @@
 	  <xsl:for-each select="e4xAttribute">
 	    <expressionCommand>
 	      <function>
-		<dot>
+		<lvaluedot>
 		  <variable name="el" />
 		  <variable name="setAttribute" />
-		</dot>
+		</lvaluedot>
 		<string value="{@name}" />
 		<string value="{@value}" />
 	      </function>
@@ -55,10 +55,10 @@
 	  <xsl:for-each select="*[name() != 'e4xAttribute' and name() != 'e4xExprAttr']">
 	    <expressionCommand>
 	      <function>
-		<dot>
+		<lvaluedot>
 		  <variable name="el" />
 		  <variable name="appendChild" />
-		</dot>
+		</lvaluedot>
 		<xsl:apply-templates select="." />
 	      </function>
 	    </expressionCommand>
@@ -73,44 +73,44 @@
 
   <xsl:template match="e4xAttrNode">
     <function>
-      <dot>
+      <lvaluedot>
 	<variable name="document" />
 	<variable name="createTextNode" />
-      </dot>
+      </lvaluedot>
       <function>
-	<dot>
+	<lvaluedot>
 	  <paren>
 	    <xsl:apply-templates select="*" />
 	  </paren>
 	  <variable name="toString" />
-	</dot>
+	</lvaluedot>
       </function>
     </function>
   </xsl:template>
 
   <xsl:template match="e4xExprNode">
     <function>
-      <dot>
+      <lvaluedot>
 	<variable name="document" />
 	<variable name="createTextNode" />
-      </dot>
+      </lvaluedot>
       <function>
-	<dot>
+	<lvaluedot>
 	  <paren>
 	    <xsl:apply-templates select="*" />
 	  </paren>
 	  <variable name="toString" />
-	</dot>
+	</lvaluedot>
       </function>
     </function>
   </xsl:template>
     
   <xsl:template match="e4xText">
     <function>
-      <dot>
+      <lvaluedot>
 	<variable name="document" />
 	<variable name="createTextNode" />
-      </dot>
+      </lvaluedot>
       <string>
 	<xsl:attribute name="value">
 	  <xsl:for-each select="./word">

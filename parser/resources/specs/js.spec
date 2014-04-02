@@ -9,7 +9,6 @@ jsFile =>
 ;
 
 ====<subgrammars>===============
-<{html5}>
 <{regex}>
 <{e4x}>
 ====</subgrammars>==============
@@ -26,6 +25,8 @@ separator: '_, '
 
 ====[commandBody:command]====
 
+blankCommandBody => \{ \};
+  
 fullBody => \{
   {command}*
 \};
@@ -82,7 +83,7 @@ switch => switch_\({expression}\) \{
 try => try {commandBody}
 catch_\({expression}\) {commandBody};
 
-for => for \({expression}_\; {expression}_\; {expression}\) {commandBody};
+for => for \({expressionList}_\; {expression}_\; {expression}\) {commandBody};
 
 #Be careful- varDeclarationExpression and assignment already have terminating semicolons, don't repeat them 
 #here
@@ -94,8 +95,6 @@ for => for \(var {initialize}+_\; {expression}_\; {expression}\) {commandBody};
 iteratorDeclarationFor => for \(var {variable} in {expression}_\) {commandBody};
 
 iteratorFor => for \({variable} in {expression}_\) {commandBody};
-
-funcDeclaration => function @name\({parameter}*\) {fullBody};
 
 blankCommand => \;;
 
@@ -132,6 +131,8 @@ float => @intPart(\d+)\.@fracPart(\d+);
 hexNum => 0x@value([a-fA-F0-9]+);
 ====[/number]===========
 
+expressionList => {expression}*;
+
 ====[expression:lvalue]=========
 
 num => {number};
@@ -142,8 +143,8 @@ string => "@value([^"]*)";
 
 singleQuoteString => '@value([^']*)';
 
-incrementor => {expression}\+\+;
-decrementor => {expression}--;
+incrementor => {expression}_\+\+;
+decrementor => {expression}_--;
 
 booleanNot => !{expression};
 
@@ -181,7 +182,9 @@ array => \[_{expression}*_\];
 
 paren => \(_{expression}_\);
 
-operators: '.'
+operators: '_._'
+
+funcDeclaration => function @name([$_a-zA-Z][$_a-zA-Z0-9]*)\({parameter}*\) {fullBody};
 
 function => {lvalue}\(_{expression}*_\);
 

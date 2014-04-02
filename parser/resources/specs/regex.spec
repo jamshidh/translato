@@ -21,6 +21,7 @@ reStart => ^;
 reFinish => $;
 
 escapedSlash=>\\/;
+escapedPlus=>\\\+;
 
 escapedDot=>\\\.;
 
@@ -59,6 +60,7 @@ reBounds=>\{@min(\d+),@max(\d+)_\};
 ====[charsetChar:escapedCharsetChar]===========
 regularChar=>@value([a-zA-Z0-9+#?]);
 operators: '-'
+separator: ''
 ====[/charsetChar]==========
 
 ====[escapedCharsetChar]===========

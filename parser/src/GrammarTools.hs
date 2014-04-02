@@ -281,6 +281,7 @@ fillInWSSeqsInClass g c =
     ((separator %~ fillWSSeqsInSeq wsMap (c ^. className))
         . (left %~ fillWSSeqsInSeq wsMap (c ^. className))
         . (right %~ fillWSSeqsInSeq wsMap (c ^. className))
+        . (operators.mapped.symbol %~ fillWSSeqsInSeq wsMap (c ^. className))
         . (rules.mapped.rawSequence %~ fillWSSeqsInSeq wsMap (c ^. className))
         . (suffixSeqs.mapped  %~ fillWSSeqsInSeq wsMap (c ^. className))) c
     where

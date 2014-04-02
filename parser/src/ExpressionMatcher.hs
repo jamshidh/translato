@@ -96,6 +96,7 @@ matchOne (Out outString) s = Right (outString, s)
 
 matchOne (Priority Low) s = Right ([], s)
 
+matchOne (WhiteSpace _ _) s | LS.null s = Right ([], s)
 matchOne (WhiteSpace _ _) s@LS.LString{LS.previousChar=Just prev} | isAlpha prev && isAlpha (LS.head s) = Left $ expectErr s "whitespace"
 matchOne (WhiteSpace wsSeqs _) s = 
   case dropWhiteSpace wsSeqs s of

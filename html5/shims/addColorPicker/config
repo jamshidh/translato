@@ -1,0 +1,6 @@
+
+browsers: mozilla, ie
+
+dependencies: addEventHandler
+
+libs: jscolor.js

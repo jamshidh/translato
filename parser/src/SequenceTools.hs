@@ -3,12 +3,15 @@
 module SequenceTools (
   eModify,
   removeDefaultWS,
-  removeWSAndOut
+  removeWSAndOut,
+  canBeBlank
   ) where
 
 import Data.Functor
+import qualified Data.Text.Lazy as TL
 
 import EnhancedString
+import Format
 import Grammar
 
 --import JDebug
@@ -36,3 +39,13 @@ removeWSAndOut sq = sq >>= eModify f
     f (WhiteSpace _ _) = []
     f (Out _) = []
     f x = [x]
+    
+canBeBlank::Sequence->Bool
+canBeBlank [] = True
+canBeBlank (TextMatch text _:_) | not $ TL.null text = False
+canBeBlank (Link Nothing linkName:_) = False -- This might be a dangerous assumption....  For now I will assume that any link must not be blank.
+canBeBlank (Priority _:rest) = canBeBlank rest
+canBeBlank (Out _:rest) = canBeBlank rest
+canBeBlank (WhiteSpace _ _:rest) = canBeBlank rest
+canBeBlank (Or seqs:rest) = or $ canBeBlank <$> (++ rest) <$> seqs
+canBeBlank sq = error ("Missing case in canBeBlank: " ++ format sq)

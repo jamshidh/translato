@@ -10,8 +10,7 @@ cssFile =>
 
 ====[declarationBlock]===============
 declarationBlock=>
-{selector}* 
-\{ 
+{selector}* \{ 
   {declaration}* 
 \}
 ;
@@ -36,6 +35,8 @@ mozBackgroundSize=>-moz-background-size: @value([^;]*)\;;
 webkitBackgroundSize=>-webkit-background-size: @value([^;]*)\;;
 
 border=>border: @value([^;]*)\;;
+borderCollapse=>border-collapse: @value([^;]*)\;;
+borderRight=>border-right: @value([^;]*)\;;
 
 mozBoxSizing=>-moz-box-sizing: @value([^;]*)\;;
 boxSizing=>box-sizing: @value([^;]*)\;;
@@ -44,12 +45,23 @@ color=>color: @value([^;]*)\;;
 content=>content: @value([^;]*)\;;
 cursor=>cursor: @value([^;]*)\;;
 display=>display: @value([^;]*)\;;
+emptyCells=>empty-cells: @value([^;]*)\;;
 float=>float: @value([^;]*)\;;
+fontFamily=>font-family: @value([^;]*)\;;
+fontSize=>font-size: @value([^;]*)\;;
+fontStyle=>font-style: @value([^;]*)\;;
+fontWeight=>font-weight: @value([^;]*)\;;
 height=>height: @value([^;]*)\;;
+margin=>margin: @value([^;]*)\;;
 marginLeft=>margin-left: @value([^;]*)\;;
 marginRight=>margin-right: @value([^;]*)\;;
 padding=>padding: @value([^;]*)\;;
 position=>position: @value([^;]*)\;;
+
+select=>select: @value([^;]*)\;;
+mozUserSelect=>-moz-user-select: @value([^;]*)\;;
+
+textAlign=>text-align: @value([^;]*)\;;
 transition=>transition: @value([^;]*)\;;
 verticalAlign=>vertical-align: @value([^;]*)\;;
 width=>width: @value([^;]*)\;;
@@ -78,7 +90,7 @@ filter=>{selector}\[{qualifier}\];
 
 fullSelector=>{selector}:{pseudoElement};
 
-operators: ' > '
+operators: ' ' ' > '
 
 separator: '_, '
 

@@ -23,6 +23,10 @@ Array.prototype.filter = function(fun /*, thisArg */)
 
 function isCustomEvent(type) {
     if (type === "click" ||
+	type === "focus" ||
+	type === "blur" ||
+	type === "keyup" ||
+	type === "input" ||
 	type === "load") return false;
 
     return true;

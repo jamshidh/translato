@@ -22,12 +22,16 @@ Array.prototype.filter = function(fun /*, thisArg */)
 };
 
 function isCustomEvent(type) {
-    if (type === "click" ||
-	type === "focus" ||
+    if (
+	type === "beforeunload" ||
 	type === "blur" ||
-	type === "keyup" ||
+	type === "click" ||
+	type === "focus" ||
 	type === "input" ||
-	type === "load") return false;
+	type === "load" ||
+	type === "keydown" ||
+	type === "keyup"
+    ) return false;
 
     return true;
 }

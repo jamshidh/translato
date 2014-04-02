@@ -1,4 +1,6 @@
 
 browsers: ie < 9
 
+dependencies: addEventHandler
+
 libs: placeholders.js

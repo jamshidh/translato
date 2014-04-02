@@ -70,7 +70,7 @@ expressionCommand => {expression}_\;?;
 return => return( {expression})?_\;?;
 #return => return([ \t]+{expression})?_\;?;
 
-if => if \(_{expression}_\) _ {commandBody}( else {commandBody})?;
+if => if \(_{expression}_\) {commandBody}( else {commandBody})?;
 
 do => do {commandBody} while\({expression}\)_\;;
 
@@ -88,7 +88,7 @@ for => for \({expressionList}_\; {expression}_\; {expression}\) {commandBody};
 #Be careful- varDeclarationExpression and assignment already have terminating semicolons, don't repeat them 
 #here
 
-for => for \(var {initialize}+_\; {expression}_\; {expression}\) {commandBody};
+for => for \(var {initializeList}_\; {expression}_\; {expression}\) {commandBody};
 
 #for => for \({assignment}_ {expression}_\; {expression}\) {commandBody};
 
@@ -101,6 +101,8 @@ blankCommand => \;;
 separator: '\n'
 
 ====[/command]==================
+
+initializeList => {initialize}+;
 
 ====[initialize]==============
 initialize=>{variable}_=_{expression};

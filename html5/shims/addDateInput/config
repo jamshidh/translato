@@ -1,0 +1,6 @@
+
+browsers: mozilla, ie
+
+dependencies: addEventHandler
+
+libs: epoch_classes.js, epoch_styles.css

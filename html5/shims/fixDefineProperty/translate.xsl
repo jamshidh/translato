@@ -16,7 +16,7 @@
   </xsl:template>
 
   <!--This only works on objects created empty-->
-  <xsl:template match="object[count(*) = 0]">
+  <!-- xsl:template match="object[count(*) = 0]">
     <function>
       <lvaluedot>
 	<variable name="document" />
@@ -24,6 +24,6 @@
       </lvaluedot>
       <string value="div"/>
     </function>
-  </xsl:template>
+  </xsl:template -->
 
 </xsl:stylesheet>

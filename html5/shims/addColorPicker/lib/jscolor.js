@@ -95,6 +95,7 @@ var jscolor = {
 
 
 	imgRequire : {},
+
 	imgLoaded : {},
 
 
@@ -335,11 +336,11 @@ var jscolor = {
 		this.pickerZIndex = 10000;
 
 
-		for(var p in prop) {
+	    /*for(var p in prop) {
 		    if(prop.hasOwnProperty(p)) {
-				this[p] = prop[p];
-			}
-		}
+			this[p] = prop[p];
+		    }
+		}*/
 
 
 		this.hidePicker = function() {
@@ -835,13 +836,13 @@ var jscolor = {
 			};
 		}
 
-		// require images
-		switch(modeID) {
-			case 0: jscolor.requireImage('hs.png'); break;
-			case 1: jscolor.requireImage('hv.png'); break;
-		}
-		jscolor.requireImage('cross.gif');
-		jscolor.requireImage('arrow.gif');
+	    // require images
+	    switch(modeID) {
+	    case 0: jscolor.requireImage('hs.png'); break;
+	    case 1: jscolor.requireImage('hv.png'); break;
+	    }
+	    jscolor.requireImage('cross.gif');
+	    jscolor.requireImage('arrow.gif');
 
 		this.importColor();
 	}

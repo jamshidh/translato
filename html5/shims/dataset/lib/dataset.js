@@ -25,7 +25,7 @@ var propDescriptor = {
                 this.removeAttribute(attrName);
         };
 	
-        HTML5_DOMStringMap = {};
+        HTML5_DOMStringMap = document.createElement('div'); // {};
 	
         for (i = 0; i < attsLength; i++) {
             attribute = attributes[i];

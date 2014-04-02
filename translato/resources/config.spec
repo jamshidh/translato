@@ -13,7 +13,7 @@ separator: '\n'
 ====[/configItem]==========
 
 ====[libName]===============
-lib=>@name([a-zA-Z.]+);
+lib=>@name([a-zA-Z_.]+);
 separator: '_, '
 ====[/libName]==============
 

@@ -371,7 +371,7 @@ matchCharset =
 matchEscapedChar =
     do
         char '\\'
-        escapedChar <- noneOf "]"
+        escapedChar <- anyChar
         return (unescape escapedChar)
 
 matchCharsetChar =
@@ -443,4 +443,19 @@ unescape 'r' = SingleChar '\r'
 unescape 't' = SingleChar '\t'
 unescape '-' = SingleChar '-'
 unescape '\\' = SingleChar '\\'
+unescape '[' = SingleChar '['
+unescape ']' = SingleChar ']'
+unescape '/' = SingleChar '/'
+unescape '{' = SingleChar '{'
+unescape '}' = SingleChar '}'
+unescape '(' = SingleChar '('
+unescape ')' = SingleChar ')'
+unescape '*' = SingleChar '*'
+unescape '+' = SingleChar '+'
+unescape '?' = SingleChar '?'
+unescape '.' = SingleChar '.'
+unescape '\\' = SingleChar '\\'
+unescape '^' = SingleChar '^'
+unescape '$' = SingleChar '$'
+unescape '|' = SingleChar '|'
 unescape c = error ("Missing escape char in unescape " ++ [c])

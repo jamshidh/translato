@@ -19,8 +19,8 @@ symbol2Name [WhiteSpace _ _] = "space"
 symbol2Name x = symbol2Name' x
 
 symbol2Name'::Sequence->TL.Text
-symbol2Name' (TextMatch text _:rest) = op2Name text `TL.append` symbol2Name rest
-symbol2Name' (WhiteSpace _ _:rest) = symbol2Name rest
+symbol2Name' (TextMatch text _:rest) = op2Name text `TL.append` symbol2Name' rest
+symbol2Name' (WhiteSpace _ _:rest) = symbol2Name' rest
 symbol2Name' [] = TL.empty
 
 

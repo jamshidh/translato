@@ -147,8 +147,10 @@ singleQuoteString => '@value([^']*)';
 
 incrementor => {expression}_\+\+;
 decrementor => {expression}_--;
+preIncrementor => \+\+_{expression};
+preDecrementor => --_{expression};
 
-booleanNot => !{expression};
+booleanNot => !_{expression};
 
 typeof => typeof {expression};
 

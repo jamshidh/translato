@@ -25,6 +25,9 @@ escapedPlus=>\\\+;
 
 escapedDot=>\\\.;
 
+escapedLSquareBracket=>\\\[;
+escapedRSquareBracket=>\\\];
+
 inlineCharset=>{escapedCharsetChar};
 
 charset=>\[{charsetChar}*\];
@@ -70,7 +73,7 @@ notWordChar=>\\W;
 spaceChar=>\\s;
 notSpaceChar=>\\S;
 digitChar=>\\d;
-escapedChar=>\\[\-\\/?];
+escapedChar=>\\[\-\\/?\[\]{}()*+.^$|];
 ====[/escapedCharsetChar]==========
 
 

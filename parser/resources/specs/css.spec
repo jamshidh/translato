@@ -55,6 +55,7 @@ height=>height: @value([^;]*)\;;
 margin=>margin: @value([^;]*)\;;
 marginLeft=>margin-left: @value([^;]*)\;;
 marginRight=>margin-right: @value([^;]*)\;;
+overflow=>overflow: @value([^;]*)\;;
 padding=>padding: @value([^;]*)\;;
 position=>position: @value([^;]*)\;;
 
@@ -85,6 +86,10 @@ separator: '\n'
 
 ====[selector]===============
 tagname=>@value([a-zA-Z0-9\-]+)(\.@className)?;
+
+classname=>\.@className;
+
+idname=>#@className;
 
 filter=>{selector}\[{qualifier}\];
 

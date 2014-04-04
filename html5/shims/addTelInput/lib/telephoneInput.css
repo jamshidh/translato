@@ -1,29 +1,23 @@
-td, .phone {
-    border: solid black 1px;
-    font-size: 20px;
-}
 .blank td {
     border: none;
-    font-size: 20px;
 }
-#telInput tr {
-    height: 40px;
-    overflow: hidden;
+#telInput button {
+    background: rgb(50, 50, 50);
+    border: none;
+    margin: 0px;
+    padding: 0px;
 }
-#telInput td {
-    height: 40px;
-}
-.number {
-    font-size: 20px;
-    text-align: center;
-    float: left;
-    width: 100%;
-}
-.letter {
-    font-size: 10px;
-    text-align: center;
-    float: left;
-    width: 100%;
+#telInput {
+    display: none; 
+    border: solid 10px lightblue;
+    border-radius: 25px;
+    position: absolute; 
+    left: 0px; 
+    top: 50px; 
+    padding: 10px; 
+    background-color: rgb(50,50,50); 
+    text-align: justify; 
+    font-size: 12px; 
 }
 button {
     width: 100%;

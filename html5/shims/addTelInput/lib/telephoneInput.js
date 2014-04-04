@@ -8,6 +8,7 @@ function hideTelInput() {
 }
 
 function showTelInput(target) {
+    global_target = target;
     var rect = target.getBoundingClientRect();
 
     //TODO- standardize this and put it in a shim
@@ -51,12 +52,11 @@ function onPress(val) {
 }
 
 function makeButton(value, subValue) {
-    return <td><button onclick={"onPress('" + value + "')"}><span class="number">{value}</span><span class="letter">{subValue}</span></button></td>;
+    return <td><button onclick={"onPress('" + value + "')"}><img src={"/res/addTelephoneInput/" + value + ".png"} /></button></td>;
 }
 
 var telephoneWidget = 
-
-    <div id='telInput' style='display: none; position: absolute; left: 0px; top: 50px; border: solid black 1px; padding: 10px; background-color: rgb(200,100,100); text-align: justify; font-size: 12px; width: 135px;' onmouseover="document.getElementById('PopUp').style.display = 'none' ">
+    <div id='telInput'>
       <table class="phone">
 	<colgroup>
 	  <col style="width: 33%" />
@@ -64,24 +64,24 @@ var telephoneWidget =
 	  <col style="width: 33%" />
 	</colgroup>
 	<tr>
-	  <td><button onclick="onPress('1')"><span class="number">1</span><span class="letter">_</span></button></td>
-	  <td><button onclick="onPress('2')" style="text-align: center;"><span class="number">2</span><span class="letter">ABC</span></button></td>
-	  <td><button onclick="onPress('3')"><span class="number">3</span><span class="letter">DEF</span></button></td>
+          <td><button onclick="onPress('1')"><img src={"/res/addTelInput/1.png"} /></button></td>
+          <td><button onclick="onPress('2')"><img src={"/res/addTelInput/2.png"} /></button></td>
+          <td><button onclick="onPress('3')"><img src={"/res/addTelInput/3.png"} /></button></td>
 	</tr>
 	<tr>
-	  <td><button onclick="onPress('4')"><span class="number">4</span><span class="letter">GHI</span></button></td>
-	  <td><button onclick="onPress('5')"><span class="number">5</span><span class="letter">JKL</span></button></td>
-	  <td><button onclick="onPress('6')"><span class="number">6</span><span class="letter">MNO</span></button></td>
+          <td><button onclick="onPress('4')"><img src={"/res/addTelInput/4.png"} /></button></td>
+          <td><button onclick="onPress('5')"><img src={"/res/addTelInput/5.png"} /></button></td>
+          <td><button onclick="onPress('6')"><img src={"/res/addTelInput/6.png"} /></button></td>
 	</tr>
 	<tr>
-	  <td><button onclick="onPress('7')"><span class="number">7</span><span class="letter">PQRS</span></button></td>
-	  <td><button onclick="onPress('8')"><span class="number">8</span><span class="letter">TUV</span></button></td>
-	  <td><button onclick="onPress('9')"><span class="number">9</span><span class="letter">WXYZ</span></button></td>
+          <td><button onclick="onPress('7')"><img src={"/res/addTelInput/7.png"} /></button></td>
+          <td><button onclick="onPress('8')"><img src={"/res/addTelInput/8.png"} /></button></td>
+          <td><button onclick="onPress('9')"><img src={"/res/addTelInput/9.png"} /></button></td>
 	</tr>
 	<tr>
-	  <td><button onclick="onPress('*')"><span class="number">*</span></button></td>
-	  <td><button onclick="onPress('0')"><span class="number">0</span></button></td>
-	  <td><button onclick="onPress('#')"><span class="number">#</span></button></td>
+          <td><button onclick="onPress('*')"><img src={"/res/addTelInput/star.png"} /></button></td>
+          <td><button onclick="onPress('0')"><img src={"/res/addTelInput/0.png"} /></button></td>
+          <td><button onclick="onPress('#')"><img src={"/res/addTelInput/pound.png"} /></button></td>
 	</tr>
       </table>
     </div>;

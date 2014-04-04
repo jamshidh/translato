@@ -74,21 +74,21 @@
     }
 
     var supportAfter = {
-      "addEventListener": ["broken", "works", "works"],
+      "addEventListener": ["works", "works", "works"],
       "datalist": ["broken", "works", "works"],
       "detailssummary": ["works", "works", "works"],
       "progressbar": ["works", "works", "works"],
-      "telephoneinput": ["broken", "broken", "broken"],
+      "telephoneinput": ["works", "works", "works"],
       "audio": ["broken", "works", "works"],
-      "dataset": ["broken", "works", "works"],
-      "e4x": ["broken", "broken", "works"],
+      "dataset": ["works", "works", "works"],
+      "e4x": ["works", "works", "works"],
       "time": ["broken", "broken", "partial"],
-      "date": ["broken", "broken", "partial"],
+      "date": ["works", "works", "partial"],
       "rangeinput": ["broken", "works", "works"],
       "validation": ["broken", "works", "works"],
-      "colorpicker": ["broken", "broken", "works"],
+      "colorpicker": ["works", "works", "works"],
       "datetime": ["broken", "broken", "broken"],
-      "placeholder": ["broken", "works", "works"],
+      "placeholder": ["works", "works", "works"],
       "sample1": ["broken", "-", "-"],
       "video": ["-", "-", "-"]
     }

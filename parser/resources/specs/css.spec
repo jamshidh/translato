@@ -39,6 +39,8 @@ borderCollapse=>border-collapse: @value([^;]*)\;;
 borderRadius=>border-radius: @value([^;]*)\;;
 borderRight=>border-right: @value([^;]*)\;;
 
+boxShadow=>box-shadow: @value([^;]*)\;;
+
 mozBoxSizing=>-moz-box-sizing: @value([^;]*)\;;
 boxSizing=>box-sizing: @value([^;]*)\;;
 
@@ -48,15 +50,19 @@ cursor=>cursor: @value([^;]*)\;;
 display=>display: @value([^;]*)\;;
 emptyCells=>empty-cells: @value([^;]*)\;;
 float=>float: @value([^;]*)\;;
+font=>font: @value([^;]*)\;;
 fontFamily=>font-family: @value([^;]*)\;;
 fontSize=>font-size: @value([^;]*)\;;
 fontStyle=>font-style: @value([^;]*)\;;
 fontWeight=>font-weight: @value([^;]*)\;;
 height=>height: @value([^;]*)\;;
+listStyle=>list-style: @value([^;]*)\;;
 margin=>margin: @value([^;]*)\;;
 marginLeft=>margin-left: @value([^;]*)\;;
 marginRight=>margin-right: @value([^;]*)\;;
+maxHeight=>max-height: @value([^;]*)\;;
 overflow=>overflow: @value([^;]*)\;;
+overflowY=>overflow-y: @value([^;]*)\;;
 padding=>padding: @value([^;]*)\;;
 position=>position: @value([^;]*)\;;
 
@@ -86,11 +92,11 @@ separator: '\n'
 
 
 ====[selector]===============
-tagname=>@value([a-zA-Z0-9\-]+)(\.@className)?;
+tagname=>@value([a-zA-Z0-9_\-]+)(\.@className([a-zA-Z0-9_\-]+))?;
 
-classname=>\.@className;
+classname=>\.@className([a-zA-Z0-9_\-]+);
 
-idname=>#@className;
+idname=>#@className([a-zA-Z0-9_\-]+);
 
 filter=>{selector}\[{qualifier}\];
 

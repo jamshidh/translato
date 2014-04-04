@@ -92,7 +92,7 @@ for => for \(_var {initializeList}_\; {expression}_\; {expression}_\) {commandBo
 
 #for => for \({assignment}_ {expression}_\; {expression}\) {commandBody};
 
-iteratorDeclarationFor => for \(var {variable} in {expression}_\) {commandBody};
+iteratorDeclarationFor => for \(_var {variable} in {expression}_\) {commandBody};
 
 iteratorFor => for \({variable} in {expression}_\) {commandBody};
 

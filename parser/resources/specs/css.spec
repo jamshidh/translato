@@ -36,6 +36,7 @@ webkitBackgroundSize=>-webkit-background-size: @value([^;]*)\;;
 
 border=>border: @value([^;]*)\;;
 borderCollapse=>border-collapse: @value([^;]*)\;;
+borderRadius=>border-radius: @value([^;]*)\;;
 borderRight=>border-right: @value([^;]*)\;;
 
 mozBoxSizing=>-moz-box-sizing: @value([^;]*)\;;

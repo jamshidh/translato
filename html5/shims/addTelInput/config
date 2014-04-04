@@ -1,0 +1,6 @@
+
+browsers: *
+
+dependencies: addEventHandler, addE4x
+
+libs: telephoneInput.js, telephoneInput.css

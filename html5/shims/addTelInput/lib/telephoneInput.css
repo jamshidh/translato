@@ -1,0 +1,32 @@
+td, .phone {
+    border: solid black 1px;
+    font-size: 20px;
+}
+.blank td {
+    border: none;
+    font-size: 20px;
+}
+#telInput tr {
+    height: 40px;
+    overflow: hidden;
+}
+#telInput td {
+    height: 40px;
+}
+.number {
+    font-size: 20px;
+    text-align: center;
+    float: left;
+    width: 100%;
+}
+.letter {
+    font-size: 10px;
+    text-align: center;
+    float: left;
+    width: 100%;
+}
+button {
+    width: 100%;
+    height: 100%;
+}
+

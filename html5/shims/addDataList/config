@@ -1,0 +1,6 @@
+
+browsers: ie < 9
+
+dependencies: addEventHandler
+
+libs: datalist.js, datalist.css

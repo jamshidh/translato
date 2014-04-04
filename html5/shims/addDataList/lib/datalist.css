@@ -1,7 +1,7 @@
 .datalist-polyfill {
 	list-style: none;
 	display: none;
-	background: grey;
+	background: lightgrey;
 	box-shadow: 0 2px 2px #999;
 	position: absolute;
 	left: 0;

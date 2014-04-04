@@ -37,6 +37,7 @@ title=>
 ;
 
 meta=><meta http-equiv="@httpequiv([^"]*)" content="@content([^"]*)"_/?>;
+meta=><meta charset="@charset([^"]*)"_/?>;
 
 link=><link rel="@rel([^"]*)" type="@type([^"]*)" href="@href([^"]*)"_/?>;
 
@@ -107,6 +108,13 @@ img=>
 input=>
 <input_{attribute}*_/>
 ;
+
+select=>
+<select_{attribute}*_>
+  {option}*
+</select>
+;
+
 
 strong=>
 <strong>{bodyNode}*</strong>
@@ -215,7 +223,7 @@ li=>
 ====[option]====
 
 option=>
-<option_{attribute}*_/>
+<option_{attribute}*_/?>
 ;
 
 separator: '\n'

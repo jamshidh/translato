@@ -15,7 +15,7 @@ jsFile =>
 
 ====[parameter]===============
 
-parameter =>@value;
+parameter =>{varName};
 
 separator: '_, '
 
@@ -88,7 +88,7 @@ for => for \({expressionList}_\; {expression}_\; {expression}\) {commandBody};
 #Be careful- varDeclarationExpression and assignment already have terminating semicolons, don't repeat them 
 #here
 
-for => for \(var {initializeList}_\; {expression}_\; {expression}\) {commandBody};
+for => for \(_var {initializeList}_\; {expression}_\; {expression}_\) {commandBody};
 
 #for => for \({assignment}_ {expression}_\; {expression}\) {commandBody};
 
@@ -188,11 +188,11 @@ paren => \(_{expression}_\);
 
 operators: '_._'
 
-funcDeclaration => function @name([$_a-zA-Z][$_a-zA-Z0-9]*)\({parameter}*\) {fullBody};
+funcDeclaration => function @name([$_a-zA-Z][$_a-zA-Z0-9]*)\(_{parameter}*_\) {fullBody};
 
 function => {lvalue}\(_{expression}*_\);
 
-arrayIndex => {lvalue}\[{expression}\];
+arrayIndex => {lvalue}\[_{expression}_\];
 
 lambda => function \(_{parameter}*_\) {fullBody};
 

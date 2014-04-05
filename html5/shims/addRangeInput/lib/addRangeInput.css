@@ -1,0 +1,16 @@
+.rangeInputBar, .rangeInputGripper {
+    vertical-align: middle;
+}
+.rangeInputBar {
+    background: orange;
+    height: 2px; 
+    width: 100px; 
+    border: solid 1px black;
+}
+.rangeInputGripper {
+    display: block;
+    position: absolute;
+    height: 10px; 
+    width: 7px; 
+    border: solid 1px black;
+}

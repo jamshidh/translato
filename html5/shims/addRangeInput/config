@@ -1,0 +1,6 @@
+
+browsers: ie
+
+dependencies: addEventHandler
+
+libs: addRangeInput.js, addRangeInput.css

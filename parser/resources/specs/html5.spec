@@ -92,6 +92,12 @@ div=>
 </div>
 ;
 
+span=>
+<span_{attribute}*_>
+  {bodyNode}*
+</span>
+;
+
 form=>
 <form_{attribute}*_>
   {bodyNode}*

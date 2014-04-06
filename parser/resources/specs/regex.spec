@@ -14,7 +14,7 @@ regex => /{regexItem}*/{regexFlag}*;
 
 ====[regexItem]===========
 
-reWord=>[a-zA-Z\-:#]+;
+reWord=>[a-zA-Z\-:#@]+;
 
 reStart => ^;
 

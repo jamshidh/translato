@@ -38,6 +38,7 @@ border=>border: @value([^;]*)\;;
 borderCollapse=>border-collapse: @value([^;]*)\;;
 borderRadius=>border-radius: @value([^;]*)\;;
 borderRight=>border-right: @value([^;]*)\;;
+borderSpacing=>border-spacing: @value([^;]*)\;;
 
 boxShadow=>box-shadow: @value([^;]*)\;;
 

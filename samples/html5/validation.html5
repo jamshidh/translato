@@ -3,12 +3,21 @@
 
   <head>
 
+    <meta charset="utf-8">
+
   </head>
 
   <body>  
 
-    <form id="form1" class="h5-defaults">
-      <input id="name" name="name" type="text" placeholder="Bob" title="Your name is required." required="required" />
+    <h1>Stuff we'd like to sell to marketers:</h1>
+
+    <form id="form1">
+      Your Name:<input id="name" name="name" type="text" placeholder="Bob" title="Your name is required." required /><br>
+
+      Your Email:<input type="email" name="emailAddress" /><br>
+
+      <input type="submit" />
+
     </form>
     
   </body>

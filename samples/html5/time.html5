@@ -3,12 +3,15 @@
 
   <head>
 
+    <meta charset="utf-8">
+
   </head>
 
   <body>  
 
-    <form id="form1" class="h5-defaults">
+    <form id="form1">
       <p>Time.: <input type="time" /></p>
+      <p>Time on Mars.: <input type="time" /></p>
     </form>
     
   </body>

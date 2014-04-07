@@ -1,0 +1,6 @@
+
+browsers: *
+
+dependencies: addEventHandler, addGetElementRectangle
+
+libs: timeInput.js, timeInput.css

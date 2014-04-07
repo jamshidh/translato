@@ -1,0 +1,24 @@
+.timeInputNumber {
+    border: 1px black solid;
+    border-radius: 8px;
+    font-size: 40px;
+    font-family: Impact, Impact, Charcoal, sans-serif;
+    width: 45px;
+}
+
+#timeInput {
+    display: none;
+    position: absolute;
+    border: 1px black solid;
+    background: lightgrey;
+}
+#timeInput td {
+    text-align: center;
+}
+
+.selectedAMPM {
+    background: grey;
+}
+.notselectedAMPM {
+    background: white;
+}

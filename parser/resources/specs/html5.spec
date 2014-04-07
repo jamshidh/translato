@@ -238,7 +238,7 @@ separator: '\n'
 
 thead=>
 <thead>
-  <tr>
+  <tr_{attribute}*_>
     {th}*
   </tr>
 </thead>
@@ -251,7 +251,7 @@ th=>
 ;
 
 tr=>
-<tr>
+<tr_{attribute}*_>
   {td}*
 </tr>
 ;

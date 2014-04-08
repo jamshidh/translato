@@ -9,6 +9,7 @@ config =>
 browsers=>browsers: {browser}+;
 libs=>libs: {libName}*;
 dependencies=>dependencies: {shimName}*;
+trigger=> trigger: @value(.*)\;;
 separator: '\n'
 ====[/configItem]==========
 

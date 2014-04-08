@@ -44,6 +44,7 @@ data ShimConfig =
       name::ShimName,  
       browsers::[Browser],
       dependencies::[ShimName],
+      trigger::Maybe T.Text,
       libs::[Lib]
       } deriving (Show)
 
@@ -61,11 +62,13 @@ parseConfig::Sink Event (Either SomeException) (Maybe ShimConfig)
 parseConfig = tagNoAttr "config" $ do
     browserList <- parseBrowsers
     dependList <- parseDependencies
+    trigger <- parseTrigger
     libList <- parseLibs
     return ShimConfig { 
       name=ShimName "", --name is just a placeholder, the real value is filled in getConfigFile
       browsers=concat $ maybeToList browserList, 
       libs=fmap name2Lib $ concat $ maybeToList libList,
+      trigger= trigger,
       dependencies=map (ShimName . T.pack) (concat $ maybeToList dependList)
       } 
 
@@ -88,6 +91,12 @@ parseDependencies = tagNoAttr "dependencies" $ many parseDependency
 parseDependency::ConduitM Event o (Either SomeException) (Maybe String)
 parseDependency = tagName "shim" (requireAttr "name") $ \attr -> do
   return $ T.unpack attr
+
+parseTrigger::Sink Event (Either SomeException) (Maybe T.Text)
+parseTrigger = tagName "trigger" (requireAttr "value") $ \attr -> do
+  return attr
+
+
 
 {-
 parseDepends::Sink Event (Either SomeException) (Maybe [String])

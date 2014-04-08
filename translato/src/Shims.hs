@@ -8,32 +8,38 @@ import Control.Monad
 import Control.Monad.IO.Class
 import Control.Monad.Trans.Either
 import Data.Functor
+import Data.List
+import qualified Data.Text.Lazy as TL
 import System.Directory
-import System.FilePath
 import System.Process
+import qualified Text.XML as XML
 
-import Parser
 import ShimConfig
+import ShimLibs
 import WidgetLibGenerator
 
-import Debug.Trace
+--import Debug.Trace
 
 applyShims::FilePath->String->String->String->EitherT String IO String
 applyShims shimDir specName userAgent input = do
-  neededShims <- liftIO $ getNeededShims userAgent shimDir
+  neededShims <- liftIO $ getNeededShims userAgent shimDir -- neededShims holds shims allowed by browser constraints
 
-  translators <- liftIO $ map doXsltXform <$> (filterM doesFileExist $ fmap ((flip $ getShimFile shimDir) "translate.xsl") $ neededShims)
+  triggeredShims <- applyTriggers shimDir specName neededShims input -- triggeredShims holds shims allowed by trigger.xsl files, after the browser filter has been applied
 
-  --This chains together functions in a list [a, b, c, d]
-  --using (>>=), like this ">>= a >>= b >>= c >>= d"
-  {--let allTranslatorsTogether =
-        if length translators == 0
-        then id
-        else foldl1 (.) $ (=<<) <$> translators
-    
-  allTranslatorsTogether $ return input -- $ parseUsingSpecName specName input-}
+  translators <- liftIO $ map doXsltXform <$> (filterM doesFileExist $ fmap ((flip $ getShimFile shimDir) "translate.xsl") $ triggeredShims)
 
   foldr (=<<) (return input) translators
+
+applyTriggers::FilePath->String->[ShimName]->String->EitherT String IO [ShimName]
+applyTriggers shimDir specName neededShims input = do
+
+  translators <- liftIO $ map doXsltXform <$> (filterM doesFileExist $ fmap ((flip $ getShimFile shimDir) "trigger.xsl") $ neededShims)
+
+  output <- TL.pack <$> foldr (=<<) (return input) translators
+
+  case XML.parseText XML.def output of
+    Left err -> left (show err)
+    Right doc -> right $ nub $ documentToLibs doc
 
 
 doXsltXform::FilePath->String->EitherT String IO String

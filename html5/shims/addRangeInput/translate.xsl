@@ -32,6 +32,7 @@
 	<attribute name="id" value="{concat($theId,'_gripper')}" />
 	<attribute name="class" value="rangeInputGripper" />
 	<attribute name="onmousedown" value='{concat(concat("mouseDown(&apos;", $theId), "&apos;, event); return false;")}' />
+	<attribute name="ondragstart" value='event.returnValue=false;' />
 	<attribute name="src" value="/res/addRangeInput/arrow15.png" />
       </img>
     </div>

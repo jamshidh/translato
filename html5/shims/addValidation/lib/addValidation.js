@@ -38,6 +38,7 @@ function showError(target, message) {
     validationWarningBubble.style.top = targetRect.bottom + "px"
     validationWarningBubble.style.display = "block";
     validationWarningBubbleMessage.innerHTML = message;
+    validationWarningBubble.focus();
 }
 
 function hideValidationWarning() {

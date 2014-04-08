@@ -10,7 +10,6 @@
   <xsl:template match="input[attribute[@name='type']]">
     <xsl:copy>
       <xsl:apply-templates select="@*" />
-      <attribute name="onfocus" value="hideValidationWarning();" />
       <xsl:apply-templates select="*|text()" />
     </xsl:copy>
   </xsl:template>
@@ -27,6 +26,8 @@
     <xsl:copy>
       <xsl:apply-templates select="*" />
       <div>
+	<attribute name="onblur" value="hideValidationWarning();" />
+	<attribute name="tabindex" value="-1" />
 	<attribute name="id" value="validationWarningBubble" />
 	<table>
 

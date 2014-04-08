@@ -62,9 +62,10 @@ function placeThisGripper(theId) {
 }
 
 function placeGripper() {
-
-    global_bar.style.width = global_input.offsetWidth;
-    global_input.style.display = "none";
+    if (global_input.style.display !== "none") {
+	global_bar.style.width = global_input.offsetWidth;
+	global_input.style.display = "none";
+    }
     
     barRect = getRect(global_bar);
     gripperRect = getRect(global_gripper)

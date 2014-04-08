@@ -3,4 +3,6 @@ browsers: *
 
 dependencies: addEventHandler, addGetElementRectangle
 
+trigger: input[attribute[@name='type' and @value='time']];
+
 libs: timeInput.js, timeInput.css

@@ -12,6 +12,22 @@ function showTimeInput(target) {
     global_target = target;
     var rect = getElementRectangle(target);
 
+    var parsedTime = global_target.value.match(/(\d+):(\d+):(\d+)(AM|PM)/i);
+
+    if (parsedTime !== null) {
+	hours.innerHTML = parsedTime[1];
+	minutes.innerHTML = parsedTime[2];
+	seconds.innerHTML = parsedTime[3]; 
+	if (parsedTime[4].toUpperCase() == "PM") setPM();
+	else setAM();
+    }
+    else {
+	hours.innerHTML = "12";
+	minutes.innerHTML = "00";
+	seconds.innerHTML = "00";
+	setPM();
+    }
+	
     timeInput.style.left = scrollX + rect.left + 10 + "px";
     timeInput.style.top = scrollY + rect.bottom + "px";
     timeInput.style.display="block";

@@ -147,7 +147,9 @@ peNot=>not({selector});
 
 
 ====[qualifier]===============
+cssString=>'@value';
 hasAtt=>@value([a-zA-Z0-9\-]+);
+operators: '='
 ====[/qualifier]==============
 
 

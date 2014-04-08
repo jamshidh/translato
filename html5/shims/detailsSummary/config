@@ -1,6 +1,6 @@
 
 browsers: mozilla 1.2<=, ie
 
-dependencies: addEventHandler, fixDefineProperty, fixSlice
+dependencies: addEventHandler, fixDefineProperty, fixSlice, fixTagNameCaps
 
 libs: details.js, details.css, summary.css

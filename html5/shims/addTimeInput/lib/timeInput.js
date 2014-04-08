@@ -27,9 +27,9 @@ function showTimeInput(target) {
 	seconds.innerHTML = "00";
 	setPM();
     }
-	
-    timeInput.style.left = scrollX + rect.left + 10 + "px";
-    timeInput.style.top = scrollY + rect.bottom + "px";
+
+    timeInput.style.left = rect.left + 10 + "px";
+    timeInput.style.top = rect.bottom + "px";
     timeInput.style.display="block";
 }
 

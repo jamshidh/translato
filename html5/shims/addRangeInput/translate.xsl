@@ -19,7 +19,7 @@
     <shimLib name="addRangeInput" />
     <xsl:copy>
       <attribute name="id" value="{$theId}" />
-      <attribute name="style" value="display: none;" />
+      <!--attribute name="style" value="display: none;" /-->
       <xsl:apply-templates select="*|@*|text()" />
     </xsl:copy>
     <div>
@@ -28,11 +28,12 @@
 	<attribute name="class" value="rangeInputBar" />
 	<attribute name="onmousedown" value='{concat(concat("barPress(&apos;", $theId), "&apos;, event);")}' />
       </div>
-      <span>
+      <img>
 	<attribute name="id" value="{concat($theId,'_gripper')}" />
 	<attribute name="class" value="rangeInputGripper" />
-	<attribute name="onmousedown" value='{concat(concat("mouseDown(&apos;", $theId), "&apos;, event);")}' />
-      </span>
+	<attribute name="onmousedown" value='{concat(concat("mouseDown(&apos;", $theId), "&apos;, event); return false;")}' />
+	<attribute name="src" value="/res/addRangeInput/arrow15.png" />
+      </img>
     </div>
     <script>
       <expressionCommand>

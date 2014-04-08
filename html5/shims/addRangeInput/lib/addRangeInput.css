@@ -10,7 +10,4 @@
 .rangeInputGripper {
     display: block;
     position: absolute;
-    height: 10px; 
-    width: 7px; 
-    border: solid 1px black;
 }

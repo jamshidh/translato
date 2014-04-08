@@ -175,15 +175,18 @@ seq2EString g sMap (SepBy 0 [Link (Just reparseName) linkName] sep:rest) usedAtt
             Nothing -> theName
 
 
---seq2EString g sMap (SepBy 0 sq sep:rest) usedAtts c children = 
---    seq2EString g sMap [Or [sq++(SepBy 0 sq sep:rest), rest]] usedAtts c children
+seq2EString g sMap (SepBy 0 sq sep:rest) usedAtts c children = 
+    seq2EString g sMap [Or [sq++(SepBy 0 sq sep:rest), rest]] usedAtts c children
+
+seq2EString g sMap (SepBy 1 sq sep:rest) usedAtts c children = 
+    seq2EString g sMap (sq ++ [Or [sep ++ (SepBy 1 sq sep:rest), rest]]) usedAtts c children
 
 seq2EString g sMap (SepBy minCount sq sep:rest) usedAtts c remainingChildren =
     seq2EString g sMap (sq ++ sep ++ (SepBy (minCount - 1) sq sep:rest)) usedAtts c remainingChildren
 
 seq2EString _ _ (Or []:_) _ _ _ = error "No matching alternative in seq2EString Or case"
 seq2EString g sMap (Or seqs:rest) usedAtts c children =
-  --jtrace (show seqs) $
+  --jtrace (intercalate "\n------\n" $ format <$> seqs) $
   --jtrace ("cursorFP: " ++ show cursorFP) $
   --jtrace ("seqFPs: \n" ++ ((++ "\n") <$> ("--------" ++) =<< (\x -> show (fst x) ++ "\n" ++ format (snd x)) <$> sqFPs)) $
   --jtrace ("matchingSqFPs: " ++ show matchingSqFPs) $
@@ -294,8 +297,8 @@ getAllowedFirstLinkNames (Link _ linkName:_) =
     [Just linkName] --Only return the first name for now (possibly forever)
 getAllowedFirstLinkNames (SepBy 0 [Link _ linkName] _:rest) =
     Just linkName:getAllowedFirstLinkNames rest --Only return the first name for now (possibly forever)
-getAllowedFirstLinkNames (SepBy _ [Link _ linkName] _:_) =
-    [Just linkName] --Only return the first name for now (possibly forever)
+getAllowedFirstLinkNames (SepBy 1 sq _:_) = 
+    getAllowedFirstLinkNames sq
 getAllowedFirstLinkNames (x:rest) = getAllowedFirstLinkNames rest
 
 fingerprintMatches::Grammar->(S.Set TL.Text, [TL.Text])->(S.Set TL.Text, [Maybe TL.Text])->Bool

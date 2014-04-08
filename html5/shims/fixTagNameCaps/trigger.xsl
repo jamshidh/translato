@@ -8,14 +8,10 @@
   </xsl:template>
 
   <xsl:template match="lvaluedot/variable[position() = 2 and @name = 'tagName']">
-    <lvaluedot>
-      <xsl:copy>
-	<xsl:apply-templates select="*|@*|text()" />
-      </xsl:copy>
-      <function>
-	<variable name="toUpperCase" />
-      </function>
-    </lvaluedot>
+    <shimLib name="fixTagNameCaps" />
+    <xsl:copy>
+      <xsl:apply-templates select="*|@*|text()" />
+    </xsl:copy>
   </xsl:template>
 
 </xsl:stylesheet>

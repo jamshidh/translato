@@ -10,9 +10,11 @@
   <xsl:template match="input[attribute[@name='type' and @value='time']]">
     <shimLib name="addTimeInput" />
     <xsl:copy>
+      <xsl:apply-templates select="attribute[@name != 'type']" />
+      <attribute name='type' value='time2'/>
       <attribute name='onfocus' value='makeTimeControlAppear(this);'/>
       <attribute name='onblur' value='checkOnBlur()'/>
-      <xsl:apply-templates select="*|@*|text()" />
+      <xsl:apply-templates select="*[name() != attribute]|text()" />
     </xsl:copy>
   </xsl:template>
 

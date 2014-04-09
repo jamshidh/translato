@@ -133,6 +133,7 @@ details=>
 </details>
 ;
 
+#Self closing tag not allowed for table!  Browser error may result if you insert one
 #table=>
 #<table_{attribute}*_/>;
 

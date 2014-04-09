@@ -25,6 +25,7 @@ function isCustomEvent(type) {
     if (
 	type === "beforeunload" ||
 	type === "blur" ||
+	type === "change" ||
 	type === "click" ||
 	type === "focus" ||
 	type === "input" ||
@@ -39,7 +40,7 @@ function isCustomEvent(type) {
 Element.prototype.addEventListener = function (type, listener, useCapture) {
     //TODO- figure out how to deal with useCapture
     if (isCustomEvent(type)) {
-	this[type] = 0;
+	//this[type + "eventhack"] = 0;
 
 	this.attachEvent("onpropertychange", function(event) {
             if (event.propertyName == type + "eventhack") {
@@ -64,7 +65,7 @@ Element.prototype.dispatchEvent = function (event) {
 	this[event.type+"eventhack"]++;
     }
     else {
-	this.fireEvent("on" + event.type, event);
+	this.fireEvent("on" + event.type);
     }
 }
 

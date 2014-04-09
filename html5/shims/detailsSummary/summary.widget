@@ -1,6 +1,8 @@
 
 <widget>
 
+  <!-- Note- summary:hover breaks stuff in IE8....  "summary:hover" forces the browser to keep checking for style changes.  Since defineProperty is broken, I turn it off long enough for the styles to be set, but summary:hover checks at other times, getting the wrong styles. -->
+
   <style>
 
     summary {

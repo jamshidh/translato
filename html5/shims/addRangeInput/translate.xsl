@@ -46,4 +46,37 @@
     </script>
   </xsl:template>
 
+  <xsl:template match="expressionCommand[expressionassign/lvaluedot/lvaluedot/variable[@name='style']]">
+    <xsl:copy-of select="." />
+
+    <!--expressionCommand>
+      <expressionassign>
+	<lvaluedot>
+          <lvaluedot>
+	    <variable name='coolnessInput'/>
+	    <variable name='style'/>
+          </lvaluedot>
+          <variable name='width'/>
+	</lvaluedot>
+	<expressionplus>
+          <lvaluedot>
+	    <variable name='coolnessWidthInput'/>
+	    <variable name='value'/>
+          </lvaluedot>
+          <string value='px'/>
+	</expressionplus>
+      </expressionassign>
+    </expressionCommand-->
+    
+
+    <expressionCommand>
+      <function>
+	<variable name="resizeAllRangeInputs" />
+      </function>
+    </expressionCommand>
+
+  </xsl:template>
+
+
+
 </xsl:stylesheet>

@@ -51,6 +51,10 @@ function mouseMove(e) {
     global_input.value = Math.round(global_input.value/step)*step;
     
     placeGripper();
+
+    var e = document.createEvent('HTMLEvents');
+    e.initEvent('change', false, false);
+    global_input.dispatchEvent(e);
     
 }
 
@@ -62,13 +66,22 @@ function placeThisGripper(theId) {
 }
 
 function placeGripper() {
-    if (global_input.style.display !== "none") {
-	global_bar.style.width = global_input.offsetWidth;
-	global_input.style.display = "none";
+
+    placeGripperUsingItems(global_input, global_bar, global_gripper);
+    
+}
+
+function placeGripperUsingItems(input, bar, gripper) {
+    if (input.style.display !== "none") {
+	bar.style.width = input.offsetWidth + "px";
+	input.style.display = "none";
+    }
+    else if (input.style.width !== "") {
+	bar.style.width = input.style.width;
     }
     
-    barRect = getRect(global_bar);
-    gripperRect = getRect(global_gripper)
+    barRect = getRect(bar);
+    gripperRect = getRect(gripper)
     
     gripperHeight = gripperRect.bottom - gripperRect.top;
     gripperWidth = gripperRect.right - gripperRect.left;
@@ -76,13 +89,30 @@ function placeGripper() {
     barMiddleY = (barRect.top + barRect.bottom)/2;
     
     
-    global_gripper.style.top = (barMiddleY - 0.8*gripperHeight/2.0) + "px";
+    gripper.style.top = (barMiddleY - 0.8*gripperHeight/2.0) + "px";
     
-    global_gripper.style.left = (global_input.value - global_input.min)/(global_input.max - global_input.min) * (barRect.right - barRect.left) + barRect.left - gripperWidth/2 + "px";
+    gripper.style.left = (input.value - input.min)/(input.max - input.min) * (barRect.right - barRect.left) + barRect.left - gripperWidth/2 + "px";
     
     
     
 }
+
+
+function resizeAllRangeInputs() {
+
+    //var grippers = document.getElementsByClassName("rangeInputGripper");
+    var grippers = document.querySelectorAll(".rangeInputGripper");
+    for(var i = 0; i < grippers.length; i++) {
+
+
+	var input = document.getElementById(grippers[i].id.replace(/_gripper$/, ""));
+	var bar = document.getElementById(grippers[i].id.replace(/_gripper$/, "_bar"));
+
+	placeGripperUsingItems(input, bar, grippers[i]);
+
+    }
+}
+
 function mouseUp() {
     document.onmousemove = null;
 }

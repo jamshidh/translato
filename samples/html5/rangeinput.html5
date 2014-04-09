@@ -5,11 +5,30 @@
 
     <meta charset="utf-8">
 
+    <style>
+      input[type='range'] {
+        width: 400px;
+        height: 20px;
+      }
+    </style>
+
+    <script>
+      function widthSelected(event) {
+        coolnessInput.style.width = coolnessWidthInput.value + "px";
+      }
+    </script>
+
   </head>
 
   <body>  
 
-    <input type="range" name="test" min="100" max="300" value="150" /><br />
+    <h1>How Cool are You?</h1><br>
+
+    <input id="coolnessInput" type="range" name="test" min="100" max="300" value="150" /><br>
+
+    <h1>How wide should "How Cool are You?" be?</h1><br>
+
+    <input id="coolnessWidthInput" type="range" name="test" min="100" max="800" value="400" onchange="widthSelected(event);" /><br>
 
   </body>
   

@@ -11,7 +11,7 @@
   <body>
 
     <h1>This list and table were generated automatically</h1>
-    <table id="theTable" />
+    <table id="theTable"></table>
 
     <ol id="theList">
       <li>1</li>

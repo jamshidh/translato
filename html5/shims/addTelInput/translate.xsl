@@ -11,7 +11,6 @@
     <shimLib name="addTelInput" />
     <xsl:copy>
       <attribute name='onfocus' value='checkOnFocus(this);'/>
-      <attribute name='onblur' value='checkOnBlur()'/>
       <xsl:apply-templates select="*|@*|text()" />
     </xsl:copy>
   </xsl:template>

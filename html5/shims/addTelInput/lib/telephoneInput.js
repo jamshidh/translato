@@ -18,6 +18,7 @@ function showTelInput(target) {
     telInput.style.left = scrollX + rect.left + 10 + "px";
     telInput.style.top = scrollY + rect.bottom + "px";
     telInput.style.display="block";
+    telInput.focus();
 }
 
 function getParents() {
@@ -56,7 +57,7 @@ function makeButton(value, subValue) {
 }
 
 var telephoneWidget = 
-    <div id='telInput'>
+    <div id='telInput' tabindex="-1" onblur="checkOnBlur();">
       <table class="phone">
 	<colgroup>
 	  <col style="width: 33%" />

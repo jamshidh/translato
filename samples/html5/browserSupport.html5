@@ -1,13 +1,13 @@
 
 <html>
   <head>
-    <title>e4x Example</title>
+    <title>Browser Support</title>
     <style>
       table, td, tr {
         border: solid 1px;
       }
       table {
-        display: inline;
+        display: inline-table;
         margin-right: 100px;
       }
     </style>
@@ -75,17 +75,17 @@
 
     var supportAfter = {
       "addEventListener": ["works", "works", "works"],
-      "datalist": ["broken", "works", "works"],
+      "datalist": ["works", "works", "works"],
       "detailssummary": ["works", "works", "works"],
       "progressbar": ["works", "works", "works"],
       "telephoneinput": ["works", "works", "works"],
       "audio": ["broken", "works", "works"],
       "dataset": ["works", "works", "works"],
       "e4x": ["works", "works", "works"],
-      "time": ["broken", "broken", "partial"],
-      "date": ["works", "works", "partial"],
-      "rangeinput": ["broken", "works", "works"],
-      "validation": ["broken", "works", "works"],
+      "time": ["works", "works", "works"],
+      "date": ["works", "works", "works"],
+      "rangeinput": ["works", "works", "works"],
+      "validation": ["works", "works", "works"],
       "colorpicker": ["works", "works", "works"],
       "datetime": ["broken", "broken", "broken"],
       "placeholder": ["works", "works", "works"],

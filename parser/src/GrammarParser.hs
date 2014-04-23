@@ -9,7 +9,7 @@ module GrammarParser (
 ) where
 
 import Control.Arrow hiding (left, right)
-import Control.Lens
+import Control.Lens hiding (noneOf)
 import Data.Char hiding (Space)
 import Data.Functor
 import Data.List

@@ -1,5 +1,6 @@
 
 whitespace:/\*.*\*/;
+whitespace://.*[\n];
 
 cssFile =>
 
@@ -39,6 +40,11 @@ borderCollapse=>border-collapse: @value([^;]*)\;;
 borderRadius=>border-radius: @value([^;]*)\;;
 borderRight=>border-right: @value([^;]*)\;;
 borderSpacing=>border-spacing: @value([^;]*)\;;
+borderStyle=>border-style: @value([^;]*)\;;
+
+boxOrient=>box-orient: @value([^;]*)\;;
+mozBoxOrient=>-moz-box-orient: @value([^;]*)\;;
+webkitBoxOrient=>-webkit-box-orient: @value([^;]*)\;;
 
 boxShadow=>box-shadow: @value([^;]*)\;;
 
@@ -59,9 +65,12 @@ fontWeight=>font-weight: @value([^;]*)\;;
 height=>height: @value([^;]*)\;;
 listStyle=>list-style: @value([^;]*)\;;
 margin=>margin: @value([^;]*)\;;
+marginBottom=>margin-bottom: @value([^;]*)\;;
 marginLeft=>margin-left: @value([^;]*)\;;
 marginRight=>margin-right: @value([^;]*)\;;
+marginTop=>margin-top: @value([^;]*)\;;
 maxHeight=>max-height: @value([^;]*)\;;
+maxWidth=>max-width: @value([^;]*)\;;
 overflow=>overflow: @value([^;]*)\;;
 overflowY=>overflow-y: @value([^;]*)\;;
 padding=>padding: @value([^;]*)\;;

@@ -88,7 +88,7 @@ for => for \({expressionList}_\; {expression}_\; {expression}\) {commandBody};
 #Be careful- varDeclarationExpression and assignment already have terminating semicolons, don't repeat them 
 #here
 
-for => for \(_var {initializeList}_\; {expression}_\; {expression}_\) {commandBody};
+for => for \(_var {initializeList}_\; {expression}_\; {expression}?_\) {commandBody};
 
 #for => for \({assignment}_ {expression}_\; {expression}\) {commandBody};
 

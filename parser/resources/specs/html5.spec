@@ -63,6 +63,8 @@ separator: '\n'
 
 ====[widget:script]========
 
+a=><a_{attribute}*_>{bodyNode}*</a>;
+
 audio=>
 <audio_{attribute}*_>
   {source}*
@@ -98,6 +100,8 @@ span=>
 </span>
 ;
 
+textArea=><textarea_{attribute}*_>.*</textarea>;
+
 form=>
 <form_{attribute}*_>
   {bodyNode}*
@@ -108,11 +112,11 @@ hr=><hr_>;
 hr=><hr_/>;
 
 img=>
-<img_{attribute}*_/>
+<img_{attribute}*_/?>
 ;
 
 input=>
-<input_{attribute}*_/>
+<input_{attribute}*_/?>
 ;
 
 select=>

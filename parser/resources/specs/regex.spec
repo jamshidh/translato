@@ -28,6 +28,8 @@ escapedDot=>\\\.;
 escapedLSquareBracket=>\\\[;
 escapedRSquareBracket=>\\\];
 
+escapedCR=>\\r;
+
 inlineCharset=>{escapedCharsetChar};
 
 charset=>\[{charsetChar}*\];

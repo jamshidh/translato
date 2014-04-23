@@ -3,10 +3,10 @@ version: 0.0.1
 cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
-license-file: ""
 description:  
 data-files: greenBall.png redBall.png specs/html.spec specs/js.spec 
 	    specs/css.spec specs/html5.spec specs/c.spec specs/xml.spec
+            specs/regex.spec specs/e4x.spec
 	    builtins.spec
 data-dir: resources
 extra-source-files: ""

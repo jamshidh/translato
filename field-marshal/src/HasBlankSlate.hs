@@ -1,17 +1,4 @@
 {-# LANGUAGE TemplateHaskell #-}
------------------------------------------------------------------------------
---
--- Module      :  HasBlankSlate
--- Copyright   :
--- License     :  AllRightsReserved
---
--- Maintainer  :
--- Stability   :
--- Portability :
---
--- |
---
------------------------------------------------------------------------------
 
 module HasBlankSlate (
     Record(..),
@@ -107,17 +94,3 @@ getRF' (RecC name fields) = getFieldInfo <$> fields
 
 getFieldInfo :: (Name, Strict, Type) -> (String, Type)
 getFieldInfo (name, _, theType) = (nameBase name, theType)
-
-
-
-
-
-
-
-
-
-
-
-
-
-

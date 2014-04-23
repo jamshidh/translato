@@ -2,26 +2,14 @@
 {-# LANGUAGE MultiParamTypeClasses #-}
 {-# LANGUAGE FlexibleInstances #-}
 {-# OPTIONS_GHC -Wall #-}
------------------------------------------------------------------------------
---
--- Module      :  FieldMarshal
--- Copyright   :
--- License     :  AllRightsReserved
---
--- Maintainer  :
--- Stability   :
--- Portability :
---
--- |
---
------------------------------------------------------------------------------
 
 module FieldMarshal (
     FieldMarshal(..),
     deriveFieldMarshal,
     setFields,
     createRecord,
-    module HasBlankSlate
+    module HasBlankSlate,
+    module Convertable
 ) where
 
 import Data.Functor
@@ -29,6 +17,7 @@ import Language.Haskell.TH
 
 --import Debug.Trace
 
+import Convertable
 import HasBlankSlate
 
 class FieldMarshal record value where

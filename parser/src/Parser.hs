@@ -1,4 +1,9 @@
-{-# LANGUAGE CPP, TemplateHaskell #-}
+{-# LANGUAGE CPP, TemplateHaskell, MultiParamTypeClasses #-}
+
+{-# LANGUAGE MultiParamTypeClasses #-}
+{-# LANGUAGE TypeSynonymInstances, FlexibleInstances #-}
+
+
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -27,8 +32,11 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 import Data.Tree
 import qualified Data.Map as M
+import Language.Haskell.TH
 import System.FilePath
 import System.IO
+
+import FieldMarshal
 
 import ArgOpts
 import CharSet
@@ -218,13 +226,17 @@ splitReparseString reparseName (Ch c:rest) = (TL.cons c out, rest')
 
 ---------
 
+
 data Options = Options { specName::Maybe String, inputFileName::String }
+
+$(deriveFieldMarshal ''Options ''String)
+
 deflt::Options
 deflt = Options { specName = Nothing, inputFileName="-" }
 
 parseMain::[String]->IO ()
 parseMain args = do
-    let options = $(arg2Opts ''Options ["inputFileName"]) args deflt
+    let options = args2Opts args ["inputFileName"] deflt
 
     let theSpecName =
           case msum [specName options, getFileExtension $ inputFileName options] of

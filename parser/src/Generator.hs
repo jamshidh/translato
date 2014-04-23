@@ -1,4 +1,4 @@
-{-# Language TemplateHaskell, OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, OverloadedStrings #-}
 -- {-# OPTIONS_GHC -Wall #-}
 -----------------------------------------------------------------------------
 --
@@ -35,6 +35,8 @@ import qualified Data.Text.Lazy as TL
 import qualified Data.Text.Lazy.IO as TL
 import Text.XML
 import Text.XML.Cursor
+
+import FieldMarshal
 
 import Paths_parser
 
@@ -309,9 +311,14 @@ fingerprintMatches g (cursorAttNames, cursorTagNames) (seqAttNames, seqLinkNames
             [ctn] -> or(isA g ctn <$> [linkName|Just linkName<-seqLinkNames])
             _ -> error "Huh? cursor fingerprint should only have the *first* tagName"
 
+maximumsUsing::Ord b=>(a->b)->[a]->[a]
+maximumsUsing f list = filter (\x -> f x == max) list
+    where max = maximum (f <$> list)
+
 ----------------
 
 data Options = Options { specName::String }
+$(deriveFieldMarshal ''Options ''String)
 
 deflt::Options
 deflt = Options{specName="qqqq.spec"}
@@ -319,15 +326,12 @@ deflt = Options{specName="qqqq.spec"}
 generatorMain::[String]->IO ()
 generatorMain args = do
     
-  let options = $(arg2Opts ''Options ["specName"]) args deflt
+  let options = args2Opts args ["specName"] deflt
 
   grammar <- loadGrammarAndSimplifyForGenerate $ specName options
   
   putStrLn =<< generateFromText grammar <$> TL.getContents
 
-maximumsUsing::Ord b=>(a->b)->[a]->[a]
-maximumsUsing f list = filter (\x -> f x == max) list
-    where max = maximum (f <$> list)
 
 
 

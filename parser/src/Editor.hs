@@ -1,4 +1,4 @@
-{-# LANGUAGE TemplateHaskell, OverloadedStrings #-}
+{-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses, OverloadedStrings #-}
 
 -----------------------------------------------------------------------------
 --
@@ -51,7 +51,7 @@ import System.Glib.Properties
 --import System.IO
 --import System.IO.Unsafe
 
-
+import FieldMarshal
 
 import Paths_parser
 
@@ -526,6 +526,7 @@ doFind=do
 -----------------------
 
 data Options = Options { specName::Maybe String, fileName::String, qqqq::Int } deriving (Show, Read)
+$(deriveFieldMarshal ''Options ''String)
 deflt = Options { specName=Nothing, fileName="fred", qqqq=1 }
 
 getExtension x =
@@ -535,7 +536,7 @@ getExtension x =
 
 editMain::[String]->IO ()
 editMain args = do
-    let options = $(arg2Opts ''Options ["fileName"]) args deflt
+    let options = args2Opts args ["fileName"] deflt
 
     specFileName <- case msum [specName options, getFileExtension $ fileName options] of
                     Just x -> getDataFileName ("specs/" ++ x ++ ".spec")

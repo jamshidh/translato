@@ -1,4 +1,4 @@
-{-# LANGUAGE OverloadedStrings, TemplateHaskell #-}
+{-# LANGUAGE OverloadedStrings, TemplateHaskell, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses #-}
 -----------------------------------------------------------------------------
 --
 -- Module      :  ParseElements
@@ -27,6 +27,8 @@ import qualified Data.Text.Lazy.IO as TL
 import Text.XML
 import Text.XML.Cursor
 import System.Console.GetOpt
+
+import FieldMarshal
 
 import ArgOpts
 import Parser
@@ -105,6 +107,10 @@ input2Output g c = node c
 ----------------
 
 data Options = Options { specFileName::String }
+
+$(deriveFieldMarshal ''Options ''String)
+
+
 deflt = Options { specFileName = "file.spec" }
 
 try::(Show err)=>Either err a->a
@@ -113,7 +119,7 @@ try (Right a) = a
 
 parseElementsMain::[String]->IO ()
 parseElementsMain args = do
-    let options = $(arg2Opts ''Options ["specFileName"]) args deflt
+    let options = args2Opts args ["specFileName"] deflt
     grammar <- loadGrammarAndSimplifyForParse (specFileName options)
     contents<-TL.getContents
     let doc=try(parseText def contents)

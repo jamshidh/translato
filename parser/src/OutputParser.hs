@@ -1,4 +1,5 @@
-{-# LANGUAGE CPP, TemplateHaskell #-}
+{-# LANGUAGE TemplateHaskell, TypeSynonymInstances, FlexibleInstances, MultiParamTypeClasses #-}
+{-# LANGUAGE CPP #-}
 {-# LANGUAGE QuasiQuotes #-}
 {-# LANGUAGE OverloadedStrings #-}
 
@@ -16,17 +17,22 @@ import qualified Data.Text.Lazy.IO as TL
 import System.FilePath
 import System.IO
 
+import FieldMarshal
+
 import ArgOpts
 import Parser
 
 
 data Options = Options { specName::Maybe String, inputFileName::String }
+
+$(deriveFieldMarshal ''Options ''String)
+
 deflt::Options
 deflt = Options { specName = Nothing, inputFileName="-" }
 
 pparseMain::[String]->IO ()
 pparseMain args = do
-    let options = $(arg2Opts ''Options ["inputFileName"]) args deflt
+    let options = args2Opts args ["inputFileName"] deflt
 
     let theSpecName =
           case msum [specName options, getFileExtension $ inputFileName options] of

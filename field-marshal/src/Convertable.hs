@@ -30,6 +30,12 @@ instance Convertable Int String where
 instance Convertable String String where
     convert = id
 
+instance Convertable a (Maybe a) where
+    convert x = Just x
+
+instance Convertable (Maybe a) a where
+    convert (Just x) = x
+
 instance Convertable String Int where
     convert = read
 

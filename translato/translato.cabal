@@ -3,21 +3,20 @@ version: 0.0.1
 cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
-license-file: ""
 data-files: config.spec reorganize.xsl widget2js.xsl
 data-dir: resources
  
 library
     build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
-                   ua-parser >=0.3 && <0.4, resourcet >=0.4.9 && <0.5,
-                   conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
-                   MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
-                   aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
+                   ua-parser -any, resourcet -any,
+                   conduit -any, xml-picklers >=0.3.4 && <0.4,
+                   QuickCheck -any,
+                   aeson -any, base -any, bytestring >=0.10.0.2 && <0.11,
                    containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
-                   json >=0.7 && <0.8, parser -any, process >=1.2.0.0 && <1.3,
-                   text >=0.11.2.3 && <0.12, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit >=1.1.0.9 && <1.2,
+                   json >=0.7 && <0.8, parser -any, process -any,
+                   text -any, transformers >=0.3.0.0 && <0.4,
+                   utf8-string >=0.3.7 && <0.4, xml-conduit -any,
                    parser -any
     exposed-modules:LibContent
     exposed: True
@@ -26,18 +25,19 @@ library
     other-modules: WidgetParser WidgetFormatter ShimConfig MergerMain
                    Widget WidgetJSLibrary Format WidgetMerger Paths_translato
                    Reorganizer Shims WidgetLibGenerator Libs BrowserTools
+                   ShimLibs
  
 executable translato
     build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
-                   ua-parser >=0.3 && <0.4, resourcet >=0.4.9 && <0.5,
-                   conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
-                   MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
-                   aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
+                   ua-parser -any, resourcet -any,
+                   conduit -any, xml-picklers >=0.3.4 && <0.4,
+                   QuickCheck -any,
+                   aeson -any, base -any, bytestring >=0.10.0.2 && <0.11,
                    containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
-                   json >=0.7 && <0.8, parser -any, process >=1.2.0.0 && <1.3,
-                   text >=0.11.2.3 && <0.12, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit >=1.1.0.9 && <1.2,
+                   json >=0.7 && <0.8, parser -any, process -any,
+                   text -any, transformers >=0.3.0.0 && <0.4,
+                   utf8-string >=0.3.7 && <0.4, xml-conduit -any,
                    cmdargs -any, either -any
     main-is: Main.hs
     buildable: True
@@ -48,15 +48,15 @@ executable translato
  
 executable mergo
     build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
-                   ua-parser >=0.3 && <0.4, resourcet >=0.4.9 && <0.5,
-                   conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
-                   MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
-                   aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
+                   ua-parser -any, resourcet -any,
+                   conduit -any, xml-picklers >=0.3.4 && <0.4,
+                   QuickCheck -any,
+                   aeson -any, base -any, bytestring >=0.10.0.2 && <0.11,
                    containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
-                   json >=0.7 && <0.8, parser -any, process >=1.2.0.0 && <1.3,
-                   text >=0.11.2.3 && <0.12, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit >=1.1.0.9 && <1.2
+                   json >=0.7 && <0.8, parser -any, process -any,
+                   text -any, transformers >=0.3.0.0 && <0.4,
+                   utf8-string >=0.3.7 && <0.4, xml-conduit -any
     main-is: Merger.hs
     buildable: True
     hs-source-dirs: src
@@ -65,15 +65,15 @@ executable mergo
  
 executable generateWidgetLibs
     build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
-                   ua-parser >=0.3 && <0.4, resourcet >=0.4.9 && <0.5,
-                   conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
-                   MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
-                   aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
+                   ua-parser -any, resourcet -any,
+                   conduit -any, xml-picklers >=0.3.4 && <0.4,
+                   QuickCheck -any,
+                   aeson -any, base -any, bytestring >=0.10.0.2 && <0.11,
                    containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
-                   json >=0.7 && <0.8, parser -any, process >=1.2.0.0 && <1.3,
-                   text >=0.11.2.3 && <0.12, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit >=1.1.0.9 && <1.2
+                   json >=0.7 && <0.8, parser -any, process -any,
+                   text -any, transformers >=0.3.0.0 && <0.4,
+                   utf8-string >=0.3.7 && <0.4, xml-conduit -any
     main-is: WidgetLibGeneratorMain.hs
     buildable: True
     hs-source-dirs: src
@@ -82,15 +82,15 @@ executable generateWidgetLibs
  
 executable libo
     build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
-                   ua-parser >=0.3 && <0.4, resourcet >=0.4.9 && <0.5,
-                   conduit >=1.0.9.3 && <1.1, xml-picklers >=0.3.4 && <0.4,
-                   MissingH >=1.2.0.2 && <1.3, QuickCheck -any,
-                   aeson >=0.6.2.1 && <0.7, base -any, bytestring >=0.10.0.2 && <0.11,
+                   ua-parser -any, resourcet -any,
+                   conduit -any, xml-picklers >=0.3.4 && <0.4,
+                   QuickCheck -any,
+                   aeson -any, base -any, bytestring >=0.10.0.2 && <0.11,
                    containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
                    filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
-                   json >=0.7 && <0.8, parser -any, process >=1.2.0.0 && <1.3,
-                   text >=0.11.2.3 && <0.12, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit >=1.1.0.9 && <1.2,
+                   json >=0.7 && <0.8, parser -any, process -any,
+                   text -any, transformers >=0.3.0.0 && <0.4,
+                   utf8-string >=0.3.7 && <0.4, xml-conduit -any,
                    data-default -any, directory-tree -any
     main-is: LibContentMain.hs
     buildable: True

@@ -1,0 +1,10 @@
+
+if [ "$1" == "" ]
+then
+	echo "You need to supply the html file"
+	exit 1;
+fi
+
+parser parse $1 --specName html5 | xmlstarlet tr html2c.xsl > test.cc
+
+make test

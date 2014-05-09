@@ -110,14 +110,28 @@ void action<xsl:value-of select="position()"/>(xmlDocPtr doc, map&lt;string, xml
 
 
 
-  <xsl:template mode="addAttr" match="attribute">
+  <xsl:template mode="addAttr" match="e4xAttribute">
     xmlNewProp(elem<xsl:apply-templates mode="elName" select=".."/>, BAD_CAST "<xsl:value-of select="@name"/>", BAD_CAST "<xsl:value-of select="@value"/>");
   </xsl:template>
 
-  <xsl:template match="element">
-    xmlNodePtr elem<xsl:apply-templates mode="elName" select="."/> = xmlNewNode(elem<xsl:apply-templates mode="elName" select=".."/>->ns, BAD_CAST "<xsl:value-of select="@tagName"/>");
+  <xsl:template mode="addAttr" match="e4xExprAttr">
+    xmlNewProp(elem<xsl:apply-templates mode="elName" select=".."/>, BAD_CAST "<xsl:value-of select="@name"/>", BAD_CAST <xsl:apply-templates mode="addAttr" select="function"/>.c_str());
+  </xsl:template>
 
-    <xsl:apply-templates mode="addAttr" select="attribute"/>
+  <xsl:template mode="addAttr" match="function[count(*) = 2]">
+    <xsl:apply-templates mode="addAttr" select="*[1]"/>(<xsl:apply-templates mode="addAttr" select="*[2]"/>)</xsl:template>
+
+  <xsl:template mode="addAttr" match="variable">
+    <xsl:value-of select="@name"/>
+  </xsl:template>
+
+  <xsl:template mode="addAttr" match="string">"<xsl:value-of select="@value"/>"</xsl:template>
+
+  <xsl:template match="e4xElement">
+    xmlNodePtr elem<xsl:apply-templates mode="elName" select="."/> = xmlNewNode(elem<xsl:apply-templates mode="elName" select=".."/>->ns, BAD_CAST "<xsl:value-of select="@e4xTagName"/>");
+
+    <xsl:apply-templates mode="addAttr" select="e4xAttribute"/>
+    <xsl:apply-templates mode="addAttr" select="e4xExprAttr"/>
 
     <xsl:choose>
       <xsl:when test="../../before">xmlAddPrevSibling</xsl:when>
@@ -130,14 +144,14 @@ void action<xsl:value-of select="position()"/>(xmlDocPtr doc, map&lt;string, xml
   </xsl:template>
 
   <xsl:template match="complexElem">
-    <xsl:apply-templates select=".//element"/>
+    <xsl:apply-templates select=".//e4xElement"/>
   </xsl:template>
 
   <xsl:template match="mkattr">
   addAttribute(vars, "/child/job", "title", "supreme being");
   </xsl:template>
 
-  <xsl:template mode="elName" match="element">
+  <xsl:template mode="elName" match="e4xElement">
     <xsl:apply-templates mode="elName" select=".."/>_<xsl:value-of select="position()"/>
   </xsl:template>
 

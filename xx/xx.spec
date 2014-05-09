@@ -5,7 +5,7 @@ xxFile=>
 
 ====<subgrammars>======
 
-<{xml}>
+<{e4x}>
 
 ====</subgrammars>=====
 
@@ -13,7 +13,7 @@ xxFile=>
 
 xform=>{xpath}
 -----*
-{command}+;
+{xxCommand}+;
 
 separator: '=====+'
 
@@ -27,13 +27,13 @@ operators: '/'
 
 ====[/xpath]===
 
-====[command]====
+====[xxCommand]====
 
 mv=>mv {location} {xpath} {xpath};
 rm=>rm {xpath};
 mkelem=>mkelem {location} {xpath} {xxelem};
 
-====[/command]===
+====[/xxCommand]===
 
 ====[location]========
 before=>before;
@@ -52,6 +52,6 @@ name=>"{word}";
 
 emptyElem=>{name};
 
-complexElem=>{element};
+complexElem=>{e4xElement};
 
 ====[/xxelem]===

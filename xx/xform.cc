@@ -12,6 +12,8 @@
 
 using namespace std;
 
+#include "uniqueLabel.cc"
+
 xmlDocPtr theDocument;
 
 xmlDocPtr parseDoc(char *filename) {
@@ -85,6 +87,7 @@ void matchCall(xmlDocPtr doc, string prefix, map<string, xmlNodePtr> vars, const
   }
   
   if (xpath[1] == NULL) {
+    resetLabels();
     action(doc, vars);
     return;
   }

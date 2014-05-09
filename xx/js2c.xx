@@ -1,0 +1,6 @@
+lambda
+----
+mkelem before lambda <function><variable name='lambda'/></function>
+mkelem first /jsFile <expressionCommand><funcDeclaration name="lambda"/></expressionCommand>
+mv last lambda/* /jsFile/expressionCommand[1]/funcDeclaration
+rm lambda

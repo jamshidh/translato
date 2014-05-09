@@ -1,0 +1,15 @@
+
+set -e
+
+if [ "$1" == "" ]
+then
+	echo "You must supply an '.xx' file."
+	exit -1
+fi
+
+parser parse --specName xx.spec $1 | xmlstarlet tr xform_g.xsl > xform_g.cc
+
+rm -rf xform
+
+make
+

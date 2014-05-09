@@ -84,6 +84,7 @@ void matchCall(xmlDocPtr doc, string prefix, map<string, xmlNodePtr> vars, const
 
   if (prefix == "") {
     vars["."] = n->parent;
+    vars[string("/") + string((const char *) xmlDocGetRootElement(doc)->name)] = xmlDocGetRootElement(doc);
   }
   
   if (xpath[1] == NULL) {

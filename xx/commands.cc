@@ -84,9 +84,9 @@ xmlNodePtr getXPathNode(xmlDocPtr doc, xmlNodePtr n, const char *xpath) {
 
 xmlNodePtr getNode(xmlDocPtr doc, map<string, xmlNodePtr> &vars, const char *name, const char *funcName) {
   xmlNodePtr val = vars[string(name)];
-  //checkExistence(vars, val, name, funcName);
+  checkExistence(vars, val, name, funcName);
 
-  if (val == NULL) val = getXPathNode(doc, vars["."], name);
+  //if (val == NULL) val = getXPathNode(doc, vars["."], name);
 
   return val;
 }

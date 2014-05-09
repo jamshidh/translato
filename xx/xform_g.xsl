@@ -19,6 +19,10 @@
     <xsl:message terminate="yes">xform_g.xsl: Error, unknown tag "<xsl:value-of select="name()"/>" in xpath mode.</xsl:message>
   </xsl:template>
 
+  <xsl:template mode="xpath-of-e4x" match="*">
+    <xsl:message terminate="yes">xform_g.xsl: Error, unknown tag "<xsl:value-of select="name()"/>" in xpath-of-e4x mode.</xsl:message>
+  </xsl:template>
+
   <xsl:template mode="c-xpath" match="*">
     <xsl:message terminate="yes">xform_g.xsl: Error, unknown tag "<xsl:value-of select="name()"/>" in xpath mode.</xsl:message>
   </xsl:template>
@@ -141,6 +145,8 @@ void action<xsl:value-of select="position()"/>(xmlDocPtr doc, map&lt;string, xml
       <xsl:otherwise>xmlAddChild</xsl:otherwise>
     </xsl:choose>(elem<xsl:apply-templates mode="elName" select=".."/>, elem<xsl:apply-templates mode="elName" select="."/>);
 
+    vars["<xsl:apply-templates mode="xpath-of-e4x" select="."/>"] = elem<xsl:apply-templates mode="elName" select="."/>;
+
   </xsl:template>
 
   <xsl:template match="complexElem">
@@ -158,6 +164,21 @@ void action<xsl:value-of select="position()"/>(xmlDocPtr doc, map&lt;string, xml
   <xsl:template mode="elName" match="complexElem">
     <xsl:value-of select="count(preceding::complexElem)"/>
   </xsl:template>
+
+
+  <xsl:template mode="xpath-of-e4x" match="e4xElement">
+    <xsl:apply-templates mode="xpath-of-e4x" select=".."/>/<xsl:value-of select="@e4xTagName"/>
+  </xsl:template>
+
+  <xsl:template mode="xpath-of-e4x" match="complexElem[../first]">
+    <xsl:apply-templates mode="xpath" select="../*[2]"/>
+  </xsl:template>
+
+  <xsl:template mode="xpath-of-e4x" match="complexElem[../before]">
+    <xsl:value-of select="previous-sibling/@name"/>
+  </xsl:template>
+
+
 
 
 </xsl:stylesheet>

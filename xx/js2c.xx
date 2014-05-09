@@ -2,5 +2,5 @@ lambda
 ----
 mkelem before lambda <function><variable name={u("lambda")}/></function>
 mkelem first /jsFile <expressionCommand><funcDeclaration name={u("lambda")}/></expressionCommand>
-mv last lambda/* /jsFile/expressionCommand[1]/funcDeclaration
+mv last lambda/* /jsFile/expressionCommand/funcDeclaration
 rm lambda

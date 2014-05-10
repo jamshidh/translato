@@ -15,7 +15,7 @@ jsFile =>
 
 ====[parameter]===============
 
-parameter =>{varName};
+parameter =>{varName}(:@type)?;
 
 separator: '_, '
 
@@ -39,7 +39,7 @@ varName=>[$_a-zA-Z][$_a-zA-Z0-9]*;
 
 ====[varDeclaration]========
 
-varDeclaration => @name([$_a-zA-Z][$_a-zA-Z0-9]*)_(=_{expression}_)?;
+varDeclaration => @name([$_a-zA-Z][$_a-zA-Z0-9]*)(:@type)?_(=_{expression}_)?;
 
 separator: '_,\n   '
 
@@ -188,7 +188,7 @@ paren => \(_{expression}_\);
 
 operators: '_._'
 
-funcDeclaration => function @name([$_a-zA-Z][$_a-zA-Z0-9]*)\(_{parameter}*_\) {fullBody};
+funcDeclaration => function @name([$_a-zA-Z][$_a-zA-Z0-9]*)\(_{parameter}*_\)(:@type)? {fullBody};
 
 function => {lvalue}\(_{expression}*_\);
 

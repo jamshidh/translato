@@ -148,7 +148,7 @@ fillInVariableAssignments (c:rest) = c:fillInVariableAssignments rest
 fillInVariableAssignments [] = []
 
 fillInAttributes::EString->EString
-fillInAttributes (EStart name atts:rest) =
+fillInAttributes (EStart name atts:rest) = 
     FilledInEStart name attributesWithValues:fillInAttributes restWithoutValues
     where
         (attributesWithValues, restWithoutValues) = splitAtts rest $ M.toList atts
@@ -157,20 +157,23 @@ fillInAttributes (EStart name atts:rest) =
         splitAtts (VAssign name value _:rest) neededAtts | name `elem` (fst <$> neededAtts) =
              ((name, value):atts, rest2)
             where (atts, rest2) = splitAtts rest (filter ((/= name) . fst) neededAtts)
-        splitAtts (VAssign name value _:rest) neededAtts = error "attribute value not needed"
+        splitAtts (VAssign name value _:rest) neededAtts = error ("attribute " ++ show name ++ " not needed: just need " ++ show neededAtts)
         splitAtts (c@(EEnd _):rest) neededAtts | null $ filter (not . snd) neededAtts = ([], c:rest)
         splitAtts rest [] = ([], rest)
         splitAtts (EEnd _:_) neededAtts = error ("Error in splitAtts: missing attributes '" ++ show neededAtts ++ "'")
-        splitAtts (EStart _ _:rest) neededAtts = splitAtts (itemsAfterEEnd rest) neededAtts
+        splitAtts (e@(EStart _ _):rest) neededAtts =
+	  (e:) <$> (inside ++) <$> splitAtts after neededAtts
+	       where (after, inside) = itemsAfterEEnd rest
         splitAtts (c:rest) neededAtts = fmap (c:) (splitAtts rest neededAtts)
         splitAtts sq neededAtts =
             error ("Missing case in splitAtts: sq = " ++ show sq ++ ", neededAtts = " ++ show neededAtts)
 
-        itemsAfterEEnd::EString->EString
+        itemsAfterEEnd::EString->(EString, EString)
         itemsAfterEEnd [] = error ("Error in itemsAfterEEnd: hit end of estring without an EEnd")
-        itemsAfterEEnd (EEnd _:rest) = rest
-        itemsAfterEEnd (EStart _ _:rest) = itemsAfterEEnd $ itemsAfterEEnd rest
-        itemsAfterEEnd (_:rest) = itemsAfterEEnd rest
+        itemsAfterEEnd (e@(EEnd _):rest) = (e:rest, [])
+        itemsAfterEEnd (e@(EStart _ _):rest) = (e:) <$> (inside ++) <$> itemsAfterEEnd after
+	    where (after, inside) = itemsAfterEEnd rest
+        itemsAfterEEnd (c:rest) = (c:) <$> itemsAfterEEnd rest
 
 
 
@@ -212,7 +215,8 @@ expandOperatorsInBlock::EString->EString
 expandOperatorsInBlock (FilledInEStart name atts:rest) =
     expandOperatorsInBlock (NestedItem (FilledInEStart name atts:expandedBlockString ++ [endTag]):rest2)
     where
-        (blockString, endTag, rest2) = getNestedItem rest
+        (blockString, endTag, rest2) = --jtrace ("endtag: " ++ show endTag) $ 
+		      getNestedItem rest
         expandedBlockString = expandOperatorsInBlock blockString
 expandOperatorsInBlock (n@(NestedItem _):t@(InfixTag _):FilledInEStart name atts:rest) =
     expandOperatorsInBlock (n:t:NestedItem (FilledInEStart name atts:expandedBlockString ++ [endTag]):rest2)
@@ -226,20 +230,19 @@ expandOperatorsInBlock (NestedItem item:InfixTag InfixOp{opName=name,opAssociati
         where (inside, outside) = splitByEndCap rest
 
 
-expandOperatorsInBlock
-    (NestedItem left:InfixTag o1:NestedItem right:InfixTag o2:rest)
-    =  simplifyOpPair left o1 right o2 rest
+expandOperatorsInBlock (NestedItem left:InfixTag o1:NestedItem right:InfixTag o2:rest) =
+    simplifyOpPair left o1 right o2 rest
 expandOperatorsInBlock (NestedItem left:InfixTag InfixOp{opName=name}:NestedItem right:rest) =
     [FilledInEStart name []] ++ left ++ right ++ [EEnd name] ++ expandOperatorsInBlock rest
+expandOperatorsInBlock [NestedItem item] = item
 expandOperatorsInBlock (NestedItem left:e@(FilledInEStart _ _):rest) =
     left ++ expandOperatorsInBlock (e:rest)
-expandOperatorsInBlock [NestedItem item] =  item
 expandOperatorsInBlock [NestedItem item, Fail err] = item ++ [Fail err]
 expandOperatorsInBlock items | null $ filter (not . isCharacter) items = items
   where
     isCharacter (Ch _) = True
     isCharacter _ = False
-expandOperatorsInBlock [] =  []
+expandOperatorsInBlock [] = []
 expandOperatorsInBlock s = s --Only needed for error reporting....  Note, this *will* pass through inline operators and nested items that should not be passed through
   --error ("Missing case in expandOperatorsInBlock: (" ++ (format =<< s))
 

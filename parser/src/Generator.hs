@@ -301,6 +301,7 @@ getAllowedFirstLinkNames (SepBy 0 [Link _ linkName] _:rest) =
     Just linkName:getAllowedFirstLinkNames rest --Only return the first name for now (possibly forever)
 getAllowedFirstLinkNames (SepBy 1 sq _:_) = 
     getAllowedFirstLinkNames sq
+getAllowedFirstLinkNames (Or seqs:rest) = getAllowedFirstLinkNames =<< (++ rest) <$> seqs
 getAllowedFirstLinkNames (x:rest) = getAllowedFirstLinkNames rest
 
 fingerprintMatches::Grammar->(S.Set TL.Text, [TL.Text])->(S.Set TL.Text, [Maybe TL.Text])->Bool

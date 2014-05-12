@@ -1,9 +1,7 @@
 
-CPPFLAGS += -g $(shell pkg-config --cflags libxml-2.0)
-LDFLAGS += -g
-LOADLIBES += $(shell pkg-config --libs libxml-2.0)
-
-xform:
-
-clean:
-	rm xform
+install:
+	mkdir -p /usr/local/share/xx
+	mkdir -p /usr/local/bin
+	cp share/* /usr/local/share/xx/
+	cp xxcomp /usr/local/bin/
+	cp xxproc /usr/local/bin/

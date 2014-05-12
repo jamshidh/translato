@@ -1,0 +1,31 @@
+
+set -e
+
+set -o pipefail
+
+temp=/tmp/`uuidgen`/
+
+mkdir $temp
+
+if [ "$1" == "" ]
+then
+	echo "You must supply an '.xx' file."
+	exit -1
+fi
+
+parser parse --specName /usr/local/share/xx/xx.spec $1 | xmlstarlet tr /usr/local/share/xx/xform_g.xsl > $temp/xform_g.cc
+
+cp /usr/local/share/xx/xform.cc $temp/
+cp /usr/local/share/xx/commands.cc $temp/
+cp /usr/local/share/xx/uniqueLabel.cc $temp/
+cp /usr/local/share/xx/Makefile $temp/
+
+pushd $temp
+
+make
+
+popd
+
+cp $temp/xform `echo $1 | perl -pe 's/\.\w+$//'`
+
+rm -rf $temp

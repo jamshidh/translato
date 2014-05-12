@@ -1,0 +1,26 @@
+
+set -e
+
+set -o pipefail
+
+temp=/tmp/`uuidgen`
+
+mkdir $temp
+
+if [ "$1" == "" ]
+then
+	echo "You must supply an '.xx' file."
+	exit -1
+fi
+
+cp $1 $temp/tempExec.xx
+
+pushd $temp
+
+xxcomp tempExec.xx
+
+popd
+
+$temp/tempExec $2
+
+rm -rf $temp

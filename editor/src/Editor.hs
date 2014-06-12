@@ -53,7 +53,7 @@ import System.Glib.Properties
 
 import FieldMarshal
 
-import Paths_parser
+import Paths_editor
 
 import ArgOpts
 import DOM

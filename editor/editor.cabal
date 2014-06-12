@@ -1,0 +1,23 @@
+name: editor
+version: 0.0.1
+cabal-version: >=1.2
+build-type: Simple
+license: AllRightsReserved
+description:  
+data-files: greenBall.png redBall.png
+data-dir: resources
+extra-source-files: ""
+ 
+executable edito
+    build-depends: DOM -any, base -any, bindings-gobject -any,
+                   bytestring -any, case-insensitive -any, containers -any,
+                   directory -any, fgl -any, field-marshal -any, filepath -any,
+                   glib -any, gtk -any, lens -any, missing-foreign -any, 
+                   mtl -any, parsec -any, regex-compat -any, regex-posix -any,
+                   system-filepath -any, template-haskell -any, text -any,
+                   transformers -any, utf8-string -any, xml-conduit -any,
+                   parser -any
+    main-is: Main.hs
+    buildable: True
+    hs-source-dirs: src
+    other-modules: Editor 

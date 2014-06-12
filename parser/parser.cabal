@@ -4,7 +4,7 @@ cabal-version: >=1.2
 build-type: Simple
 license: AllRightsReserved
 description:  
-data-files: greenBall.png redBall.png specs/html.spec specs/js.spec 
+data-files: specs/html.spec specs/js.spec 
 	    specs/css.spec specs/html5.spec specs/c.spec specs/xml.spec
             specs/regex.spec specs/e4x.spec
 	    builtins.spec
@@ -20,6 +20,7 @@ library
                    system-filepath -any, template-haskell -any, text -any,
                    transformers -any, utf8-string -any, xml-conduit -any
     exposed-modules: ArgOpts CharSet Colors EStringTools EnhancedString
+                     Generator
                      Grammar GrammarParser GrammarTools LString LeftFactoring 
                      Lookahead OperatorNames ParseError Parser SequenceMap 
                      SequenceTools TreeTools ExpressionMatcher
@@ -40,10 +41,10 @@ executable parser
     main-is: Main.hs
     buildable: True
     hs-source-dirs: src
-    other-modules: ArgOpts OperatorNames WidgetRegister SequenceMap 
+    other-modules: ArgOpts OperatorNames SequenceMap 
                    OutputParser JDebug Grammar Colors FakeColors Parser 
-                   Editor RecordTypes SMShower Editor2 FileEditView Lookahead 
+                   RecordTypes SMShower Lookahead 
                    Format LString Main GrammarParser ParseError EnhancedString 
-                   EStringTools Shower CharSet GValue Generator ParseElements 
+                   EStringTools Shower CharSet Generator ParseElements 
                    LeftFactoring GrammarTools TreeTools SequenceTools 
                    ExpressionMatcher

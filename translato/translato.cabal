@@ -7,15 +7,15 @@ data-files: config.spec reorganize.xsl widget2js.xsl
 data-dir: resources
  
 library
-    build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
+    build-depends: void -any, xml-types -any,
                    ua-parser -any, resourcet -any,
                    conduit -any,
-                   aeson -any, base -any, bytestring >=0.10.0.2 && <0.11,
-                   containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
-                   filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
-                   json >=0.7 && <0.8, parser -any, process -any,
-                   text -any, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit -any,
+                   aeson -any, base -any, bytestring -any,
+                   containers -any, directory -any,
+                   filemanip -any, filepath -any,
+                   json -any, parser -any, process -any,
+                   text -any, transformers -any,
+                   utf8-string -any, xml-conduit -any,
                    parser -any
     exposed-modules:LibContent
     exposed: True
@@ -27,15 +27,15 @@ library
                    ShimLibs
  
 executable translato
-    build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
+    build-depends: void -any, xml-types -any,
                    ua-parser -any, resourcet -any,
                    conduit -any,
-                   aeson -any, base -any, bytestring >=0.10.0.2 && <0.11,
-                   containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
-                   filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
-                   json >=0.7 && <0.8, parser -any, process -any,
-                   text -any, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit -any,
+                   aeson -any, base -any, bytestring -any,
+                   containers -any, directory -any,
+                   filemanip -any, filepath -any,
+                   json -any, parser -any, process -any,
+                   text -any, transformers -any,
+                   utf8-string -any, xml-conduit -any,
                    cmdargs -any, either -any
     main-is: Main.hs
     buildable: True
@@ -45,15 +45,15 @@ executable translato
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable mergo
-    build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
+    build-depends: void -any, xml-types -any,
                    ua-parser -any, resourcet -any,
                    conduit -any,
-                   aeson -any, base -any, bytestring >=0.10.0.2 && <0.11,
-                   containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
-                   filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
-                   json >=0.7 && <0.8, parser -any, process -any,
-                   text -any, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit -any
+                   aeson -any, base -any, bytestring -any,
+                   containers -any, directory -any,
+                   filemanip -any, filepath -any,
+                   json -any, parser -any, process -any,
+                   text -any, transformers -any,
+                   utf8-string -any, xml-conduit -any
     main-is: Merger.hs
     buildable: True
     hs-source-dirs: src
@@ -61,15 +61,15 @@ executable mergo
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable generateWidgetLibs
-    build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
+    build-depends: void -any, xml-types -any,
                    ua-parser -any, resourcet -any,
                    conduit -any,
-                   aeson -any, base -any, bytestring >=0.10.0.2 && <0.11,
-                   containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
-                   filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
-                   json >=0.7 && <0.8, parser -any, process -any,
-                   text -any, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit -any
+                   aeson -any, base -any, bytestring -any,
+                   containers -any, directory -any,
+                   filemanip -any, filepath -any,
+                   json -any, parser -any, process -any,
+                   text -any, transformers -any,
+                   utf8-string -any, xml-conduit -any
     main-is: WidgetLibGeneratorMain.hs
     buildable: True
     hs-source-dirs: src
@@ -77,15 +77,15 @@ executable generateWidgetLibs
                    Widget WidgetJSLibrary Format WidgetMerger WidgetLibGenerator
  
 executable libo
-    build-depends: void >=0.6.1 && <0.7, xml-types >=0.3.4 && <0.4,
+    build-depends: void -any, xml-types -any,
                    ua-parser -any, resourcet -any,
                    conduit -any,
-                   aeson -any, base -any, bytestring >=0.10.0.2 && <0.11,
-                   containers >=0.5.0.0 && <0.6, directory >=1.2.0.1 && <1.3,
-                   filemanip >=0.3.6.2 && <0.4, filepath >=1.3.0.1 && <1.4,
-                   json >=0.7 && <0.8, parser -any, process -any,
-                   text -any, transformers >=0.3.0.0 && <0.4,
-                   utf8-string >=0.3.7 && <0.4, xml-conduit -any,
+                   aeson -any, base -any, bytestring -any,
+                   containers -any, directory -any,
+                   filemanip -any, filepath -any,
+                   json -any, parser -any, process -any,
+                   text -any, transformers -any,
+                   utf8-string -any, xml-conduit -any,
                    data-default -any, directory-tree -any
     main-is: LibContentMain.hs
     buildable: True

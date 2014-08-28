@@ -13,13 +13,11 @@ import Web.UAParser
 import ShimConfig
 
 userAgent2UAResult::String->IO UAResult
-userAgent2UAResult userAgentString = do
-  let userAgent = B.pack userAgentString
-  uaParser <- loadUAParser
+userAgent2UAResult userAgent = do
   return $
-     case parseUA uaParser $ userAgent of
+     case parseUA $ B.pack userAgent of
        Just x -> x
-       Nothing -> error $ "Malformed userAgent: " ++ B.unpack userAgent
+       Nothing -> error $ "Malformed userAgent: " ++ userAgent
 
 
 versionInRange::Version->VersionRange->Bool

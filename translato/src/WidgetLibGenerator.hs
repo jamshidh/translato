@@ -48,10 +48,8 @@ getWidgetNames shimDir = do
 
 getNeededShims::String->FilePath->IO [ShimName]
 getNeededShims userAgentString shimDir = do
-  uaParser <- loadUAParser
-
   let userAgent = 
-        case parseUA uaParser $ B.fromString userAgentString of
+        case parseUA $ B.fromString userAgentString of
             Just x -> x
             Nothing -> error $ "Malformed userAgent: " ++ userAgentString
   

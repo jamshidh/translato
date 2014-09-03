@@ -1,0 +1,4 @@
+
+browsers: *
+
+libs: serverFunction.js

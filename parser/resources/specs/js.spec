@@ -190,6 +190,8 @@ operators: '_._'
 
 funcDeclaration => function @name([$_a-zA-Z][$_a-zA-Z0-9]*)\(_{parameter}*_\)(:@type)? {fullBody};
 
+serverFuncDeclaration => serverFunction @name([$_a-zA-Z][$_a-zA-Z0-9]*)\(_{parameter}*_\)(:@type)? {fullBody};
+
 function => {lvalue}\(_{expression}*_\);
 
 arrayIndex => {lvalue}\[_{expression}_\];

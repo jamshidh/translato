@@ -4,7 +4,9 @@ function callServer(funcName, params) {
 
     var content = JSON.stringify({funcName:funcName, params:[].slice.apply(params)});
 
-    request.open('POST', location.href.substr(0, location.href.lastIndexOf(".")) + ".sjs", false);  // `false` makes the request synchronous
+    var locNoQuery = window.location.href.split('?')[0]
+
+    request.open('POST', locNoQuery.substr(0, locNoQuery.lastIndexOf(".")) + ".sjs", false);  // `false` makes the request synchronous
     request.send(content);
     
     if (request.status === 200) {

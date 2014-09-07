@@ -71,6 +71,7 @@ separator: ''
 ====[escapedCharsetChar]===========
 anyChar=>\.;
 wordChar=>\\w;
+lfChar=>\\n;
 notWordChar=>\\W;
 spaceChar=>\\s;
 notSpaceChar=>\\S;

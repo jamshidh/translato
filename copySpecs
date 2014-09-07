@@ -1,2 +1,2 @@
 
-cp parser/resources/specs/* ~/.cabal/share/parser-0.0.1/specs/
+cp parser/resources/specs/* ~/.cabal/share/x86_64-linux-ghc-7.8.2/parser-0.0.1/specs/

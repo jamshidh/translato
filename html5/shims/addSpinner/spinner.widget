@@ -1,0 +1,34 @@
+
+<widget>
+
+  <style>
+
+      spinner {
+        display: inline-block;
+        position: relative;
+      }
+      spinner[on]:after {
+        content: "";
+	background: url('/res/addSpinner/spinner.gif') no-repeat;
+	background-position: center;
+	position: absolute;
+	background-size: 60%;
+	top: 0px;
+	bottom: 0px;
+	left: 0px;
+	right: 0px;
+	margin-left: auto;
+	margin-right: auto;
+	margin-top: auto;
+	margin-bottom: auto;
+	background-color: rgba(0, 0, 0, 0.4);
+      }
+
+  </style>
+  <code>
+    document.createElement("spinner");
+  </code>
+</widget>
+
+
+

@@ -1,0 +1,8 @@
+
+set -e
+
+mkdir tempFrames
+nodejs makeFrames.js
+convert -delay 3 -loop 0 tempFrames/* spinner.gif
+rm tempFrames/frame*.svg
+rmdir tempFrames
